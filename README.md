@@ -4,9 +4,9 @@ Production LMS migrated from Floot to GitHub Pages + Supabase.
 
 ## Production
 
-- LMS: https://phuong301cp.github.io/icaew-lms/
-- Admin: https://phuong301cp.github.io/icaew-lms/admin.html
-- Lessons: https://phuong301cp.github.io/icaew-lms/lessons.html
+- LMS: https://accountinglms.github.io/
+- Admin: https://accountinglms.github.io/admin.html
+- Lessons: https://accountinglms.github.io/lessons.html
 
 ## Architecture
 
