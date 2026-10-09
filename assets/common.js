@@ -334,6 +334,135 @@ export async function restPatch(table, query, payload) {
   return text ? JSON.parse(text) : [];
 }
 
+export async function restDelete(table, query) {
+  const res = await authedFetch(`/rest/v1/${table}?${query}`, {
+    method: 'DELETE',
+    headers: { Prefer: 'return=representation' }
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(text || `Không xoá được ${table}.`);
+  return text ? JSON.parse(text) : [];
+}
+
+function safeFileName(name, fallback='file') {
+  return String(name || fallback)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-zA-Z0-9._-]+/g,'_')
+    .replace(/^_+|_+$/g,'')
+    .slice(0,120) || fallback;
+}
+
+export async function uploadChatFile(groupId, file) {
+  if (!groupId || !file) throw new Error('Thiếu nhóm hoặc file.');
+  if (Number(file.size || 0) > 20 * 1024 * 1024) throw new Error('File chat tối đa 20 MB.');
+  const session = await ensureSession();
+  const safe = safeFileName(file.name);
+  const storagePath = `${groupId}/${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${safe}`;
+  const encoded = storagePath.split('/').map(encodeURIComponent).join('/');
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/chat-files/${encoded}`, {
+    method:'POST',
+    headers:{
+      apikey:SUPABASE_KEY,
+      Authorization:`Bearer ${session.access_token}`,
+      'Content-Type':file.type || 'application/octet-stream',
+      'x-upsert':'false'
+    },
+    body:file
+  });
+  const text=await res.text();
+  if(!res.ok) throw new Error(text || 'Không upload được file chat.');
+  return {
+    storagePath,
+    name:file.name,
+    mime:file.type || 'application/octet-stream',
+    size:Number(file.size || 0)
+  };
+}
+
+export async function downloadChatFile(storagePath, fileName='download') {
+  const session=await ensureSession();
+  const encoded=String(storagePath||'').split('/').map(encodeURIComponent).join('/');
+  const res=await fetch(`${SUPABASE_URL}/storage/v1/object/authenticated/chat-files/${encoded}`,{
+    headers:{
+      apikey:SUPABASE_KEY,
+      Authorization:`Bearer ${session.access_token}`
+    }
+  });
+  if(!res.ok) throw new Error(await res.text() || 'Không tải được file.');
+  const blob=await res.blob();
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=safeFileName(fileName,'download');
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),30_000);
+}
+
+export function createRealtimeClient(session, subscriptions, onEvent) {
+  if (!session?.access_token) throw new Error('Thiếu phiên đăng nhập cho Realtime.');
+  const projectRef = new URL(SUPABASE_URL).hostname.split('.')[0];
+  const wsUrl = `wss://${projectRef}.supabase.co/realtime/v1/websocket?apikey=${encodeURIComponent(SUPABASE_KEY)}&vsn=1.0.0`;
+  let socket=null;
+  let heartbeat=null;
+  let reconnect=null;
+  let stopped=false;
+  let ref=0;
+  let joinRef=null;
+  const topic='realtime:portal-' + Math.random().toString(36).slice(2);
+  const nextRef=()=>String(++ref);
+  const send=(event,payload,refValue=nextRef())=>{
+    if(socket?.readyState!==WebSocket.OPEN) return null;
+    socket.send(JSON.stringify({topic,event,payload,ref:refValue,join_ref:joinRef}));
+    return refValue;
+  };
+  const connect=()=>{
+    if(stopped) return;
+    socket=new WebSocket(wsUrl);
+    socket.addEventListener('open',()=>{
+      joinRef=nextRef();
+      socket.send(JSON.stringify({
+        topic,event:'phx_join',ref:joinRef,join_ref:joinRef,
+        payload:{
+          config:{
+            broadcast:{ack:false,self:false},
+            presence:{enabled:false},
+            postgres_changes:(subscriptions||[]).map(item=>({
+              event:item.event||'*',
+              schema:item.schema||'public',
+              table:item.table,
+              ...(item.filter?{filter:item.filter}:{})
+            })),
+            private:false
+          },
+          access_token:session.access_token
+        }
+      }));
+      heartbeat=setInterval(()=>{ if(socket?.readyState===WebSocket.OPEN) socket.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:nextRef(),join_ref:null})); },20_000);
+    });
+    socket.addEventListener('message',event=>{
+      let msg=null;
+      try{msg=JSON.parse(event.data);}catch{return;}
+      if(msg?.event==='postgres_changes') onEvent?.(msg.payload);
+    });
+    socket.addEventListener('close',()=>{
+      clearInterval(heartbeat); heartbeat=null;
+      if(!stopped) reconnect=setTimeout(connect,1800);
+    });
+    socket.addEventListener('error',()=>socket?.close());
+  };
+  connect();
+  return {
+    stop(){
+      stopped=true;
+      clearInterval(heartbeat);
+      clearTimeout(reconnect);
+      try{socket?.close();}catch{}
+    }
+  };
+}
+
 export async function uploadImportFile(file) {
   const session = await ensureSession();
   const safe = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]+/g,'_').slice(0,120) || 'source';
