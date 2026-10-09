@@ -402,7 +402,7 @@ if(!upgradedCommunity.includes('id="social-tabs"')||!upgradedCommunity.includes(
  !upgradedCommunity.includes('assets/community-social.js')||!upgradedCommunity.includes('assets/community-voice.js')||
  !upgradedCommunity.includes('assets/community-social.css'))
  throw new Error('Social tabs, direct messages or voice call UI missing.');
-if(!voiceJs.includes("start_voice_call")||!voiceJs.includes("getUserMedia")||!voiceJs.includes("RTCPeerConnection"))
+if(!voiceJs.includes("start_media_call")||!voiceJs.includes("getUserMedia")||!voiceJs.includes("RTCPeerConnection"))
  throw new Error('Voice call signaling is incomplete.');
 if(!upgradedCommon.includes('export async function getChatFileBlob')||!chatSocialCss.includes('#social-tabs'))
  throw new Error('Secure private chat media display missing.');
