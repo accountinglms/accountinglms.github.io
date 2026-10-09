@@ -1186,10 +1186,9 @@
 
 
     function safePlainText(value) {
-        return String(value ?? '')
-            .replace(/<br\\s*\\/?\\s*>/gi, ' ')
-            .replace(/<\\/?(?:strong|b|em|i|sub|sup|code|small)\\b[^>]*>/gi, '')
-            .replace(/<[^>]*>/g, '');
+        const doc = new DOMParser().parseFromString(String(value ?? ''), 'text/html');
+        doc.querySelectorAll('br').forEach(br => br.replaceWith(doc.createTextNode(' ')));
+        return doc.body.textContent || '';
     }
 
     function loadQuestion() {
