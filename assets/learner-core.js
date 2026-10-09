@@ -886,6 +886,35 @@
         updateAllSidebarScores();
         updateResumeButton();
     };
+    // Explicit, single-account recovery for legacy browser-only progress.
+    // Do not silently attach the old global archive to a different user's cloud account.
+    window.lmsRecoverLegacyProgress = function() {
+        if (!offlineUserId) throw new Error('Cần đăng nhập trước khi khôi phục.');
+        const legacy = loadJSON('accountingLMSProgress_v2', {});
+        if (!legacy || typeof legacy !== 'object') return 0;
+        let imported = 0;
+        for (const chapter of courseData) {
+            for (const section of chapter.sections) {
+                const archived = legacy[section.id];
+                if (!archived || typeof archived !== 'object') continue;
+                const next = normalizeSectionState(archived, section.data.length);
+                const existing = normalizeSectionState(progressStore[section.id], section.data.length);
+                if ((Number(existing.updatedAt) || 0) >= (Number(next.updatedAt) || 0)) continue;
+                if (!next.isAnswered.some(Boolean) && !next.bookmarks.some(Boolean)
+                        && !next.draftSelections.some(v => v != null)) continue;
+                progressStore[section.id] = next;
+                savedProgress[section.id] = next;
+                imported++;
+            }
+        }
+        if (imported) {
+            saveProgress();
+            initSidebar();
+            updateAllSidebarScores();
+            updateResumeButton();
+        }
+        return imported;
+    };
     const THEME_KEY = 'icaewLMSTheme_v1';
 
     function getCurrentTheme() {
