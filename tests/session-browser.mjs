@@ -464,6 +464,58 @@ async function testCompactQuizToolsOnPhone(browser) {
   await context.close();
 }
 
+
+async function testMobileTopbarDoesNotCoverQuizStats(browser) {
+  for (const width of [390, 430]) {
+    const context = await browser.newContext({
+      serviceWorkers: 'block',
+      ignoreHTTPSErrors: true,
+      viewport: { width, height: 844 },
+      isMobile: true,
+      hasTouch: true
+    });
+    const page = await context.newPage();
+    await page.goto(baseURL + '/', { waitUntil:'domcontentloaded' });
+
+    const layout = await page.evaluate(() => {
+      document.documentElement.setAttribute('data-theme', 'light');
+      const quiz = document.querySelector('#quiz-container');
+      const body = document.querySelector('#quiz-body');
+      if (quiz) quiz.style.display = 'block';
+      if (body) body.style.display = 'block';
+
+      const topbar = document.querySelector('#mobile-topbar');
+      const main = document.querySelector('#main-area');
+      const overview = document.querySelector('#session-overview');
+      const title = document.querySelector('#section-title-display');
+
+      const topbarRect = topbar.getBoundingClientRect();
+      const mainStyle = getComputedStyle(main);
+      const overviewRect = overview.getBoundingClientRect();
+
+      return {
+        topbarBottom: topbarRect.bottom,
+        overviewTop: overviewRect.top,
+        mainPaddingTop: parseFloat(mainStyle.paddingTop),
+        topbarHeight: topbarRect.height,
+        sectionTitleDisplay: getComputedStyle(title).display,
+        overflow: document.documentElement.scrollWidth > window.innerWidth + 1
+      };
+    });
+
+    assert(layout.mainPaddingTop >= layout.topbarHeight + 8,
+      `Mobile main content offset is too small at ${width}px`);
+    assert(layout.overviewTop >= layout.topbarBottom + 8,
+      `Quiz statistics are covered by the fixed topbar at ${width}px`);
+    assert(layout.sectionTitleDisplay === 'none',
+      `Duplicate section title is still visible below the mobile topbar at ${width}px`);
+    assert(!layout.overflow,
+      `Mobile topbar fix caused horizontal overflow at ${width}px`);
+
+    await context.close();
+  }
+}
+
 const browser = await engine.launch({ headless: true });
 try {
   await testLoginMfaPersistence(browser);
@@ -473,6 +525,7 @@ try {
   await testLightThemeQuestionStatusColors(browser);
   await testLessonTranslationIsOnDemand(browser);
   await testCompactQuizToolsOnPhone(browser);
+  await testMobileTopbarDoesNotCoverQuizStats(browser);
   console.log(`PASS ${browserName}: session + UI + universal translation suite`);
 } finally {
   await browser.close();
