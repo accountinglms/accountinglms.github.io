@@ -555,7 +555,19 @@ async function testAvatarUpload(browser){
  await page.waitForFunction(()=>document.querySelector('#avatar-edit-dialog')?.hidden===true, null,{timeout:20000});
  assert(state.profiles[0].avatar_path?.startsWith(user.id+'/'),'Avatar must be stored in the account storage folder');
  assert(state.avatarFiles.size===1,'Avatar upload must reach private Supabase Storage');
- await page.waitForFunction(()=>document.querySelector('#profile-avatar')?.classList.contains('has-avatar-image'),null,{timeout:10000});
+ try{
+   await page.waitForFunction(()=>document.querySelector('#profile-avatar')?.classList.contains('has-avatar-image'),null,{timeout:10000});
+ }catch(error){
+   const debug=await page.evaluate(()=>{
+     const el=document.querySelector('#profile-avatar');
+     return {className:el?.className,token:el?.dataset?.avatarToken,text:el?.textContent,
+       css:el?.style.backgroundImage,hasImage:el?.classList.contains('has-avatar-image'),
+       state:document.querySelector('#avatar-edit-status')?.textContent,
+       online:navigator.onLine};
+   });
+   console.log('WEBKIT AVATAR DEBUG',JSON.stringify(debug),'stored files',state.avatarFiles.size,'profile',JSON.stringify(state.profiles[0]));
+   throw error;
+ }
  await page.goto(baseURL+'/home.html',{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>document.querySelector('#portal-avatar')?.classList.contains('has-avatar-image'),null,{timeout:10000});
  assert((await page.locator('#portal-avatar').evaluate(el=>getComputedStyle(el).backgroundImage)).startsWith('url('),
