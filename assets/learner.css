@@ -803,7 +803,7 @@
     .cloud-sync-label { color:#7e8a95; font-size:.69rem; margin-top:2px; }
     .cloud-actions { display:flex; gap:7px; margin-top:9px; }
     .cloud-mini-btn { border:1px solid #3d4751; background:#222930; color:#b9c4ce; border-radius:8px; min-height:34px; padding:6px 9px; font-size:.7rem; font-weight:700; cursor:pointer; flex:1; }
-    .sidebar-tools { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:8px; }
+    .sidebar-tools { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:7px; margin-top:8px; }
     .sidebar-tools a { display:flex; align-items:center; justify-content:center; min-height:36px; padding:7px 8px; border:1px solid #3b617b; border-radius:8px; background:#173047; color:#bfe6ff; font-weight:800; font-size:.75rem; text-decoration:none; }
     .sidebar-tools a[hidden] { display:none; }
     html[data-theme="light"] .auth-gate { background:rgba(239,244,249,.94); }
