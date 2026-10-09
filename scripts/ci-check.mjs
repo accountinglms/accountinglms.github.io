@@ -279,8 +279,11 @@ const historyJs = fs.readFileSync(path.join(root, 'assets/history.js'), 'utf8');
 if (!learnerHtml.includes('href="history.html"') || !learnerCore.includes('lms:attempt-submitted')) {
   throw new Error('Learner attempt-history entry point or submit event is missing.');
 }
-if (!cloudSync.includes('record_exercise_attempt') || !cloudSync.includes('ATTEMPT_QUEUE_KEY')) {
-  throw new Error('Attempt history is not persisted through the cloud/offline queue.');
+if (!cloudSync.includes('record_exercise_attempt') || !cloudSync.includes('ATTEMPT_QUEUE_BASE') || !cloudSync.includes('attemptQueueKey()')) {
+  throw new Error('Attempt history is not persisted through a per-user cloud/offline queue.');
+}
+if (!cloudSync.includes('payload.owner_user_id = cloudSession.user.id') || !cloudSync.includes('payload.owner_user_id !== cloudSession.user.id') || !learnerCore.includes('lmsBindOfflineUser')) {
+  throw new Error('Cross-account offline attempt isolation or user-scoped study state is missing.');
 }
 if (!cloudSync.includes('attempt_run_id') || !cloudSync.includes('attempt_recorded')) {
   throw new Error('Current attempt identity is not preserved in cloud progress.');
