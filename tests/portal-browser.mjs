@@ -248,8 +248,12 @@ async function testAutomaticSubjectCovers(browser){
   const persisted=await financeRow.locator('img').getAttribute('src');
   assert(persisted===preview,'Admin preview and Home cover must be identical for the same subject');
   assert((await financeRow.textContent()).includes('Tài chính'),'Finance subject should receive a finance-themed illustration');
-  assert((await financeRow.locator('img').evaluate(img=>{return img.complete&&img.naturalWidth===720})),
-    'Finance SVG image cannot be decoded in the browser');
+  await financeRow.locator('img').scrollIntoViewIfNeeded();
+  const financeImage=await financeRow.locator('img').evaluate(async img=>{
+    try{await img.decode();return {ok:img.naturalWidth===720,width:img.naturalWidth,complete:img.complete};}
+    catch(error){return {ok:false,width:img.naturalWidth,complete:img.complete,reason:String(error)};}
+  });
+  assert(financeImage.ok,'Finance SVG image cannot be decoded in the browser: '+JSON.stringify(financeImage));
 
   const accounting=await page.locator('.subject-row').filter({hasText:'Accounting'}).locator('img').getAttribute('src');
   assert(accounting!==persisted,'Different domains must not share the same cover');
@@ -259,8 +263,11 @@ async function testAutomaticSubjectCovers(browser){
   state.subjects.push({id:'costs_course',title:'Cost Accounting',is_active:true,sort_order:3,exam_level:'certificate'});
   await page.reload({waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.querySelectorAll('#subject-catalog .subject-row').length===4);
-  const covers=await page.locator('.subject-row img').evaluateAll(imgs=>imgs.map(img=>({
-    src:img.getAttribute('src'),width:img.naturalWidth
+  const coverImages=page.locator('.subject-row img');
+  for(let i=0;i<await coverImages.count();i++)await coverImages.nth(i).scrollIntoViewIfNeeded();
+  const covers=await coverImages.evaluateAll(async imgs=>await Promise.all(imgs.map(async img=>{
+    try{await img.decode();return {src:img.getAttribute('src'),width:img.naturalWidth};}
+    catch(error){return {src:img.getAttribute('src'),width:img.naturalWidth,reason:String(error)};}
   })));
   assert(covers.every(c=>c.width===720),'All future subjects need decodable covers');
   assert(new Set(covers.map(c=>c.src)).size===4,'Every subject should have deterministic individual art');
