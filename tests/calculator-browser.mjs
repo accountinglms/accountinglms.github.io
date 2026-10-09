@@ -94,6 +94,7 @@ try {
   assert(await calc.locator('.calc-control-deck').isVisible(), 'FX-style control deck is missing');
   assert(await calc.locator('.calc-nav-pad').isVisible(), 'FX-style navigation pad is missing');
   assert((await calc.locator('.calc-number-pad .calc-white-key').count()) === 24, 'FX-style 6-column number pad is incomplete');
+  assert((await calc.locator('.calc-mode-key .calc-shift-label').textContent()) === 'SETUP', 'DEG key lost its secondary label structure');
 
   const navBox = await calc.locator('.calc-nav-pad').boundingBox();
   const okBox = await calc.locator('.calc-nav-ok').boundingBox();
