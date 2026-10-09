@@ -286,10 +286,15 @@ if (!cloudSync.includes('record_exercise_attempt') || !cloudSync.includes('ATTEM
 if (!cloudSync.includes('payload.owner_user_id = cloudSession.user.id') || !cloudSync.includes('payload.owner_user_id !== cloudSession.user.id') || !learnerCore.includes('lmsBindOfflineUser')) {
   throw new Error('Cross-account offline attempt isolation or user-scoped study state is missing.');
 }
-if (!learnerHtml.includes('id="legacy-recover-btn"') ||
-    !learnerCore.includes('lmsRecoverLegacyProgress') ||
-    !cloudSync.includes('accountingLMSLegacyClaimedBy_v1')) {
-  throw new Error('Legacy progress archives require explicit owner-approved recovery.');
+if (!accountHtml.includes('id="account-recover-legacy"') ||
+    !accountJs.includes('accountingLMSLegacyClaimedBy_v1') ||
+    !accountJs.includes('confirmation.trim().toLowerCase()')) {
+  throw new Error('Account must own legacy recovery with explicit identity confirmation.');
+}
+if (learnerHtml.includes('id="cloud-logout-btn"') || learnerHtml.includes('id="cloud-password-btn"') ||
+    !accountHtml.includes('id="account-password-form"') ||
+    !learnerHtml.includes('sidebar-learning-nav') || !learnerHtml.includes('learner-start-options')) {
+  throw new Error('Learning workspace must be focused; all password and logout controls belong in Account.');
 }
 if (!cloudSync.includes('attempt_run_id') || !cloudSync.includes('attempt_recorded')) {
   throw new Error('Current attempt identity is not preserved in cloud progress.');
