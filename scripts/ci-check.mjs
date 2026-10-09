@@ -14,9 +14,12 @@ const required = [
   'assets/learner.css',
   'assets/account.css',
   'assets/history.css',
+  'assets/ui-system.css',
+  'assets/calculator.css',
   'assets/theme-init.js',
   'assets/learner-core.js',
   'assets/cloud-sync.js',
+  'assets/calculator.js',
   'assets/translation.js',
   'assets/common.js',
   'assets/account.js',
@@ -69,7 +72,7 @@ const scriptTags = learnerHtml.match(/<script\\b[^>]*>/gi) || [];
 if (scriptTags.some(tag => !/\\bsrc=/.test(tag)) || /<style\\b/i.test(learnerHtml)) {
   throw new Error('index.html must not contain inline script/style blocks after frontend refactor');
 }
-for (const asset of ['assets/learner.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/translation.js']) {
+for (const asset of ['assets/learner.css','assets/ui-system.css','assets/calculator.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/calculator.js','assets/translation.js']) {
   if (!learnerHtml.includes(asset)) throw new Error('index.html is missing modular learner asset: ' + asset);
 }
 
@@ -97,7 +100,7 @@ if (!edge.includes('get_my_access')) {
 }
 
 const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-for (const file of ['account.html','admin.html','lessons.html','diagnostics.html','history.html','manifest.webmanifest','assets/learner.css','assets/account.css','assets/history.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/translation.js','assets/common.js','assets/account.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js','assets/history.js']) {
+for (const file of ['account.html','admin.html','lessons.html','diagnostics.html','history.html','manifest.webmanifest','assets/learner.css','assets/account.css','assets/history.css','assets/ui-system.css','assets/calculator.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/calculator.js','assets/translation.js','assets/common.js','assets/account.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js','assets/history.js']) {
   if (!sw.includes(file)) throw new Error('Service worker cache list is missing: ' + file);
 }
 
@@ -248,6 +251,15 @@ if (!learnerHtml.includes('class="auth-gate hidden"')) {
 }
 if (!cloudSync.includes('function finishAuthBoot()') || !cloudSync.includes("document.body.classList.remove('auth-pending')")) {
   throw new Error('Auth boot state is not resolved by the cloud session layer.');
+}
+
+
+const calculatorJs = fs.readFileSync(path.join(root, 'assets/calculator.js'), 'utf8');
+if (!learnerHtml.includes('data-calculator-launcher') || !learnerHtml.includes('assets/calculator.js')) {
+  throw new Error('Integrated calculator launcher/script is missing from learner shell.');
+}
+if (!calculatorJs.includes('data-calc-drag') || !calculatorJs.includes('calc-close') || !calculatorJs.includes("angleMode = 'DEG'")) {
+  throw new Error('Calculator drag, close, or scientific mode support is incomplete.');
 }
 
 const historyHtml = fs.readFileSync(path.join(root, 'history.html'), 'utf8');
