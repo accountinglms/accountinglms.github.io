@@ -335,7 +335,10 @@ function renderTimeline() {
     const pct = document.createElement('div');
     pct.className = 'percent';
     pct.textContent = `${percent(attempt)}%`;
-    scoreBox.append(score,pct);
+    const hint = document.createElement('div');
+    hint.className = 'attemptHint';
+    hint.textContent = 'Xem chi tiết';
+    scoreBox.append(score,pct,hint);
     summary.append(main,scoreBox);
 
     const body = document.createElement('div');
