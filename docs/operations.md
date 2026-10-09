@@ -92,9 +92,8 @@ Important paths:
 - `lessons.html`
 - `assets/`
 - `supabase/functions/icaew-ai-import/index.ts`
-- `.github/workflows/pages.yml`
 
-Every push to `main` deploys GitHub Pages.
+Every push to `main` is published automatically by GitHub Pages.
 
 ## Recovery order
 
