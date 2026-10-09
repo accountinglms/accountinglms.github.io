@@ -14,10 +14,13 @@
     <div class="calc-shell">
       <header class="calc-header" data-calc-drag>
         <div class="calc-brand">
-          <strong>FX-580VN X</strong>
-          <span>Máy tính khoa học</span>
+          <span class="calc-classwiz">CLASSWIZ</span>
+          <strong>fx-580VN X</strong>
         </div>
-        <button class="calc-close" type="button" aria-label="Đóng máy tính" title="Đóng">×</button>
+        <div class="calc-header-actions">
+          <span class="calc-solar-strip" aria-hidden="true"></span>
+          <button class="calc-close" type="button" aria-label="Đóng máy tính" title="Đóng">×</button>
+        </div>
       </header>
 
       <nav class="calc-modes" aria-label="Chế độ máy tính">
@@ -29,58 +32,85 @@
         <button type="button" class="calc-mode-tab" data-mode="vector">Vector</button>
       </nav>
 
-      <section class="calc-mode-panel active" data-mode-panel="calculate">
+      <section class="calc-mode-panel active calc-main-face" data-mode-panel="calculate">
         <div class="calc-screen" aria-live="polite">
           <div class="calc-screen-top">
-            <span class="calc-angle-mode">DEG</span>
+            <span class="calc-screen-flags">
+              <span class="calc-shift-flag">S</span>
+              <span class="calc-alpha-flag">A</span>
+              <span class="calc-angle-mode">DEG</span>
+            </span>
             <span class="calc-screen-hint">Math</span>
           </div>
           <div class="calc-expression" aria-label="Biểu thức">0</div>
           <div class="calc-result" aria-label="Kết quả">0</div>
         </div>
 
-        <div class="calc-keypad" aria-label="Bàn phím máy tính">
-          <button type="button" class="calc-key calc-key-soft calc-mode-key" data-action="angle">DEG</button>
-          <button type="button" class="calc-key calc-key-soft" data-action="fraction">S⇔D</button>
-          <button type="button" class="calc-key calc-key-soft" data-insert="(">(</button>
-          <button type="button" class="calc-key calc-key-soft" data-insert=")">)</button>
-          <button type="button" class="calc-key calc-key-ac" data-action="clear">AC</button>
+        <div class="calc-control-deck" aria-label="Phím điều khiển">
+          <button type="button" class="calc-top-key calc-shift-key" data-action="shift"><span>SHIFT</span></button>
+          <button type="button" class="calc-top-key calc-alpha-key" data-action="alpha"><span>ALPHA</span></button>
+          <div class="calc-nav-pad" aria-label="Điều hướng">
+            <button type="button" class="calc-nav-up" data-action="nav-up" aria-label="Lên">▲</button>
+            <button type="button" class="calc-nav-left" data-action="nav-left" aria-label="Trái">◀</button>
+            <button type="button" class="calc-nav-ok" data-action="nav-ok">OK</button>
+            <button type="button" class="calc-nav-right" data-action="nav-right" aria-label="Phải">▶</button>
+            <button type="button" class="calc-nav-down" data-action="nav-down" aria-label="Xuống">▼</button>
+          </div>
+          <button type="button" class="calc-top-key calc-menu-key" data-action="menu"><span>MENU</span></button>
+          <button type="button" class="calc-top-key calc-on-key" data-action="on"><span>ON</span></button>
+        </div>
 
-          <button type="button" class="calc-key calc-key-fn" data-fn="sin">sin</button>
-          <button type="button" class="calc-key calc-key-fn" data-fn="cos">cos</button>
-          <button type="button" class="calc-key calc-key-fn" data-fn="tan">tan</button>
-          <button type="button" class="calc-key calc-key-fn" data-fn="log">log</button>
-          <button type="button" class="calc-key calc-key-fn" data-fn="ln">ln</button>
+        <div class="calc-science-pad" aria-label="Phím khoa học">
+          <button type="button" class="calc-sci-key" data-action="reciprocal"><span class="calc-shift-label">∫</span><b>x⁻¹</b></button>
+          <button type="button" class="calc-sci-key" data-action="square"><span class="calc-shift-label">√</span><b>x²</b></button>
+          <button type="button" class="calc-sci-key" data-fn="log"><span class="calc-shift-label">10ˣ</span><b>log</b></button>
+          <button type="button" class="calc-sci-key" data-fn="ln"><span class="calc-shift-label">eˣ</span><b>ln</b></button>
+          <button type="button" class="calc-sci-key" data-insert="-"><span class="calc-shift-label">Abs</span><b>(−)</b></button>
+          <button type="button" class="calc-sci-key calc-mode-key" data-action="angle"><span class="calc-shift-label">SETUP</span><b>DEG</b></button>
 
-          <button type="button" class="calc-key calc-key-fn" data-fn="sqrt">√</button>
-          <button type="button" class="calc-key calc-key-fn" data-action="square">x²</button>
-          <button type="button" class="calc-key calc-key-fn" data-insert="^">xʸ</button>
-          <button type="button" class="calc-key calc-key-fn" data-insert="!">x!</button>
-          <button type="button" class="calc-key calc-key-del" data-action="delete">DEL</button>
+          <button type="button" class="calc-sci-key" data-fn="sqrt"><span class="calc-shift-label">x³</span><b>√</b></button>
+          <button type="button" class="calc-sci-key" data-action="cube"><span class="calc-shift-label">∛</span><b>x³</b></button>
+          <button type="button" class="calc-sci-key" data-insert="^"><span class="calc-shift-label">x√y</span><b>xʸ</b></button>
+          <button type="button" class="calc-sci-key" data-action="fraction"><span class="calc-shift-label">d/c</span><b>S⇔D</b></button>
+          <button type="button" class="calc-sci-key" data-insert="!"><span class="calc-shift-label">nPr</span><b>x!</b></button>
+          <button type="button" class="calc-sci-key" data-insert="pi"><span class="calc-shift-label">π</span><b>π</b></button>
 
-          <button type="button" class="calc-key" data-insert="7">7</button>
-          <button type="button" class="calc-key" data-insert="8">8</button>
-          <button type="button" class="calc-key" data-insert="9">9</button>
-          <button type="button" class="calc-key calc-key-op" data-insert="/">÷</button>
-          <button type="button" class="calc-key calc-key-const" data-insert="pi">π</button>
+          <button type="button" class="calc-sci-key" data-fn="sin"><span class="calc-shift-label">sin⁻¹</span><b>sin</b></button>
+          <button type="button" class="calc-sci-key" data-fn="cos"><span class="calc-shift-label">cos⁻¹</span><b>cos</b></button>
+          <button type="button" class="calc-sci-key" data-fn="tan"><span class="calc-shift-label">tan⁻¹</span><b>tan</b></button>
+          <button type="button" class="calc-sci-key" data-insert="("><span class="calc-shift-label">%</span><b>(</b></button>
+          <button type="button" class="calc-sci-key" data-insert=")"><span class="calc-shift-label">,</span><b>)</b></button>
+          <button type="button" class="calc-sci-key" data-insert="e"><span class="calc-shift-label">RND</span><b>e</b></button>
+        </div>
 
-          <button type="button" class="calc-key" data-insert="4">4</button>
-          <button type="button" class="calc-key" data-insert="5">5</button>
-          <button type="button" class="calc-key" data-insert="6">6</button>
-          <button type="button" class="calc-key calc-key-op" data-insert="*">×</button>
-          <button type="button" class="calc-key calc-key-const" data-insert="e">e</button>
+        <div class="calc-number-pad" aria-label="Bàn phím số">
+          <button type="button" class="calc-white-key" data-insert="7">7</button>
+          <button type="button" class="calc-white-key" data-insert="8">8</button>
+          <button type="button" class="calc-white-key" data-insert="9">9</button>
+          <button type="button" class="calc-white-key calc-del-key" data-action="delete">DEL</button>
+          <button type="button" class="calc-white-key calc-ac-key" data-action="clear">AC</button>
+          <button type="button" class="calc-white-key calc-op-key" data-insert="/">÷</button>
 
-          <button type="button" class="calc-key" data-insert="1">1</button>
-          <button type="button" class="calc-key" data-insert="2">2</button>
-          <button type="button" class="calc-key" data-insert="3">3</button>
-          <button type="button" class="calc-key calc-key-op" data-insert="-">−</button>
-          <button type="button" class="calc-key calc-key-soft" data-insert="Ans">Ans</button>
+          <button type="button" class="calc-white-key" data-insert="4">4</button>
+          <button type="button" class="calc-white-key" data-insert="5">5</button>
+          <button type="button" class="calc-white-key" data-insert="6">6</button>
+          <button type="button" class="calc-white-key calc-op-key" data-insert="*">×</button>
+          <button type="button" class="calc-white-key calc-op-key" data-insert="Ans">Ans</button>
+          <button type="button" class="calc-white-key calc-op-key" data-insert="(">(</button>
 
-          <button type="button" class="calc-key calc-key-zero" data-insert="0">0</button>
-          <button type="button" class="calc-key" data-insert=".">.</button>
-          <button type="button" class="calc-key calc-key-fn" data-fn="pow10">10ˣ</button>
-          <button type="button" class="calc-key calc-key-op" data-insert="+">+</button>
-          <button type="button" class="calc-key calc-key-equals" data-action="equals">=</button>
+          <button type="button" class="calc-white-key" data-insert="1">1</button>
+          <button type="button" class="calc-white-key" data-insert="2">2</button>
+          <button type="button" class="calc-white-key" data-insert="3">3</button>
+          <button type="button" class="calc-white-key calc-op-key" data-insert="+">+</button>
+          <button type="button" class="calc-white-key calc-op-key" data-insert="-">−</button>
+          <button type="button" class="calc-white-key calc-op-key" data-insert=")">)</button>
+
+          <button type="button" class="calc-white-key" data-insert="0">0</button>
+          <button type="button" class="calc-white-key" data-insert=".">.</button>
+          <button type="button" class="calc-white-key calc-op-key" data-fn="pow10">×10ˣ</button>
+          <button type="button" class="calc-white-key calc-op-key" data-insert="pi">π</button>
+          <button type="button" class="calc-white-key calc-op-key" data-insert="e">e</button>
+          <button type="button" class="calc-white-key calc-equals-key" data-action="equals">=</button>
         </div>
       </section>
 
@@ -217,6 +247,8 @@
   let dragState = null;
   let lastPosition = null;
   let activeMode = 'calculate';
+  let shiftActive = false;
+  let alphaActive = false;
 
   const DISPLAY_REPLACEMENTS = [
     [/sqrt\(/g, '√('],
@@ -423,6 +455,13 @@
         const arg = this.parseAddSub();
         this.take(')');
         if (id === 'sin' || id === 'cos' || id === 'tan') return trig(id, arg);
+        if (id === 'asin' || id === 'acos' || id === 'atan') {
+          let result;
+          if (id === 'asin') result = Math.asin(arg);
+          else if (id === 'acos') result = Math.acos(arg);
+          else result = Math.atan(arg);
+          return angleMode === 'DEG' ? result * 180 / Math.PI : result;
+        }
         if (id === 'log') {
           if (arg <= 0) throw new Error('Math ERROR');
           return Math.log10(arg);
@@ -436,6 +475,7 @@
           return Math.sqrt(arg);
         }
         if (id === 'pow10') return Math.pow(10, arg);
+        if (id === 'exp') return Math.exp(arg);
         throw new Error('Syntax ERROR');
       }
       throw new Error('Syntax ERROR');
@@ -496,7 +536,7 @@
 
   function deleteLast() {
     if (!expression) return;
-    const namedTokens = ['sqrt(', 'pow10(', 'sin(', 'cos(', 'tan(', 'log(', 'ln(', 'Ans', 'pi'];
+    const namedTokens = ['sqrt(', 'pow10(', 'asin(', 'acos(', 'atan(', 'sin(', 'cos(', 'tan(', 'log(', 'ln(', 'exp(', 'Ans', 'pi'];
     const match = namedTokens.find(token => expression.endsWith(token));
     expression = match ? expression.slice(0, -match.length) : expression.slice(0, -1);
     showingFraction = false;
@@ -530,6 +570,30 @@
     render();
   }
 
+  function setShift(active = !shiftActive) {
+    shiftActive = active;
+    panel.classList.toggle('shift-active', shiftActive);
+    panel.querySelector('.calc-shift-flag')?.classList.toggle('visible', shiftActive);
+  }
+
+  function setAlpha(active = !alphaActive) {
+    alphaActive = active;
+    panel.classList.toggle('alpha-active', alphaActive);
+    panel.querySelector('.calc-alpha-flag')?.classList.toggle('visible', alphaActive);
+  }
+
+  function toggleMenu(force) {
+    const open = typeof force === 'boolean' ? force : !panel.classList.contains('menu-open');
+    panel.classList.toggle('menu-open', open);
+  }
+
+  function moveMenu(delta) {
+    const tabs = Array.from(panel.querySelectorAll('.calc-mode-tab'));
+    const current = Math.max(0, tabs.findIndex(tab => tab.dataset.mode === activeMode));
+    const next = (current + delta + tabs.length) % tabs.length;
+    tabs[next]?.focus();
+  }
+
   function setMode(mode) {
     activeMode = mode;
     panel.querySelectorAll('.calc-mode-tab').forEach(tab => {
@@ -540,6 +604,7 @@
       section.classList.toggle('active', section.dataset.modePanel === mode);
     });
     panel.classList.toggle('is-advanced', mode !== 'calculate');
+    toggleMenu(false);
     requestAnimationFrame(() => {
       if (!panel.hidden) {
         const rect = panel.getBoundingClientRect();
@@ -1058,19 +1123,78 @@
     const tab=event.target.closest('[data-mode]');
     if(tab) setMode(tab.dataset.mode);
   });
+  panel.querySelectorAll('.calc-mode-tab').forEach(tab => {
+    tab.addEventListener('focus', () => {
+      if (panel.hidden) return;
+      panel.classList.add('menu-open');
+    });
+  });
 
   panel.querySelector('[data-mode-panel="calculate"]').addEventListener('click', event => {
-    const button = event.target.closest('.calc-key');
+    const button = event.target.closest('button');
     if (!button) return;
-    if (button.dataset.insert) { insert(button.dataset.insert); return; }
-    if (button.dataset.fn) { insert(`${button.dataset.fn}(`); return; }
+
+    if (button.dataset.insert) {
+      insert(button.dataset.insert);
+      setShift(false);
+      setAlpha(false);
+      return;
+    }
+
+    if (button.dataset.fn) {
+      let fn = button.dataset.fn;
+      if (shiftActive) {
+        if (fn === 'sin') fn = 'asin';
+        else if (fn === 'cos') fn = 'acos';
+        else if (fn === 'tan') fn = 'atan';
+        else if (fn === 'log') fn = 'pow10';
+        else if (fn === 'ln') fn = 'exp';
+      }
+      insert(`${fn}(`);
+      setShift(false);
+      setAlpha(false);
+      return;
+    }
+
     const action = button.dataset.action;
     if (action === 'equals') evaluate();
     else if (action === 'clear') clearAll();
     else if (action === 'delete') deleteLast();
     else if (action === 'square') squareCurrent();
+    else if (action === 'cube') {
+      if (!expression) expression = 'Ans';
+      expression += '^3';
+      render();
+    }
+    else if (action === 'reciprocal') {
+      expression = `1/(${expression || 'Ans'})`;
+      render();
+    }
     else if (action === 'fraction') toggleFraction();
     else if (action === 'angle') toggleAngle();
+    else if (action === 'shift') setShift();
+    else if (action === 'alpha') setAlpha();
+    else if (action === 'menu') toggleMenu();
+    else if (action === 'on') {
+      clearAll();
+      setMode('calculate');
+      setShift(false);
+      setAlpha(false);
+    }
+    else if (action === 'nav-left' || action === 'nav-up') {
+      if (panel.classList.contains('menu-open')) moveMenu(-1);
+    }
+    else if (action === 'nav-right' || action === 'nav-down') {
+      if (panel.classList.contains('menu-open')) moveMenu(1);
+    }
+    else if (action === 'nav-ok') {
+      if (panel.classList.contains('menu-open')) {
+        const focused = document.activeElement?.closest?.('.calc-mode-tab');
+        if (focused?.dataset.mode) setMode(focused.dataset.mode);
+      } else {
+        evaluate();
+      }
+    }
   });
 
   dragHandle.addEventListener('pointerdown', event => {
