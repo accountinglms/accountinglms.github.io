@@ -1,4 +1,5 @@
 import { ensureSession, ensureEditorSession, restGet, restInsert, restPatch, uploadImportFile, callAiImport, callAiRoute } from './common.js';
+import {subjectCoverDataURL,subjectCoverLabel} from './subject-cover.js';
 
 const $ = s => document.querySelector(s);
 let subjects=[], chapters=[], exercises=[], questions=[], lessons=[], audits=[], snapshots=[];
@@ -109,7 +110,27 @@ $('#exercise').addEventListener('change',()=>{renderQuestions();invalidateDestin
 $('#import-target').addEventListener('change',()=>{clearRouteSuggestion();invalidateDestination();updateImportTargetUI()});
 $('#refresh').addEventListener('click',()=>reload().then(()=>invalidateDestination()).catch(e=>notice(e.message,'error')));
 
-$('#subject-form').addEventListener('submit',async e=>{e.preventDefault();const title=$('#subject-new').value.trim();if(!title)return;const base=slugify(title)||'subject';const id=subjects.some(x=>x.id===base)?base+'_'+Date.now().toString().slice(-5):base;await restInsert('subjects',{id,title,sort_order:subjects.length,is_active:true});$('#subject-new').value='';await reload();$('#subject').value=id;renderStructure();invalidateDestination()});
+// Cover previews are local-only: no AI image API call, no uploaded assets.
+function renderSubjectCoverPreview(inputId,imageId,labelId,rootId){
+  const name=$(inputId)?.value.trim()||'Accounting Fundamental';
+  const draft={id:slugify(name)||'accounting',title:name};
+  const image=$(imageId),label=$(labelId),root=$(rootId);
+  if(!image||!label||!root)return;
+  image.src=subjectCoverDataURL(draft);
+  label.textContent=subjectCoverLabel(draft)+' · tạo ngay trên thiết bị, không tốn phí';
+  if(rootId==='#subject-cover-preview-quick')
+    root.hidden=!$('#quick-subject-form')?.classList.contains('show');
+}
+function refreshCoverPreviews(){
+  renderSubjectCoverPreview('#subject-new','#subject-cover-image-main','#subject-cover-label-main','#subject-cover-preview-main');
+  renderSubjectCoverPreview('#quick-subject-title','#subject-cover-image-quick','#subject-cover-label-quick','#subject-cover-preview-quick');
+}
+$('#subject-new').addEventListener('input',refreshCoverPreviews);
+$('#quick-subject-title').addEventListener('input',refreshCoverPreviews);
+$('#quick-add-subject').addEventListener('click',refreshCoverPreviews);
+refreshCoverPreviews();
+
+$('#subject-form').addEventListener('submit',async e=>{e.preventDefault();const title=$('#subject-new').value.trim();if(!title)return;const base=slugify(title)||'subject';const id=subjects.some(x=>x.id===base)?base+'_'+Date.now().toString().slice(-5):base;await restInsert('subjects',{id,title,sort_order:subjects.length,is_active:true});$('#subject-new').value='';refreshCoverPreviews();await reload();$('#subject').value=id;renderStructure();invalidateDestination()});
 $('#chapter-form').addEventListener('submit',async e=>{e.preventDefault();const title=$('#chapter-new').value.trim(),sid=selected('#subject');if(!title||!sid)return;const id=sid+'__'+(slugify(title)||'chapter')+'_'+Date.now().toString().slice(-4);await restInsert('chapters',{id,subject_id:sid,title,sort_order:chapters.filter(x=>x.subject_id===sid).length,is_active:true});$('#chapter-new').value='';await reload();$('#subject').value=sid;renderStructure();$('#chapter').value=id;renderStructure();invalidateDestination()});
 $('#exercise-form').addEventListener('submit',async e=>{e.preventDefault();const title=$('#exercise-new').value.trim(),cid=selected('#chapter'),sid=selected('#subject');if(!title||!cid)return;const id=cid+'__'+(slugify(title)||'exercise')+'_'+Date.now().toString().slice(-4);await restInsert('exercises',{id,chapter_id:cid,title,sort_order:exercises.filter(x=>x.chapter_id===cid).length,is_active:true,question_count:0});$('#exercise-new').value='';await reload();$('#subject').value=sid;renderStructure();$('#chapter').value=cid;renderStructure();$('#exercise').value=id;renderQuestions();invalidateDestination()});
 
@@ -117,7 +138,7 @@ $('#quick-add-subject').addEventListener('click',()=>$('#quick-subject-form').cl
 $('#quick-add-chapter').addEventListener('click',()=>$('#quick-chapter-form').classList.toggle('show'));
 $('#quick-add-exercise').addEventListener('click',()=>$('#quick-exercise-form').classList.toggle('show'));
 
-$('#quick-subject-form').addEventListener('submit',async e=>{e.preventDefault();try{const title=$('#quick-subject-title').value.trim();if(!title)throw new Error('Nhập tên Subject mới.');const base=slugify(title)||'subject';const id=subjects.some(x=>x.id===base)?base+'_'+Date.now().toString().slice(-5):base;await restInsert('subjects',{id,title,sort_order:subjects.length,is_active:true});$('#quick-subject-title').value='';$('#quick-subject-form').classList.remove('show');await reload();$('#subject').value=id;renderStructure();invalidateDestination('Đã tạo Subject mới. Hãy chọn/tạo Chapter rồi xác nhận nơi lưu.')}catch(err){notice(err.message,'error')}});
+$('#quick-subject-form').addEventListener('submit',async e=>{e.preventDefault();try{const title=$('#quick-subject-title').value.trim();if(!title)throw new Error('Nhập tên Subject mới.');const base=slugify(title)||'subject';const id=subjects.some(x=>x.id===base)?base+'_'+Date.now().toString().slice(-5):base;await restInsert('subjects',{id,title,sort_order:subjects.length,is_active:true});$('#quick-subject-title').value='';$('#quick-subject-form').classList.remove('show');refreshCoverPreviews();await reload();$('#subject').value=id;renderStructure();invalidateDestination('Đã tạo Subject mới. Hãy chọn/tạo Chapter rồi xác nhận nơi lưu.')}catch(err){notice(err.message,'error')}});
 $('#quick-chapter-form').addEventListener('submit',async e=>{e.preventDefault();try{const sid=selected('#subject'),title=$('#quick-chapter-title').value.trim();if(!sid)throw new Error('Hãy chọn Subject trước khi tạo Chapter.');if(!title)throw new Error('Nhập tên Chapter mới.');const id=sid+'__'+(slugify(title)||'chapter')+'_'+Date.now().toString().slice(-4);await restInsert('chapters',{id,subject_id:sid,title,sort_order:chapters.filter(x=>x.subject_id===sid).length,is_active:true});$('#quick-chapter-title').value='';$('#quick-chapter-form').classList.remove('show');await reload();$('#subject').value=sid;renderStructure();$('#chapter').value=id;renderStructure();invalidateDestination('Đã tạo Chapter mới. Hãy chọn/tạo Exercise nếu cần rồi xác nhận nơi lưu.')}catch(err){notice(err.message,'error')}});
 $('#quick-exercise-form').addEventListener('submit',async e=>{e.preventDefault();try{const sid=selected('#subject'),cid=selected('#chapter'),title=$('#quick-exercise-title').value.trim();if(!cid)throw new Error('Hãy chọn Chapter trước khi tạo Exercise.');if(!title)throw new Error('Nhập tên Exercise mới.');const id=cid+'__'+(slugify(title)||'exercise')+'_'+Date.now().toString().slice(-4);await restInsert('exercises',{id,chapter_id:cid,title,sort_order:exercises.filter(x=>x.chapter_id===cid).length,is_active:true,question_count:0});$('#quick-exercise-title').value='';$('#quick-exercise-form').classList.remove('show');await reload();$('#subject').value=sid;renderStructure();$('#chapter').value=cid;renderStructure();$('#exercise').value=id;renderQuestions();invalidateDestination('Đã tạo Exercise mới. Hãy xác nhận nơi lưu.')}catch(err){notice(err.message,'error')}});
 
