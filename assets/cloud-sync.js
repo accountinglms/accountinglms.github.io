@@ -6,6 +6,26 @@
     const LAST_EMAIL_KEY = 'icaew-lms-last-email-v1';
     const RECOVERY_REDIRECT = 'https://accountinglms.github.io/';
     const ATTEMPT_QUEUE_KEY = 'icaew-lms-attempt-queue-v1';
+    const ATTEMPT_HISTORY_LAUNCHED_AT = Date.parse('2026-10-09T00:00:00Z');
+    const MAX_ATTEMPT_DURATION_SECONDS = 24 * 60 * 60;
+    const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
+    function parseAttemptStartedAt(value) {
+        if (!value) return null;
+        const parsed = Date.parse(value);
+        if (!Number.isFinite(parsed)) return null;
+        if (parsed < ATTEMPT_HISTORY_LAUNCHED_AT) return null;
+        if (parsed > Date.now() + MAX_CLOCK_SKEW_MS) return null;
+        return parsed;
+    }
+
+    function sanitizeAttemptDuration(value) {
+        if (value == null || value === '') return null;
+        const seconds = Number(value);
+        if (!Number.isFinite(seconds) || seconds < 0 || seconds > MAX_ATTEMPT_DURATION_SECONDS) return null;
+        return Math.round(seconds);
+    }
+
     let accessInfo = null;
     let attemptFlushPromise = null;
 
@@ -530,7 +550,7 @@
                         p_wrong_count: Number(payload.wrong_count || 0),
                         p_unanswered_count: Number(payload.unanswered_count || 0),
                         p_bookmarked_count: Number(payload.bookmarked_count || 0),
-                        p_duration_seconds: payload.duration_seconds == null ? null : Number(payload.duration_seconds),
+                        p_duration_seconds: sanitizeAttemptDuration(payload.duration_seconds),
                         p_answers_status: payload.answers_status || [],
                         p_selected_answers: payload.selected_answers || [],
                         p_bookmarks: payload.bookmarks || [],
@@ -761,7 +781,7 @@
                 score: row.score,
                 lastQuestion: row.current_question,
                 runId: row.attempt_run_id || null,
-                startedAt: row.attempt_started_at ? (Date.parse(row.attempt_started_at) || null) : null,
+                startedAt: parseAttemptStartedAt(row.attempt_started_at),
                 attemptRecorded: row.attempt_recorded === true,
                 updatedAt: Date.parse(row.updated_at || 0)
             }, len);
