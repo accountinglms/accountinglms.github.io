@@ -344,6 +344,18 @@ export async function restDelete(table, query) {
   return text ? JSON.parse(text) : [];
 }
 
+export async function restUpsert(table, payload, onConflict) {
+  const suffix=onConflict?`?on_conflict=${encodeURIComponent(onConflict)}`:'';
+  const res=await authedFetch(`/rest/v1/${table}${suffix}`,{
+    method:'POST',
+    headers:{'content-type':'application/json',Prefer:'resolution=merge-duplicates,return=representation'},
+    body:JSON.stringify(payload)
+  });
+  const text=await res.text();
+  if(!res.ok) throw new Error(text || `Không đồng bộ được ${table}.`);
+  return text?JSON.parse(text):[];
+}
+
 function safeFileName(name, fallback='file') {
   return String(name || fallback)
     .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
