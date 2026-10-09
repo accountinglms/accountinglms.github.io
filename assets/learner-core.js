@@ -750,6 +750,7 @@
         );
 
         initSidebar();
+        openRequestedExercise();
 
         if (activeId) {
             let found = null;
@@ -782,6 +783,7 @@
     let navFilter = 'all';
     let selectedOptions = new Set();
     let tfDraft = [];
+    let exerciseDeepLinkHandled = false;
 
     const STORAGE_KEY = 'accountingLMSProgress_v2'; // keep V2 key so existing progress migrates forward
     const UI_PREF_KEY = 'accountingLMSUiPrefs_v3';
@@ -1214,6 +1216,20 @@
             if (section) return section;
         }
         return null;
+    }
+
+    function openRequestedExercise() {
+        if (exerciseDeepLinkHandled) return false;
+        const requested = new URLSearchParams(location.search).get('exercise');
+        if (!requested) {
+            exerciseDeepLinkHandled = true;
+            return false;
+        }
+        const section = findSectionById(requested);
+        if (!section || !section.data?.length) return false;
+        exerciseDeepLinkHandled = true;
+        loadSection(section.id, section.title, section.data);
+        return true;
     }
 
     function updateResumeButton() {
@@ -2111,6 +2127,7 @@
 
     // Startup
     initSidebar();
+    openRequestedExercise();
     updateAllSidebarScores();
     updateMobileHeader();
     updateResumeButton();
