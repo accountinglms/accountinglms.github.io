@@ -1395,3 +1395,34 @@ html[data-theme="light"] .auth-secondary-btn:focus-visible {
     color:#2f485c;
 }
 html[data-theme="light"] .auth-recovery-hint { color:#71818e; }
+
+
+/* ===== TOTP MFA login ===== */
+.auth-select {
+    width:100%;
+    min-height:54px;
+    padding:12px 42px;
+    border:1px solid #34404c;
+    border-radius:13px;
+    background:#0b1117;
+    color:#f4f7fa;
+    font:inherit;
+    font-size:.9rem;
+    outline:none;
+}
+.auth-select:focus {
+    border-color:#3e8fea;
+    box-shadow:0 0 0 4px rgba(62,143,234,.11);
+}
+.auth-code-input {
+    text-align:center;
+    letter-spacing:.28em;
+    font-size:1.08rem!important;
+    font-weight:900;
+    font-variant-numeric:tabular-nums;
+}
+html[data-theme="light"] .auth-select {
+    border-color:#cbd6df;
+    background:#f8fafc;
+    color:#18232d;
+}
