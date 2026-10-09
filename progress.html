@@ -45,11 +45,11 @@
       <div class="progress-main">
         <section class="card readiness-card">
           <div class="readiness-top">
-            <div class="readiness-score"><strong id="readiness-score">—</strong><span>/ 100</span></div>
+            <div class="readiness-score"><small style="display:block;font-size:.7rem;color:var(--portal-muted);margin-bottom:4px">Chỉ số học tập LMS · tham khảo</small><strong id="readiness-score">—</strong><span>/ 100</span></div>
             <span class="readiness-label" id="readiness-label">Chưa đủ dữ liệu</span>
           </div>
           <div class="readiness-meter"><i id="readiness-fill" style="width:0"></i></div>
-          <div class="readiness-scale"><span>0</span><span id="pass-scale">Pass</span><span id="safe-scale">Vùng an toàn</span><span>100</span></div>
+          <div class="readiness-scale"><span>0</span><span id="pass-scale">Chỉ số tổng hợp · không phải điểm thi</span><span id="safe-scale" hidden></span><span>100</span></div>
           <div class="metric-strip">
             <div class="metric"><span>Điểm gần đây</span><strong id="recent-average">—</strong></div>
             <div class="metric"><span>Pass mark ICAEW</span><strong id="official-pass">—</strong></div>
@@ -66,7 +66,7 @@
         </section>
 
         <section class="card">
-          <div class="card-head"><div><h2>Phần cần cải thiện</h2><p>Ưu tiên dựa trên accuracy gần nhất, số câu sai và mức lặp lại.</p></div></div>
+          <div class="card-head"><div><h2>Phần cần cải thiện</h2><p>Ưu tiên từ điểm trên toàn bộ câu hỏi, số câu sai và mức lặp lại.</p></div></div>
           <div class="card-body"><div class="weak-list" id="weak-list"></div></div>
         </section>
 
