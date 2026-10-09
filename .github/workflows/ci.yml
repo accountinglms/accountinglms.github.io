@@ -118,6 +118,12 @@ jobs:
           TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/auth-boot-browser.mjs
 
+      - name: Run attempt history browser test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/attempt-history-browser.mjs
+
       - name: Stop local LMS
         if: always()
         run: |
