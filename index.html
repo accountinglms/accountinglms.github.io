@@ -26,7 +26,7 @@
         <img src="icon-512.png" alt="">
         <div>
             <strong>ICAEW LMS</strong>
-            <span>Đang mở workspace…</span>
+            <span>Đang mở trang học…</span>
         </div>
         <i aria-hidden="true"></i>
     </div>
@@ -63,7 +63,7 @@
             </div>
 
             <div class="auth-showcase-footer">
-                <span>Accounting LMS</span>
+                <span>Hệ thống học tập</span>
                 <span>Chỉ dành cho tài khoản được cấp quyền</span>
             </div>
         </section>
@@ -126,7 +126,7 @@
 
                     <div class="auth-access-note">
                         <span class="auth-access-icon" aria-hidden="true">⌾</span>
-                        <div><strong>Không có tài khoản?</strong><span>Workspace này dành cho thành viên được Owner cấp quyền.</span></div>
+                        <div><strong>Không có tài khoản?</strong><span>Hệ thống chỉ dành cho thành viên được quản trị viên cấp quyền.</span></div>
                     </div>
                 </div>
 
@@ -258,7 +258,7 @@
     <div class="cloud-account" id="cloud-account" hidden>
         <div class="cloud-user-line">
             <span class="cloud-dot" id="cloud-dot"></span>
-            <div class="cloud-user-copy"><div class="cloud-user-email" id="cloud-user-email">—</div><div class="cloud-sync-label" id="cloud-sync-label">Cloud chưa kết nối</div></div>
+            <div class="cloud-user-copy"><div class="cloud-user-email" id="cloud-user-email">—</div><div class="cloud-sync-label" id="cloud-sync-label">Chưa đồng bộ</div></div>
         </div>
         <div class="cloud-actions">
             <button class="cloud-mini-btn" id="cloud-password-btn" type="button">Đổi mật khẩu</button>
@@ -283,7 +283,7 @@
     </div>
 
     <div class="quiz-container" id="quiz-container" style="display: none;">
-        <div class="section-title-display" id="section-title-display">Chapter 1: Practice Questions</div>
+        <div class="section-title-display" id="section-title-display">Bài tập</div>
 
         <div class="session-overview" id="session-overview">
             <div class="progress-track" role="progressbar" aria-label="Tiến độ hoàn thành" aria-valuemin="0"><div class="progress-fill" id="progress-fill"></div></div>
@@ -298,12 +298,12 @@
         <div id="quiz-body">
             <div class="action-bar">
                 <div class="action-left">
-                    <p class="progress" id="progress">Question 1 of X</p>
+                    <p class="progress" id="progress">Câu 1 / —</p>
                     <span class="save-status" id="save-status" aria-live="polite">Tự động lưu</span>
                 </div>
             </div>
             
-            <div class="question-text" id="question-text">Loading...</div>
+            <div class="question-text" id="question-text">Đang tải câu hỏi…</div>
             <div class="question-tools" aria-label="Công cụ câu hỏi">
                 <button class="question-tool-btn bookmark-btn" id="bookmark-btn" type="button" onclick="toggleBookmark()" aria-pressed="false">
                     <span class="tool-icon" aria-hidden="true">☆</span>
@@ -312,7 +312,7 @@
                 </button>
                 <button class="question-tool-btn translate-question-btn" id="translate-question-btn" type="button" aria-pressed="false">
                     <span class="tool-icon" aria-hidden="true">🌐</span>
-                    <span class="tool-label-full">Dịch sang VI</span>
+                    <span class="tool-label-full">Dịch sang tiếng Việt</span>
                     <span class="tool-label-short">VI</span>
                 </button>
                 <span class="translation-status" id="translation-status" aria-live="polite"></span>
@@ -325,7 +325,7 @@
             
             <div class="nav-actions">
                 <button class="prev-btn" id="prev-btn" type="button" onclick="prevQuestion()">⬅ Câu trước</button>
-                <button class="next-btn" id="next-btn" type="button" onclick="nextQuestion()">Câu tiếp theo ➔</button>
+                <button class="next-btn" id="next-btn" type="button" onclick="nextQuestion()">Câu tiếp theo</button>
             </div>
             <div class="shortcut-hint">Phím tắt: 1–9 chọn đáp án · Enter kiểm tra · ←/→ chuyển câu · B đánh dấu</div>
         </div>
