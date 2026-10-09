@@ -1,4 +1,4 @@
-const CACHE='icaew-lms-github-v40';
+const CACHE='icaew-lms-github-v41';
 const APP=['./','./index.html','./home.html','./community.html','./progress.html','./account.html','./admin.html','./lessons.html','./diagnostics.html','./history.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./assets/learner.css','./assets/account.css','./assets/history.css','./assets/portal.css','./assets/vg-theme.css','./assets/calculator.css','./assets/theme-init.js','./assets/learner-core.js','./assets/cloud-sync.js','./assets/calculator.js','./assets/calculator-pro.js','./assets/translation.js','./assets/common.js','./assets/score-model.js','./assets/account.js','./assets/admin.js','./assets/lessons.js','./assets/diagnostics.js','./assets/history.js','./assets/home.js','./assets/community.js','./assets/progress.js']
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
