@@ -176,20 +176,48 @@
         }
         return body;
     }
+
+    function isStaleSessionError(error) {
+        const raw = [
+            error?.message || '',
+            typeof error?.body === 'string' ? error.body : '',
+            error?.body?.msg || '',
+            error?.body?.message || '',
+            error?.body?.error_description || '',
+            error?.body?.error || ''
+        ].join(' ').toLowerCase();
+        return /session_id claim.*does not exist|session from session_id claim.*does not exist|invalid refresh token|refresh token.*not found|session.*does not exist/.test(raw);
+    }
+
+    function makeSessionExpiredError() {
+        const error = new Error('Phiên đăng nhập trên thiết bị này đã hết hiệu lực. Hãy đăng nhập lại.');
+        error.code = 'SESSION_EXPIRED';
+        return error;
+    }
     async function refreshSession() {
         if (refreshing) return refreshing;
-        if (!cloudSession?.refresh_token) throw new Error('Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.');
-        refreshing = (async () => {
-            const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-                method:'POST',
-                headers:{'apikey':SUPABASE_KEY,'content-type':'application/json'},
-                body:JSON.stringify({refresh_token:cloudSession.refresh_token})
-            });
-            const data = await parseResponse(res);
-            const next = normalizeSession(data);
+        if (!cloudSession?.refresh_token) {
+            saveSession(null);
             accessInfo = null;
-            saveSession(next);
-            return next;
+            throw makeSessionExpiredError();
+        }
+        refreshing = (async () => {
+            try {
+                const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+                    method:'POST',
+                    headers:{'apikey':SUPABASE_KEY,'content-type':'application/json'},
+                    body:JSON.stringify({refresh_token:cloudSession.refresh_token})
+                });
+                const data = await parseResponse(res);
+                const next = normalizeSession(data);
+                accessInfo = null;
+                saveSession(next);
+                return next;
+            } catch (error) {
+                saveSession(null);
+                accessInfo = null;
+                throw makeSessionExpiredError();
+            }
         })().finally(() => { refreshing = null; });
         return refreshing;
     }
@@ -220,15 +248,34 @@
         return parseResponse(res);
     }
 
-    async function authGetCurrentUser() {
+    async function authGetCurrentUser(recover=true) {
         await ensureSession();
-        const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/user`, {
-            headers:{
-                'apikey':SUPABASE_KEY,
-                'Authorization':`Bearer ${cloudSession.access_token}`
+        try {
+            const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/user`, {
+                headers:{
+                    'apikey':SUPABASE_KEY,
+                    'Authorization':`Bearer ${cloudSession.access_token}`
+                }
+            });
+            return await parseResponse(res);
+        } catch (error) {
+            if (recover && cloudSession?.refresh_token) {
+                try {
+                    await refreshSession();
+                    return await authGetCurrentUser(false);
+                } catch (_) {
+                    saveSession(null);
+                    accessInfo = null;
+                    throw makeSessionExpiredError();
+                }
             }
-        });
-        return parseResponse(res);
+            if (isStaleSessionError(error) || error?.status === 401 || error?.status === 403) {
+                saveSession(null);
+                accessInfo = null;
+                throw makeSessionExpiredError();
+            }
+            throw error;
+        }
     }
 
     async function authMfaChallenge(factorId) {
@@ -341,11 +388,25 @@
         });
         return parseResponse(res);
     }
-    async function authSignOut() {
-        if (cloudSession?.access_token) {
-            try { await authedFetch('/auth/v1/logout', {method:'POST'}, false); } catch (_) {}
+    async function authSignOut(scope='local') {
+        const allowedScopes = new Set(['local','global','others']);
+        if (!allowedScopes.has(scope)) scope = 'local';
+        const token = cloudSession?.access_token;
+        if (token) {
+            try {
+                await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/logout?scope=${encodeURIComponent(scope)}`, {
+                    method:'POST',
+                    headers:{
+                        'apikey':SUPABASE_KEY,
+                        'Authorization':`Bearer ${token}`
+                    }
+                });
+            } catch (_) {}
         }
-        saveSession(null);
+        if (scope !== 'others') {
+            saveSession(null);
+            accessInfo = null;
+        }
     }
     async function authUpdatePassword(password) {
         const res = await authedFetch('/auth/v1/user', {
