@@ -35,6 +35,10 @@ function verifiedTotpFactors() {
   return (authUser?.factors || []).filter(f => f.factor_type === 'totp' && f.status === 'verified');
 }
 
+function unverifiedTotpFactors() {
+  return (authUser?.factors || []).filter(f => f.factor_type === 'totp' && f.status !== 'verified');
+}
+
 function render() {
   const displayName = profile?.display_name || authUser?.user_metadata?.display_name || authUser?.email?.split('@')[0] || 'Account';
   $('#profile-name').textContent = displayName;
