@@ -91,12 +91,17 @@ function renderMetrics(){
 function renderCatalog(){
   const root=$('#subject-catalog');
   if(!subjects.length){root.innerHTML='<div class="empty-compact">Chưa có môn học.</div>';return;}
-  root.innerHTML=subjects.map(subject=>{
+  root.innerHTML=subjects.map((subject,index)=>{
     const chs=chapters.filter(c=>c.subject_id===subject.id);
     const lessonCount=chs.reduce((n,c)=>n+lessons.filter(l=>l.chapter_id===c.id).length,0);
     const exerciseCount=chs.reduce((n,c)=>n+exercises.filter(e=>e.chapter_id===c.id).length,0);
-    return `<details class="subject-row">
-      <summary><strong>${esc(subject.title)}</strong><span>${chs.length} chương · ${lessonCount} tài liệu · ${exerciseCount} bài tập</span></summary>
+    const level=subject.exam_level==='advanced'?'Advanced':subject.exam_level==='professional'?'Professional':'Certificate';
+    return `<details class="subject-row subject-tone-${index%3}">
+      <summary>
+        <span class="subject-cover-art" aria-hidden="true"></span>
+        <span class="subject-summary-copy"><strong>${esc(subject.title)}</strong><small>${esc(level)} · ${chs.length} chương</small></span>
+        <span>${lessonCount} tài liệu · ${exerciseCount} bài tập</span>
+      </summary>
       <div class="subject-content">
         ${chs.length?chs.map(ch=>{
           const ls=lessons.filter(l=>l.chapter_id===ch.id);
