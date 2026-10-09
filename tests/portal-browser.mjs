@@ -56,6 +56,7 @@ async function installMock(context){
     messages:[{id:1,group_id:'00000000-0000-4000-8000-000000000001',sender_id:peer.id,body:'Ai đang ôn adjustments?',message_type:'text',attachment_path:null,attachment_name:null,attachment_size:null,created_at:'2026-10-09T11:00:00Z',deleted_at:null}],
     reactions:[],
     profiles:[{id:user.id,display_name:'Portal Owner'},peer],
+    friendships:[{id:'req-1',requester_id:peer.id,recipient_id:user.id,status:'pending',created_at:'2026-10-09T12:00:00Z'}],
     feedback:[],
     mutations:{feedback:0,announcement:0,message:0,reaction:0,file:0,subjectPatch:0}
   };
@@ -72,6 +73,44 @@ async function installMock(context){
         return {group_id:m.group_id,unread_count:unread};
       });
       return json(route,rows);
+    }
+
+
+    if(path==='/rest/v1/rpc/create_study_group'){
+      const body=JSON.parse(req.postData()||'{}');
+      const row={id:'33333333-3333-4333-8333-333333333333',name:body.p_name,
+        description:body.p_description,is_public:body.p_public,is_official:false,
+        kind:'group',created_by:user.id,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+      state.groups.unshift(row);
+      state.memberships.push({group_id:row.id,user_id:user.id,role:'owner',joined_at:new Date().toISOString()});
+      return json(route,row.id);
+    }
+    if(path==='/rest/v1/rpc/respond_friend'){
+      const body=JSON.parse(req.postData()||'{}');
+      const f=state.friendships.find(x=>x.id===body.p_request);
+      if(f){if(body.p_accept)f.status='accepted';else state.friendships=state.friendships.filter(x=>x.id!==f.id);}
+      return json(route,true);
+    }
+    if(path==='/rest/v1/rpc/request_friend'){
+      const body=JSON.parse(req.postData()||'{}'),id='req-'+(state.friendships.length+1);
+      state.friendships.unshift({id,requester_id:user.id,recipient_id:body.p_recipient,status:'pending',created_at:new Date().toISOString()});
+      return json(route,id);
+    }
+    if(path==='/rest/v1/rpc/remove_friend'){
+      const body=JSON.parse(req.postData()||'{}');
+      state.friendships=state.friendships.filter(f=>f.requester_id!==body.p_friend&&f.recipient_id!==body.p_friend);
+      return json(route,true);
+    }
+    if(path==='/rest/v1/rpc/start_direct_chat'){
+      const body=JSON.parse(req.postData()||'{}');
+      if(!state.friendships.some(f=>f.status==='accepted'&&f.requester_id===body.p_friend||f.status==='accepted'&&f.recipient_id===body.p_friend))
+        return json(route,{message:'Accept friendship first'},400);
+      const id='44444444-4444-4444-8444-444444444444';
+      if(!state.groups.some(g=>g.id===id)){
+        state.groups.unshift({id,name:'Tin nhắn riêng',kind:'direct',direct_low:user.id,direct_high:body.p_friend,is_public:false,is_official:false,created_at:new Date().toISOString(),updated_at:new Date().toISOString()});
+        for(const member of [user.id,body.p_friend])state.memberships.push({group_id:id,user_id:member,role:'member',joined_at:new Date().toISOString()});
+      }
+      return json(route,id);
     }
 
     if(path.startsWith('/storage/v1/object/chat-files/')){
@@ -99,6 +138,7 @@ async function installMock(context){
     if(table==='exercise_attempts')return json(route,state.attempts);
     if(table==='user_progress')return json(route,state.progress);
     if(table==='profiles')return json(route,state.profiles);
+    if(table==='social_friendships')return json(route,state.friendships);
 
     if(table==='announcements'){
       if(method==='POST'){
@@ -309,6 +349,17 @@ async function testCommunity(browser){
   await page.click('#group-form button[type="submit"]');
   await page.waitForFunction(()=>document.querySelector('#room-title')?.textContent?.includes('Exam Week'));
   assert(state.groups.some(g=>g.name==='Exam Week'),'Group creation failed');
+
+  await page.click('[data-social-tab="people"]');
+  await page.waitForSelector('[data-social-action="accept"]');
+  await page.click('[data-social-action="accept"]');
+  await page.waitForSelector('[data-social-action="chat"]');
+  await page.click('[data-social-action="chat"]');
+  await page.waitForFunction(()=>document.querySelector('#room-title')?.textContent?.includes('Study Partner'));
+  await page.fill('#message-input','Chào bạn! Đây là tin nhắn riêng.');
+  await page.click('#send-btn');
+  await page.waitForFunction(()=>document.querySelector('#message-stream')?.textContent?.includes('Đây là tin nhắn riêng.'));
+  assert(state.messages.some(x=>x.group_id==='44444444-4444-4444-8444-444444444444'),'Direct message was not persisted');
 
   await context.close();
 }
