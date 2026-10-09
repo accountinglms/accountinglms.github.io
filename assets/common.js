@@ -436,7 +436,11 @@ export function createRealtimeClient(session, subscriptions, onEvent, onStatus=(
     try{
       const current=await ensureSession();
       if(!stopped&&current?.user?.id===session.user.id)session=current;
-    }catch{report('auth-error');return;}
+    }catch(error){
+      report(navigator.onLine?'auth-error':'disconnected');
+      if(!stopped)reconnect=setTimeout(connect,Math.min(20_000,1500*Math.pow(2,Math.min(retries++,4))));
+      return;
+    }
     if(stopped)return;
     socket=new WebSocket(wsUrl);
     socket.addEventListener('open',()=>{
