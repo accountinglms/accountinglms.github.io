@@ -2,6 +2,7 @@ import { ensureSession, restGet } from './common.js';
 
 const SUPABASE_REF = 'uangiwgznukuicrfnohq';
 const SUPABASE_KEY = 'sb_publishable_FRBwRP7TAmiu02eRF9l49g_tCa4DsGJ';
+const MAX_ATTEMPT_DURATION_SECONDS = 24 * 60 * 60;
 
 let session = null;
 let subjects = [];
@@ -31,13 +32,21 @@ function fmtTime(value) {
 }
 
 function fmtDuration(seconds) {
-  const value = Math.max(0, Number(seconds || 0));
-  if (!value) return '—';
-  const mins = Math.floor(value / 60);
-  const secs = value % 60;
+  const value = Number(seconds);
+  if (!Number.isFinite(value) || value < 0) return '—';
+  const rounded = Math.round(value);
+  const mins = Math.floor(rounded / 60);
+  const secs = rounded % 60;
   if (mins < 60) return mins ? `${mins}m ${secs}s` : `${secs}s`;
   const hours = Math.floor(mins / 60);
   return `${hours}h ${mins % 60}m`;
+}
+
+function attemptDurationSeconds(value) {
+  if (value == null || value === '') return null;
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds < 0 || seconds > MAX_ATTEMPT_DURATION_SECONDS) return null;
+  return Math.round(seconds);
 }
 
 function percent(attempt) {
@@ -162,8 +171,11 @@ function renderSummary(rows) {
   const best = rows.slice().sort((a,b) => percent(b) - percent(a) || Date.parse(b.completed_at || 0) - Date.parse(a.completed_at || 0))[0];
   $('#metric-best').textContent = `${best.score}/${best.total_questions} · ${percent(best)}%`;
   $('#metric-latest').textContent = `${latest.score}/${latest.total_questions}`;
-  const totalSeconds = rows.reduce((sum,row) => sum + Math.max(0,Number(row.duration_seconds || 0)),0);
-  $('#metric-time').textContent = fmtDuration(totalSeconds);
+  const measuredDurations = rows
+    .map(row => attemptDurationSeconds(row.duration_seconds))
+    .filter(value => value != null);
+  const totalSeconds = measuredDurations.reduce((sum,value) => sum + value,0);
+  $('#metric-time').textContent = measuredDurations.length ? fmtDuration(totalSeconds) : '—';
 }
 
 function buildMini(label, value) {
@@ -292,7 +304,8 @@ function renderTimeline() {
 
     const when = document.createElement('div');
     when.className = 'time';
-    when.textContent = `${fmtTime(attempt.completed_at)} · ${fmtDuration(attempt.duration_seconds)}`;
+    const measuredDuration = attemptDurationSeconds(attempt.duration_seconds);
+    when.textContent = `${fmtTime(attempt.completed_at)} · ${measuredDuration == null ? '—' : fmtDuration(measuredDuration)}`;
 
     main.append(topline,path,when);
 
