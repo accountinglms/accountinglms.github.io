@@ -93,6 +93,12 @@ jobs:
           TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/session-browser.mjs
 
+      - name: Run audited explanation browser test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/explanation-browser.mjs
+
       - name: Stop local LMS
         if: always()
         run: |
