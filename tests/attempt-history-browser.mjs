@@ -226,7 +226,7 @@ try{
 
   assert(summary.attempts==='2','History summary did not count both attempts');
   assert(summary.timeline===2,'History timeline did not render both attempts');
-  assert(summary.latest==='Gần nhất','Latest-attempt badge is missing');
+  assert(summary.latest==='Mới nhất','Latest-attempt badge is missing');
   assert(summary.best==='Tốt nhất','Best-attempt badge is missing');
   assert(/16:02/.test(summary.firstTime||''),'Attempt timestamp is not displayed in Asia/Ho_Chi_Minh time');
   assert(!summary.overflow,'Attempt History overflows mobile viewport');
