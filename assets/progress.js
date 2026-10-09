@@ -134,7 +134,7 @@ function renderWeak(stats,pass,safe){
     return `<div class="weak-row">
       <div class="weak-head"><strong>${esc(s.chapter.title)}</strong><span class="priority ${p}">${p==='high'?'Ưu tiên cao':p==='medium'?'Ưu tiên vừa':'Duy trì'}</span></div>
       <p>${esc(advice)}</p>
-      <footer><span>Accuracy: ${accuracy}</span><span>Sai tích luỹ: ${s.repeatWrong} · ★ ${s.starred}</span></footer>
+      <footer><span>Điểm toàn bài: ${accuracy}</span><span>Sai tích luỹ: ${s.repeatWrong} · ★ ${s.starred}</span></footer>
     </div>`;
   }).join('');
 }
