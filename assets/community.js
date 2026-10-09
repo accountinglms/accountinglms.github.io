@@ -234,7 +234,7 @@ function renderInviteList(){
 }
 async function bootstrap(){
   try{session=await ensureSession();access=await getMyAccess(session,true);}
-  catch{location.replace('index.html');return;}
+  catch{location.replace('index.html?returnTo='+encodeURIComponent(location.pathname.split('/').pop()+location.search));return;}
   await refreshCore({keepCurrent:false});
   const requested=new URLSearchParams(location.search).get('group');
   const myGroups=groups.filter(g=>myMembership(g.id));
