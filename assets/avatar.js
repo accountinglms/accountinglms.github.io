@@ -25,9 +25,15 @@ async function readAvatar(path){
    const res=await authedFetch(urlFor(path));
    if(!res.ok)throw new Error('Avatar unavailable');
    const blob=await res.blob();
-   if(!['image/webp','image/jpeg'].includes(blob.type)||blob.size>3145728)
-     throw new Error('Unsupported avatar content');
-   return URL.createObjectURL(blob);
+   if(blob.size>3145728||blob.size<12)throw new Error('Invalid avatar size');
+   // Safari/WebKit can return an empty Blob.type from mocked or cached authenticated responses.
+   // Validate the actual image signature rather than trusting a MIME header.
+   const magic=new Uint8Array(await blob.slice(0,12).arrayBuffer());
+   const jpeg=magic[0]===0xff&&magic[1]===0xd8&&magic[2]===0xff;
+   const webp=String.fromCharCode(...magic.slice(0,4))==='RIFF'&&
+     String.fromCharCode(...magic.slice(8,12))==='WEBP';
+   if(!jpeg&&!webp)throw new Error('Unsupported avatar image signature');
+   return URL.createObjectURL(new Blob([blob],{type:jpeg?'image/jpeg':'image/webp'}));
   })().catch(err=>{cache.delete(path);throw err;});
   cache.set(path,task);
   if(cache.size>MAX_CACHE){
@@ -55,8 +61,9 @@ export async function paintAvatar(node,profile,name){
   if(!node.isConnected||node.dataset.avatarToken!==token)return;
   node.style.backgroundImage='url("'+url+'")';
   node.classList.add('has-avatar-image');node.textContent='';
- }catch{
+ }catch(error){
   if(node.dataset.avatarToken!==token)return;
+  node.dataset.avatarError=String(error?.message||error).slice(0,180);
   node.classList.remove('has-avatar-image');node.style.backgroundImage='';
   node.textContent=initialsFor(display);
  }
