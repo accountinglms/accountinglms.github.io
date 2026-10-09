@@ -203,7 +203,7 @@ async function waitForWorkspace(page) {
     return;
   }
   await page.waitForFunction(() => document.querySelector('#auth-gate')?.classList.contains('hidden') === true);
-  await page.waitForSelector('#cloud-account:not([hidden])');
+  await page.waitForSelector('#cloud-account:not([hidden])', { state: 'attached' });
 }
 
 async function seedSession(page, value) {
