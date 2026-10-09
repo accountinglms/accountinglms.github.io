@@ -310,7 +310,10 @@ async function testScopedLogout(browser) {
 
   await seedSession(page, session('token-aal2', 'refresh-aal2'));
   await waitForWorkspace(page);
-  await page.click('#cloud-logout-btn');
+  await page.goto(baseURL + '/account.html', { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('#account-app:not(.hidden)');
+  page.once('dialog', dialog => dialog.accept());
+  await page.click('#logout-current');
   await page.waitForSelector('#auth-login-view:not([hidden])');
   assert(localMock.logoutScopes.at(-1) === 'local', 'Normal learner logout did not use scope=local');
   await localContext.close();
