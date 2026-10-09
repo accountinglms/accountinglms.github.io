@@ -1,13 +1,72 @@
-import { ensureSession, ensureEditorSession, restGet, restInsert, restPatch, uploadImportFile, callAiImport } from './common.js';
+import { ensureSession, ensureEditorSession, restGet, restInsert, restPatch, uploadImportFile, callAiImport, callAiRoute } from './common.js';
 
 const $ = s => document.querySelector(s);
 let subjects=[], chapters=[], exercises=[], questions=[], lessons=[], audits=[], snapshots=[];
 let importedQuestions=[], importedLesson=null, importSourceId=null, importDraftId=null;
+let preparedImport=null, routeSuggestion=null, destinationConfirmed=false, destinationSignature='';
 
 function notice(text, kind='info'){const n=$('#notice');n.textContent=text;n.className='notice '+(kind==='info'?'':kind)}
 function slugify(v){return v.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,48)}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function selected(sel){return $(sel)?.value||''}
+function importFileKey(file){return file?[file.name,file.size,file.lastModified,file.type].join('|'):''}
+function currentTargetType(){return selected('#import-target')||'questions'}
+function currentDestinationSignature(){
+  return [currentTargetType(),selected('#subject'),selected('#chapter'),currentTargetType()==='questions'?selected('#exercise'):''].join('|')
+}
+function destinationComplete(){
+  return Boolean(selected('#subject')&&selected('#chapter')&&(currentTargetType()==='lesson'||selected('#exercise')))
+}
+function destinationLabel(){
+  const subject=subjects.find(x=>x.id===selected('#subject'));
+  const chapter=chapters.find(x=>x.id===selected('#chapter'));
+  const exercise=exercises.find(x=>x.id===selected('#exercise'));
+  return [subject?.title,chapter?.title,currentTargetType()==='questions'?exercise?.title:null].filter(Boolean).join(' → ')
+}
+function updateImportTargetUI(){
+  const lesson=currentTargetType()==='lesson';
+  $('#exercise-destination-row')?.classList.toggle('hidden',lesson);
+  if(lesson&&$('#exercise'))$('#exercise').value='';
+  updateGenerateState();
+}
+function updateDestinationStatus(message='',kind=''){
+  const el=$('#destination-status');
+  if(!el)return;
+  el.className='destinationStatus'+(kind?' '+kind:'');
+  if(message){el.textContent=message;return}
+  if(destinationConfirmed&&destinationSignature===currentDestinationSignature()){
+    el.classList.add('confirmed');
+    el.textContent='✓ Đã xác nhận: '+destinationLabel();
+  }else{
+    el.textContent='Chưa xác nhận. AI sẽ không tạo Draft cho đến khi bạn chọn đúng nơi lưu.';
+  }
+}
+function invalidateDestination(message=''){
+  destinationConfirmed=false;
+  destinationSignature='';
+  updateDestinationStatus(message||'',message?'warning':'');
+  updateGenerateState();
+}
+function updateGenerateState(){
+  const file=$('#import-file')?.files?.[0];
+  const valid=Boolean(file&&destinationComplete()&&destinationConfirmed&&destinationSignature===currentDestinationSignature());
+  const btn=$('#ai-generate');
+  if(btn)btn.disabled=!valid;
+  const route=$('#ai-route');
+  if(route)route.disabled=!file;
+}
+function clearRouteSuggestion(){
+  routeSuggestion=null;
+  const box=$('#route-suggestion');
+  if(box){box.classList.add('hidden');box.innerHTML=''}
+}
+async function ensurePreparedUpload(file){
+  const key=importFileKey(file);
+  if(preparedImport?.key===key&&preparedImport.storagePath)return preparedImport;
+  const up=await uploadImportFile(file);
+  preparedImport={key,storagePath:up.storagePath,sourceId:null};
+  return preparedImport;
+}
 
 async function reload(){
   const data=await Promise.all([
@@ -18,16 +77,21 @@ async function reload(){
 }
 function renderStructure(){
   const s=$('#subject'),c=$('#chapter'),e=$('#exercise'); const oldS=s.value,oldC=c.value,oldE=e.value;
-  s.innerHTML='<option value="">— Chọn môn —</option>'+subjects.map(x=>`<option value="${esc(x.id)}">${esc(x.title)}${x.is_active?'':' · Ẩn'}</option>`).join('');
-  s.value=subjects.some(x=>x.id===oldS)?oldS:(subjects[0]?.id||'');
-  const cs=chapters.filter(x=>x.subject_id===s.value); c.innerHTML='<option value="">— Chọn chapter —</option>'+cs.map(x=>`<option value="${esc(x.id)}">${esc(x.title)}${x.is_active?'':' · Ẩn'}</option>`).join(''); c.value=cs.some(x=>x.id===oldC)?oldC:(cs[0]?.id||'');
-  const es=exercises.filter(x=>x.chapter_id===c.value); e.innerHTML='<option value="">— Chọn exercise —</option>'+es.map(x=>`<option value="${esc(x.id)}">${esc(x.title)} · ${Number(x.question_count||0)} published${x.is_active?'':' · Ẩn'}</option>`).join(''); e.value=es.some(x=>x.id===oldE)?oldE:(es[0]?.id||'');
+  s.innerHTML='<option value="">— Chọn Subject —</option>'+subjects.map(x=>`<option value="${esc(x.id)}">${esc(x.title)}${x.is_active?'':' · Ẩn'}</option>`).join('');
+  s.value=subjects.some(x=>x.id===oldS)?oldS:'';
+  const cs=chapters.filter(x=>x.subject_id===s.value);
+  c.innerHTML='<option value="">— Chọn Chapter —</option>'+cs.map(x=>`<option value="${esc(x.id)}">${esc(x.title)}${x.is_active?'':' · Ẩn'}</option>`).join('');
+  c.value=cs.some(x=>x.id===oldC)?oldC:'';
+  const es=exercises.filter(x=>x.chapter_id===c.value);
+  e.innerHTML='<option value="">— Chọn Exercise —</option>'+es.map(x=>`<option value="${esc(x.id)}">${esc(x.title)} · ${Number(x.question_count||0)} published${x.is_active?'':' · Ẩn'}</option>`).join('');
+  e.value=es.some(x=>x.id===oldE)?oldE:'';
   const sv=subjects.find(x=>x.id===s.value),cv=chapters.find(x=>x.id===c.value),ev=exercises.find(x=>x.id===e.value);
   const bs=$('#toggle-subject'),bc=$('#toggle-chapter'),be=$('#toggle-exercise');
   bs.disabled=!sv;bc.disabled=!cv;be.disabled=!ev;
   bs.textContent=sv?.is_active?'Ẩn môn':'Hiện môn';
   bc.textContent=cv?.is_active?'Ẩn chapter':'Hiện chapter';
   be.textContent=ev?.is_active?'Ẩn exercise':'Hiện exercise';
+  updateImportTargetUI();
 }
 function renderQuestions(){const id=selected('#exercise');const list=$('#question-list');const qs=questions.filter(q=>q.exercise_id===id).sort((a,b)=>a.sort_order-b.sort_order);if(!id){list.className='empty';list.textContent='Chọn Exercise để xem question bank.';return}if(!qs.length){list.className='empty';list.textContent='Exercise này chưa có câu hỏi trong database.';return}list.className='';list.innerHTML=qs.map((q,i)=>`<article class="questionCard"><div class="meta"><span>Q${i+1}</span><span class="badge">${esc(q.question_type)}</span><span class="badge ${q.status==='published'?'published':'draft'}">${esc(q.status)}</span><span class="badge ${q.verification_status==='verified'?'published':'draft'}">${esc(q.verification_status||'unreviewed')}</span>${q.metadata?.legacy_migrated===true?'<span class="badge">legacy→DB</span>':''}</div><p>${esc(q.prompt)}</p><button class="statusBtn" data-qid="${q.id}" data-status="${q.status}">${q.status==='published'?'Chuyển về Draft':'Publish'}</button></article>`).join('')}
 function renderActivity(){const el=$('#audit-list');if(!el)return;if(!audits.length){el.innerHTML='<div class="empty">Chưa có thay đổi mới kể từ khi bật lịch sử.</div>';return}el.innerHTML=audits.map(a=>{const n=a.new_data||{},o=a.old_data||{};const label=n.title||n.prompt||o.title||o.prompt||a.record_id||'';const when=a.changed_at?new Date(a.changed_at).toLocaleString('vi-VN'):'';return `<div class="auditItem"><span class="auditAction">${esc(a.action)}</span><span class="auditTable">${esc(a.table_name)}</span><span class="auditLabel" title="${esc(label)}">${esc(label)}</span><span class="auditMeta">${esc(a.changed_email||'system')}<br>${esc(when)}</span></div>`}).join('')}
