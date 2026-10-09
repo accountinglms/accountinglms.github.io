@@ -226,9 +226,8 @@
         const recoveryLike = type === 'recovery' || Boolean(errorDescription);
         if (!recoveryLike) return { handled:false, session:null };
 
-        const cleanUrl = location.pathname + (query.size ? '?' + query.toString() : '');
         if (errorDescription) {
-            history.replaceState(null, '', cleanUrl.replace(/[?&](?:error|error_code|error_description|type)=[^&]*/g, ''));
+            history.replaceState(null, '', location.pathname);
             showGate(true);
             showAuthView('forgot');
             setRecoveryMessage('Liên kết khôi phục không còn hợp lệ hoặc đã hết hạn. Hãy yêu cầu một liên kết mới.', true);
