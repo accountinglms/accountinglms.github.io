@@ -5,7 +5,9 @@
     const AUTH_KEY = 'icaew-lms-auth-v2';
     const LAST_EMAIL_KEY = 'icaew-lms-last-email-v1';
     const RECOVERY_REDIRECT = 'https://accountinglms.github.io/';
+    const ATTEMPT_QUEUE_KEY = 'icaew-lms-attempt-queue-v1';
     let accessInfo = null;
+    let attemptFlushPromise = null;
 
     let cloudSession = null;
     let cloudReady = false;
@@ -466,6 +468,107 @@
         return null;
     }
 
+    async function restRpc(name, payload) {
+        const res = await authedFetch(`/rest/v1/rpc/${name}`, {
+            method:'POST',
+            headers:{'content-type':'application/json','Accept':'application/json'},
+            body:JSON.stringify(payload || {})
+        });
+        return parseResponse(res);
+    }
+
+    function loadAttemptQueue() {
+        try {
+            const value = JSON.parse(localStorage.getItem(ATTEMPT_QUEUE_KEY) || '[]');
+            return Array.isArray(value) ? value : [];
+        } catch (_) { return []; }
+    }
+
+    function saveAttemptQueue(queue) {
+        try { localStorage.setItem(ATTEMPT_QUEUE_KEY, JSON.stringify(queue || [])); }
+        catch (error) { console.warn('Attempt queue save:', error); }
+    }
+
+    function queueAttempt(payload) {
+        if (!payload?.exercise_id || !payload?.run_id) return;
+        const queue = loadAttemptQueue();
+        const index = queue.findIndex(item => item.run_id === payload.run_id && item.exercise_id === payload.exercise_id);
+        if (index >= 0) queue[index] = payload;
+        else queue.push(payload);
+        saveAttemptQueue(queue);
+    }
+
+    async function loadAttemptSummaries() {
+        if (!cloudSession) return;
+        try {
+            const rows = await restGet(
+                'exercise_attempts',
+                'select=id,exercise_id,score,total_questions,attempt_no,completed_at&order=completed_at.desc&limit=500'
+            );
+            window.lmsSetAttemptSummaries?.(Array.isArray(rows) ? rows : []);
+        } catch (error) {
+            console.warn('Attempt summaries:', error);
+        }
+    }
+
+    async function flushAttemptQueue() {
+        if (attemptFlushPromise) return attemptFlushPromise;
+        if (!cloudReady || !cloudSession || !navigator.onLine) return;
+        attemptFlushPromise = (async () => {
+            let queue = loadAttemptQueue();
+            if (!queue.length) return;
+            const remaining = [];
+            for (const payload of queue) {
+                try {
+                    const rows = await restRpc('record_exercise_attempt', {
+                        p_exercise_id: payload.exercise_id,
+                        p_run_id: payload.run_id,
+                        p_started_at: payload.started_at,
+                        p_score: Number(payload.score || 0),
+                        p_total_questions: Number(payload.total_questions || 0),
+                        p_correct_count: Number(payload.correct_count || 0),
+                        p_wrong_count: Number(payload.wrong_count || 0),
+                        p_unanswered_count: Number(payload.unanswered_count || 0),
+                        p_bookmarked_count: Number(payload.bookmarked_count || 0),
+                        p_duration_seconds: Number(payload.duration_seconds || 0),
+                        p_answers_status: payload.answers_status || [],
+                        p_selected_answers: payload.selected_answers || [],
+                        p_bookmarks: payload.bookmarks || [],
+                        p_question_snapshot: payload.question_snapshot || [],
+                        p_context_snapshot: payload.context_snapshot || {},
+                        p_submitted_from: payload.submitted_from || 'web'
+                    });
+                    const row = Array.isArray(rows) ? rows[0] : rows;
+                    window.dispatchEvent(new CustomEvent('lms:attempt-saved', {
+                        detail: {
+                            exercise_id: payload.exercise_id,
+                            run_id: payload.run_id,
+                            id: row?.id || null,
+                            attempt_no: row?.attempt_no || null,
+                            completed_at: row?.completed_at || new Date().toISOString()
+                        }
+                    }));
+                } catch (error) {
+                    console.warn('Attempt history sync:', error);
+                    remaining.push(payload);
+                    window.dispatchEvent(new CustomEvent('lms:attempt-save-failed', {
+                        detail: { exercise_id: payload.exercise_id, run_id: payload.run_id }
+                    }));
+                }
+            }
+            saveAttemptQueue(remaining);
+            if (remaining.length === 0) await loadAttemptSummaries();
+        })().finally(() => { attemptFlushPromise = null; });
+        return attemptFlushPromise;
+    }
+
+    window.addEventListener('lms:attempt-submitted', event => {
+        const payload = event.detail;
+        if (!payload?.exercise_id || !payload?.run_id) return;
+        queueAttempt(payload);
+        flushAttemptQueue();
+    });
+
     function sectionLength(secId) {
         for (const ch of courseData) {
             const sec = ch.sections.find(s => s.id === secId);
@@ -657,6 +760,9 @@
                 bookmarks: row.bookmarks,
                 score: row.score,
                 lastQuestion: row.current_question,
+                runId: row.attempt_run_id || null,
+                startedAt: Date.parse(row.attempt_started_at || 0) || null,
+                attemptRecorded: row.attempt_recorded === true,
                 updatedAt: Date.parse(row.updated_at || 0)
             }, len);
             const localTs = Number(local.updatedAt || 0);
@@ -680,6 +786,7 @@
             }
         }
 
+        await loadAttemptSummaries();
         updateAllSidebarScores();
         updateResumeButton();
         if (activeSectionId && progressStore[activeSectionId]) loadQuestion();
@@ -687,6 +794,7 @@
         for (const id of uploadAfter) pendingSections.add(id);
         if (uploadAfter.length) scheduleSyncFlush(50);
         queuePrefSync(80);
+        flushAttemptQueue();
         setCloudLabel(navigator.onLine ? 'Cloud đã đồng bộ' : 'Offline · sẽ đồng bộ khi có mạng', navigator.onLine);
     }
 
@@ -718,6 +826,9 @@
                 selected_answers: s.userSelections || [],
                 draft_selections: s.draftSelections || [],
                 bookmarks: s.bookmarks || [],
+                attempt_run_id: s.runId || null,
+                attempt_started_at: s.startedAt ? toIso(s.startedAt) : null,
+                attempt_recorded: s.attemptRecorded === true,
                 completed,
                 completed_at: completed ? toIso(s.updatedAt) : null,
                 updated_at: toIso(s.updatedAt)
@@ -898,7 +1009,7 @@
         passwordToggle.setAttribute('aria-pressed', String(reveal));
         passwordInput.focus({ preventScroll:true });
     });
-    window.addEventListener('online', () => { setCloudLabel('Đã có mạng · đang đồng bộ…', true); scheduleSyncFlush(50); queuePrefSync(80); });
+    window.addEventListener('online', () => { setCloudLabel('Đã có mạng · đang đồng bộ…', true); scheduleSyncFlush(50); queuePrefSync(80); flushAttemptQueue(); });
     window.addEventListener('offline', () => setCloudLabel('Offline · tiến độ vẫn lưu trên máy', false));
 
     let resumeCheckPromise = null;
