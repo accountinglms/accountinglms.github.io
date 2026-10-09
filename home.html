@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Trang chủ · Accounting LMS</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://uangiwgznukuicrfnohq.supabase.co wss://uangiwgznukuicrfnohq.supabase.co; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<meta name="theme-color" content="#f4f6f8">
+<script src="assets/theme-init.js"></script>
+<link rel="stylesheet" href="assets/portal.css">
+</head>
+<body>
+<div class="portal-shell">
+  <header class="portal-topbar">
+    <a class="portal-brand" href="home.html">
+      <img src="icon-512.png" alt="">
+      <div><strong>Accounting LMS</strong><span>Member workspace</span></div>
+    </a>
+    <nav class="portal-nav" aria-label="Điều hướng chính">
+      <a class="active" href="home.html">⌂ <span>Trang chủ</span></a>
+      <a href="index.html">✓ <span>Làm bài</span></a>
+      <a href="lessons.html">▤ <span>Tài liệu</span></a>
+      <a href="community.html"># <span>Cộng đồng</span></a>
+      <a href="progress.html">↗ <span>Tiến độ</span></a>
+    </nav>
+    <div class="portal-actions">
+      <a class="icon-button" href="community.html" aria-label="Thông báo">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <span class="notification-badge" id="global-notification-count" hidden>0</span>
+      </a>
+      <a class="portal-profile-link" href="account.html"><span class="portal-avatar" id="portal-avatar">U</span><span id="portal-user-name">Tài khoản</span></a>
+    </div>
+  </header>
+
+  <main class="portal-main">
+    <div class="portal-page-head">
+      <div>
+        <span class="portal-eyebrow">Member home</span>
+        <h1 id="welcome-title">Trang chủ</h1>
+        <p>Một nơi để vào tài liệu, bài tập, cộng đồng, thông báo và xem mình đang tiến bộ đến đâu.</p>
+      </div>
+      <a class="btn primary" href="index.html">Tiếp tục làm bài →</a>
+    </div>
+
+    <div class="home-grid">
+      <div class="home-main-stack">
+        <section class="card hero-card">
+          <div class="hero-top">
+            <div>
+              <h2>Hôm nay nên tập trung vào đâu?</h2>
+              <p id="home-focus-copy">Đang đọc tiến độ gần nhất để gợi ý bước tiếp theo.</p>
+            </div>
+          </div>
+          <div class="hero-actions">
+            <a class="btn primary" href="progress.html">Xem kế hoạch học</a>
+            <a class="btn" href="history.html">Lịch sử làm bài</a>
+            <a class="btn" href="community.html">Mở cộng đồng</a>
+          </div>
+          <div class="metric-strip">
+            <div class="metric"><span>Lượt làm</span><strong id="metric-attempts">—</strong></div>
+            <div class="metric"><span>Điểm TB gần đây</span><strong id="metric-average">—</strong></div>
+            <div class="metric"><span>Câu đã đánh dấu</span><strong id="metric-starred">—</strong></div>
+            <div class="metric"><span>Thông báo mới</span><strong id="metric-notifications">—</strong></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <div><h2>Tài liệu & mục lục</h2><p>Theo môn học → chương → tài liệu hoặc bài tập.</p></div>
+            <a class="btn" href="lessons.html">Mở thư viện</a>
+          </div>
+          <div class="card-body"><div class="subject-list" id="subject-catalog"><div class="empty-compact">Đang tải mục lục…</div></div></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <div><h2>Góp ý & liên hệ</h2><p>Gửi trực tiếp tới quản trị viên. Bạn có thể theo dõi phản hồi ngay tại đây.</p></div>
+          </div>
+          <div class="card-body">
+            <form id="feedback-form">
+              <div class="form-grid">
+                <label class="field"><span>Loại</span><select id="feedback-category"><option value="suggestion">Góp ý</option><option value="bug">Báo lỗi</option><option value="content">Nội dung học</option><option value="feature">Đề xuất tính năng</option><option value="other">Khác</option></select></label>
+                <label class="field"><span>Tiêu đề</span><input id="feedback-subject" maxlength="160" required placeholder="Mô tả ngắn vấn đề"></label>
+              </div>
+              <label class="field"><span>Nội dung</span><textarea id="feedback-message" maxlength="5000" required placeholder="Nêu rõ bạn gặp gì hoặc muốn cải thiện điều gì…"></textarea></label>
+              <div class="form-actions"><span class="form-status" id="feedback-status"></span><button class="btn primary" type="submit">Gửi tới admin</button></div>
+            </form>
+            <div class="feedback-list" id="my-feedback" style="margin-top:14px"></div>
+          </div>
+        </section>
+
+        <section class="card admin-panel" id="admin-home-panel" hidden>
+          <div class="card-head">
+            <div><h2>Admin · Member communications</h2><p>Đăng thông báo và xử lý góp ý của thành viên.</p></div>
+            <a class="btn" href="admin.html">Mở quản trị nội dung</a>
+          </div>
+          <div class="card-body">
+            <form id="announcement-form">
+              <div class="form-grid">
+                <label class="field"><span>Tiêu đề</span><input id="announcement-title" maxlength="160" required placeholder="Ví dụ: Cập nhật hệ thống tối nay"></label>
+                <label class="field"><span>Loại</span><select id="announcement-kind"><option value="update">Update</option><option value="maintenance">Bảo trì</option><option value="exam">Kỳ thi</option><option value="resource">Tài liệu</option><option value="general">Chung</option></select></label>
+              </div>
+              <label class="field"><span>Nội dung thông báo</span><textarea id="announcement-body" maxlength="5000" required placeholder="Nêu thay đổi, thời gian áp dụng và ảnh hưởng tới thành viên."></textarea></label>
+              <div class="form-actions"><span class="form-status" id="announcement-status"></span><button class="btn primary" type="submit">Đăng thông báo</button></div>
+            </form>
+            <div style="height:1px;background:var(--portal-line);margin:18px 0"></div>
+            <div class="feedback-list" id="admin-feedback"><div class="empty-compact">Đang tải góp ý thành viên…</div></div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="home-side-stack">
+        <section class="card">
+          <div class="card-head"><div><h2>Thông báo từ admin</h2><p>Updates, sửa chữa và thay đổi quan trọng.</p></div></div>
+          <div class="card-body"><div class="notice-list" id="announcement-list"><div class="empty-compact">Đang tải thông báo…</div></div></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><div><h2>Cộng đồng</h2><p>Tin nhắn mới trong các nhóm bạn tham gia.</p></div><a class="btn" href="community.html">Mở chat</a></div>
+          <div class="card-body"><div class="activity-list" id="chat-preview"><div class="empty-compact">Đang tải nhóm chat…</div></div></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><div><h2>Tiến độ ICAEW</h2><p>Readiness theo kết quả luyện tập của bạn.</p></div><a class="btn" href="progress.html">Chi tiết</a></div>
+          <div class="card-body">
+            <div class="standard-box">
+              <strong id="home-readiness">Chưa đủ dữ liệu</strong>
+              <p id="home-readiness-copy">Hãy hoàn thành thêm các lượt làm để hệ thống đánh giá xu hướng ổn định hơn.</p>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+<script type="module" src="assets/home.js"></script>
+</body>
+</html>
