@@ -4,6 +4,9 @@ import path from 'node:path';
 const root = process.cwd();
 const required = [
   'index.html',
+  'home.html',
+  'community.html',
+  'progress.html',
   'account.html',
   'admin.html',
   'lessons.html',
@@ -14,6 +17,7 @@ const required = [
   'assets/learner.css',
   'assets/account.css',
   'assets/history.css',
+  'assets/portal.css',
   'assets/calculator.css',
   'assets/theme-init.js',
   'assets/learner-core.js',
@@ -27,6 +31,9 @@ const required = [
   'assets/lessons.js',
   'assets/diagnostics.js',
   'assets/history.js',
+  'assets/home.js',
+  'assets/community.js',
+  'assets/progress.js',
   'supabase/functions/icaew-ai-import/index.ts',
   'supabase/functions/icaew-ai-route/index.ts',
   'supabase/functions/icaew-question-translate/index.ts',
@@ -41,6 +48,9 @@ for (const file of required) {
 
 const clientFiles = [
   'index.html',
+  'home.html',
+  'community.html',
+  'progress.html',
   'account.html',
   'admin.html',
   'lessons.html',
@@ -60,7 +70,7 @@ for (const file of clientFiles) {
 }
 
 
-for (const file of ['index.html','account.html','admin.html','lessons.html','diagnostics.html','history.html']) {
+for (const file of ['index.html','home.html','community.html','progress.html','account.html','admin.html','lessons.html','diagnostics.html','history.html']) {
   const text = fs.readFileSync(path.join(root, file), 'utf8');
   if (!text.includes('http-equiv="Content-Security-Policy"')) {
     throw new Error('Missing Content Security Policy meta tag: ' + file);
@@ -100,7 +110,7 @@ if (!edge.includes('get_my_access')) {
 }
 
 const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-for (const file of ['account.html','admin.html','lessons.html','diagnostics.html','history.html','manifest.webmanifest','assets/learner.css','assets/account.css','assets/history.css','assets/calculator.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/calculator.js','assets/calculator-pro.js','assets/translation.js','assets/common.js','assets/account.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js','assets/history.js']) {
+for (const file of ['home.html','community.html','progress.html','account.html','admin.html','lessons.html','diagnostics.html','history.html','manifest.webmanifest','assets/learner.css','assets/account.css','assets/history.css','assets/portal.css','assets/calculator.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/calculator.js','assets/calculator-pro.js','assets/translation.js','assets/common.js','assets/account.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js','assets/history.js','assets/home.js','assets/community.js','assets/progress.js']) {
   if (!sw.includes(file)) throw new Error('Service worker cache list is missing: ' + file);
 }
 
@@ -282,6 +292,37 @@ if (!historyJs.includes("table:'exercise_attempts'") || !historyJs.includes("eve
 }
 if (!historyJs.includes('question_snapshot') || !historyJs.includes('selected_answer')) {
   throw new Error('Attempt detail snapshot rendering is missing.');
+}
+
+
+const homeHtml = fs.readFileSync(path.join(root, 'home.html'), 'utf8');
+const communityHtml = fs.readFileSync(path.join(root, 'community.html'), 'utf8');
+const progressHtml = fs.readFileSync(path.join(root, 'progress.html'), 'utf8');
+const homeJs = fs.readFileSync(path.join(root, 'assets/home.js'), 'utf8');
+const communityJs = fs.readFileSync(path.join(root, 'assets/community.js'), 'utf8');
+const progressJs = fs.readFileSync(path.join(root, 'assets/progress.js'), 'utf8');
+
+for (const [name, html] of [['home',homeHtml],['community',communityHtml],['progress',progressHtml]]) {
+  if (!html.includes('assets/portal.css')) throw new Error(name + ' page is missing the portal design system.');
+  if (!html.includes('wss://uangiwgznukuicrfnohq.supabase.co')) throw new Error(name + ' page CSP is missing Supabase Realtime.');
+}
+if (!learnerHtml.includes('href="home.html"') || !learnerHtml.includes('href="community.html"') || !learnerHtml.includes('href="progress.html"')) {
+  throw new Error('Learner navigation is not connected to the member portal.');
+}
+if (!homeHtml.includes('id="feedback-form"') || !homeHtml.includes('id="announcement-form"') || !homeJs.includes("restInsert('feedback'") || !homeJs.includes("restInsert('announcements'")) {
+  throw new Error('Home feedback or admin announcement workflow is incomplete.');
+}
+if (!communityHtml.includes('id="global-notification-count"') || !communityHtml.includes('id="message-stream"') || !communityJs.includes('uploadChatFile') || !communityJs.includes('createRealtimeClient')) {
+  throw new Error('Community chat, file upload, unread badge, or realtime wiring is incomplete.');
+}
+if (!progressHtml.includes('id="trend-chart"') || !progressJs.includes("level==='advanced'?50:55") || !progressJs.includes('safeTarget')) {
+  throw new Error('Progress plan or ICAEW threshold logic is incomplete.');
+}
+if (!commonJs.includes('uploadChatFile') || !commonJs.includes('downloadChatFile') || !commonJs.includes('createRealtimeClient')) {
+  throw new Error('Portal storage/realtime helpers are missing.');
+}
+const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
+if (manifest.start_url !== './home.html') throw new Error('Installed PWA must launch into member home.');
 }
 
 console.log('Security/static integrity checks passed.');
