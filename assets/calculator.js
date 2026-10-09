@@ -605,11 +605,11 @@
     if (!source.trim()) return 0;
     const statements=source.split(':').map(part=>part.trim()).filter(Boolean);
     if(!statements.length) return 0;
-    let value=0;
+    let currentAns=answer;
     for(const statement of statements){
-      value=new Parser(tokenize(statement), {...variables,Ans:value||answer}).parse();
+      currentAns=new Parser(tokenize(statement), {...variables,Ans:currentAns,PreAns:previousAnswer}).parse();
     }
-    return value;
+    return currentAns;
   }
 
   function render() {
