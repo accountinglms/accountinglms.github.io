@@ -1,0 +1,222 @@
+/* Integrated scientific calculator */
+.calculator-launcher{
+  appearance:none;
+  border:0;
+  background:transparent;
+  color:var(--ui-muted);
+  font:inherit;
+  cursor:pointer;
+}
+.page-learner .sidebar-tools .calculator-launcher{
+  min-height:34px;
+  padding:8px 9px;
+  border-radius:7px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:7px;
+  font-size:.73rem;
+}
+.page-learner .sidebar-tools .calculator-launcher:hover{
+  color:var(--ui-text);
+  background:var(--ui-surface-2);
+}
+.calculator-launcher svg{
+  width:15px;
+  height:15px;
+  flex:0 0 auto;
+}
+.mobile-calculator-btn{
+  display:none;
+  width:40px;
+  height:40px;
+  align-items:center;
+  justify-content:center;
+  border:0;
+  background:transparent;
+  color:inherit;
+  border-radius:8px;
+}
+.mobile-calculator-btn svg{width:19px;height:19px}
+
+.lms-calculator{
+  position:fixed;
+  z-index:1500;
+  width:min(354px,calc(100vw - 20px));
+  max-height:calc(100vh - 16px);
+  overflow:auto;
+  overscroll-behavior:contain;
+  border-radius:14px;
+  filter:drop-shadow(0 18px 34px rgba(0,0,0,.28));
+  touch-action:auto;
+}
+.lms-calculator[hidden]{display:none!important}
+.lms-calculator.is-dragging{user-select:none}
+.calc-shell{
+  background:#22282d;
+  border:1px solid #3a4248;
+  border-radius:14px;
+  padding:10px;
+  color:#f4f6f7;
+}
+.calc-header{
+  min-height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:5px 6px 9px;
+  cursor:grab;
+  touch-action:none;
+}
+.lms-calculator.is-dragging .calc-header{cursor:grabbing}
+.calc-brand{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  line-height:1.08;
+}
+.calc-brand strong{
+  font-size:.9rem;
+  letter-spacing:.035em;
+  color:#f4f6f7;
+}
+.calc-brand span{
+  margin-top:4px;
+  font-size:.61rem;
+  color:#9faab2;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.calc-close{
+  width:34px;
+  height:34px;
+  border:1px solid #4b555d;
+  border-radius:8px;
+  background:#2b3238;
+  color:#dce2e6;
+  font-size:1.35rem;
+  line-height:1;
+  cursor:pointer;
+}
+.calc-close:hover{background:#353e45;color:#fff}
+.calc-close:focus-visible,
+.calc-key:focus-visible,
+.calculator-launcher:focus-visible,
+.mobile-calculator-btn:focus-visible{
+  outline:2px solid #80b9df;
+  outline-offset:2px;
+}
+.calc-screen{
+  min-height:105px;
+  margin-bottom:10px;
+  padding:9px 11px 10px;
+  border:1px solid #8f9d92;
+  border-radius:7px;
+  background:linear-gradient(180deg,#cad5c5,#b7c5b4);
+  color:#182019;
+  font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  box-shadow:inset 0 1px 6px rgba(28,40,31,.24);
+}
+.calc-screen-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  font-size:.61rem;
+  font-weight:700;
+  letter-spacing:.06em;
+  opacity:.72;
+}
+.calc-expression{
+  min-height:31px;
+  margin-top:7px;
+  overflow-wrap:anywhere;
+  text-align:right;
+  font-size:.9rem;
+  line-height:1.35;
+}
+.calc-result{
+  min-height:32px;
+  margin-top:2px;
+  overflow-wrap:anywhere;
+  text-align:right;
+  font-size:1.22rem;
+  line-height:1.35;
+  font-weight:750;
+}
+.calc-result.is-error{font-size:1rem}
+.calc-keypad{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:6px;
+}
+.calc-key{
+  min-width:0;
+  min-height:43px;
+  padding:5px 2px;
+  border:1px solid #4b555d;
+  border-radius:7px;
+  background:#363e44;
+  color:#f1f4f6;
+  font:650 .82rem/1 system-ui,-apple-system,"Segoe UI",sans-serif;
+  cursor:pointer;
+  box-shadow:inset 0 -1px 0 rgba(0,0,0,.35);
+}
+.calc-key:hover{background:#414a51}
+.calc-key:active{transform:translateY(1px)}
+.calc-key-soft{
+  background:#626c73;
+  border-color:#737e86;
+  font-size:.72rem;
+}
+.calc-key-fn{
+  background:#2e353a;
+  color:#d9e0e4;
+  font-size:.72rem;
+}
+.calc-key-op{
+  background:#44545f;
+  color:#f8fbfc;
+}
+.calc-key-const{
+  background:#303941;
+  color:#d9e9f2;
+}
+.calc-key-ac,
+.calc-key-del{
+  background:#8b5356;
+  border-color:#a46b6e;
+}
+.calc-key-equals{
+  background:#52789a;
+  border-color:#6790b2;
+  font-size:1rem;
+}
+.calc-footnote{
+  padding:9px 3px 2px;
+  text-align:center;
+  color:#909ca4;
+  font-size:.59rem;
+}
+
+@media(max-width:900px){
+  .mobile-calculator-btn{display:inline-flex}
+}
+@media(max-width:560px){
+  .lms-calculator{
+    width:min(336px,calc(100vw - 12px));
+    max-height:calc(100vh - 12px);
+  }
+  .calc-shell{padding:8px}
+  .calc-keypad{gap:5px}
+  .calc-key{min-height:42px}
+  .calc-screen{min-height:96px}
+  .calc-footnote{font-size:.56rem}
+}
+@media(max-height:620px){
+  .calc-key{min-height:36px}
+  .calc-screen{min-height:82px}
+  .calc-header{min-height:40px}
+  .calc-footnote{display:none}
+}
