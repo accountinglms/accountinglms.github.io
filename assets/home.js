@@ -210,7 +210,7 @@ async function bootstrap(){
     session=await ensureSession();
     access=await getMyAccess(session,true);
   }catch{
-    location.replace('index.html');
+    location.replace('index.html?returnTo='+encodeURIComponent(location.pathname.split('/').pop()+location.search));
     return;
   }
   try{
