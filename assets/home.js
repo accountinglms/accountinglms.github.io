@@ -248,6 +248,7 @@ $('#announcement-list').addEventListener('click',event=>{
 });
 $('#feedback-form').addEventListener('submit',async event=>{
   event.preventDefault();
+  const form=event.currentTarget;
   const status=$('#feedback-status');
   status.textContent='Đang gửi…';
   try{
@@ -257,13 +258,14 @@ $('#feedback-form').addEventListener('submit',async event=>{
       subject:$('#feedback-subject').value.trim(),
       message:$('#feedback-message').value.trim()
     });
-    event.currentTarget.reset();
+    form.reset();
     status.textContent='Đã gửi tới admin.';
     await loadFeedback();
   }catch(error){status.textContent='Không gửi được: '+(error.message||'Lỗi');}
 });
 $('#announcement-form').addEventListener('submit',async event=>{
   event.preventDefault();
+  const form=event.currentTarget;
   const status=$('#announcement-status');
   status.textContent='Đang đăng…';
   try{
@@ -277,7 +279,7 @@ $('#announcement-form').addEventListener('submit',async event=>{
       created_by:session.user.id,
       updated_by:session.user.id
     });
-    event.currentTarget.reset();
+    form.reset();
     status.textContent='Đã gửi thông báo tới members.';
     announcements=await restGet('announcements','select=*&status=eq.published&order=published_at.desc.nullslast,created_at.desc&limit=20');
     renderAnnouncements();renderMetrics();
