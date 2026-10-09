@@ -530,7 +530,7 @@
                         p_wrong_count: Number(payload.wrong_count || 0),
                         p_unanswered_count: Number(payload.unanswered_count || 0),
                         p_bookmarked_count: Number(payload.bookmarked_count || 0),
-                        p_duration_seconds: Number(payload.duration_seconds || 0),
+                        p_duration_seconds: payload.duration_seconds == null ? null : Number(payload.duration_seconds),
                         p_answers_status: payload.answers_status || [],
                         p_selected_answers: payload.selected_answers || [],
                         p_bookmarks: payload.bookmarks || [],
@@ -761,7 +761,7 @@
                 score: row.score,
                 lastQuestion: row.current_question,
                 runId: row.attempt_run_id || null,
-                startedAt: Date.parse(row.attempt_started_at || 0) || null,
+                startedAt: row.attempt_started_at ? (Date.parse(row.attempt_started_at) || null) : null,
                 attemptRecorded: row.attempt_recorded === true,
                 updatedAt: Date.parse(row.updated_at || 0)
             }, len);
