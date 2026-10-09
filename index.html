@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -17,8 +17,9 @@
 <meta name="format-detection" content="telephone=no">
 <script src="assets/theme-init.js"></script>
 <link rel="stylesheet" href="assets/learner.css">
+<link rel="stylesheet" href="assets/ui-system.css">
 </head>
-<body class="auth-pending">
+<body class="auth-pending page-learner">
 
 <div class="auth-boot" id="auth-boot" role="status" aria-live="polite" aria-label="Đang mở ICAEW LMS">
     <div class="auth-boot-card">
@@ -43,34 +44,34 @@
                     <img class="auth-product-icon" src="icon-512.png" alt="">
                     <div>
                         <strong>ICAEW LMS</strong>
-                        <span>Accounting & Finance Learning Workspace</span>
+                        <span>Không gian học Kế toán & Tài chính</span>
                     </div>
                 </div>
-                <span class="auth-private-badge">Private workspace</span>
+                <span class="auth-private-badge">Không gian riêng tư</span>
             </div>
 
             <div class="auth-showcase-copy">
-                <span class="auth-kicker">LEARN · PRACTICE · PROGRESS</span>
-                <h1>Your learning workspace,<br>built to stay in sync.</h1>
-                <p>Study theory, practise questions and keep your progress available across your devices in one focused workspace.</p>
+                <span class="auth-kicker">HỌC · LUYỆN TẬP · THEO DÕI TIẾN ĐỘ</span>
+                <h1>Một nơi để học,<br>làm bài và xem tiến độ.</h1>
+                <p>Nội dung, kết quả và tiến độ được lưu cùng tài khoản để bạn có thể tiếp tục trên các thiết bị khác.</p>
 
                 <div class="auth-feature-row" aria-label="Tính năng chính">
-                    <span>☁ Cloud sync</span>
-                    <span>✓ Progress tracking</span>
-                    <span>⌁ Cross-device</span>
+                    <span>Đồng bộ tiến độ</span>
+                    <span>Lưu kết quả làm bài</span>
+                    <span>Dùng trên nhiều thiết bị</span>
                 </div>
             </div>
 
             <div class="auth-showcase-footer">
                 <span>Accounting LMS</span>
-                <span>Secure access for approved members</span>
+                <span>Chỉ dành cho tài khoản được cấp quyền</span>
             </div>
         </section>
 
         <section class="auth-panel">
             <div class="auth-mobile-brand" aria-hidden="true">
                 <img src="icon-512.png" alt="">
-                <div><strong>ICAEW LMS</strong><span>Learning Workspace</span></div>
+                <div><strong>ICAEW LMS</strong><span>Không gian học tập</span></div>
             </div>
 
             <div class="auth-card">
@@ -84,7 +85,7 @@
 
                 <div class="auth-view" id="auth-login-view">
                     <div class="auth-card-heading">
-                        <span class="auth-eyebrow">WELCOME BACK</span>
+                        <span class="auth-eyebrow">ĐĂNG NHẬP</span>
                         <h2 id="auth-title">Đăng nhập</h2>
                         <p>Tiếp tục học và đồng bộ tiến độ của bạn.</p>
                     </div>
@@ -131,7 +132,7 @@
 
                 <div class="auth-view" id="auth-forgot-view" hidden>
                     <div class="auth-card-heading">
-                        <span class="auth-eyebrow">ACCOUNT RECOVERY</span>
+                        <span class="auth-eyebrow">KHÔI PHỤC TÀI KHOẢN</span>
                         <h2>Quên mật khẩu?</h2>
                         <p>Nhập email tài khoản. Hệ thống sẽ gửi liên kết đặt lại mật khẩu đến email đó.</p>
                     </div>
@@ -156,7 +157,7 @@
 
                 <div class="auth-view" id="auth-reset-view" hidden>
                     <div class="auth-card-heading">
-                        <span class="auth-eyebrow">SET NEW PASSWORD</span>
+                        <span class="auth-eyebrow">MẬT KHẨU MỚI</span>
                         <h2>Đặt mật khẩu mới</h2>
                         <p>Liên kết khôi phục đã được xác thực. Hãy tạo mật khẩu mới cho tài khoản của bạn.</p>
                     </div>
@@ -187,7 +188,7 @@
 
                 <div class="auth-view" id="auth-mfa-view" hidden>
                     <div class="auth-card-heading">
-                        <span class="auth-eyebrow">TWO-STEP VERIFICATION</span>
+                        <span class="auth-eyebrow">XÁC THỰC HAI BƯỚC</span>
                         <h2>Xác thực Authenticator</h2>
                         <p>Mở Google Authenticator, Authy, 1Password hoặc ứng dụng TOTP của bạn và nhập mã 6 số.</p>
                     </div>
@@ -222,7 +223,7 @@
 
             <div class="auth-panel-footer">
                 <span>ICAEW LMS</span>
-                <span>Private learning environment</span>
+                <span>Không gian học tập riêng tư</span>
             </div>
         </section>
     </div>
@@ -242,7 +243,7 @@
 <!-- Left Sidebar Navigation -->
 <div class="sidebar" id="sidebar" aria-label="Điều hướng ICAEW LMS">
     <div class="sidebar-header">
-        <div class="sidebar-header-title"><strong>ICAEW LMS</strong><span>Cross-platform · tự động lưu tiến độ</span></div>
+        <div class="sidebar-header-title"><strong>ICAEW LMS</strong><span>Học tập & tiến độ</span></div>
         <div class="sidebar-header-actions">
             <button class="theme-switch-btn" id="theme-toggle" type="button" role="switch" aria-checked="false" aria-label="Chuyển giao diện sáng tối" title="Giao diện sáng/tối">
                 <span class="theme-icon sun" aria-hidden="true">☀</span><span class="theme-thumb" aria-hidden="true"></span><span class="theme-icon moon" aria-hidden="true">☾</span>
@@ -264,10 +265,10 @@
             <button class="cloud-mini-btn" id="cloud-logout-btn" type="button">Đăng xuất</button>
         </div>
         <div class="sidebar-tools" id="sidebar-tools">
-            <a href="account.html">👤 Account</a>
-            <a href="history.html">🕘 Lịch sử</a>
-            <a href="lessons.html">📘 Lessons</a>
-            <a href="admin.html" id="admin-tool-link" hidden>⚙ Admin</a>
+            <a href="account.html">Tài khoản</a>
+            <a href="history.html">Lịch sử làm bài</a>
+            <a href="lessons.html">Bài học</a>
+            <a href="admin.html" id="admin-tool-link" hidden>Quản trị</a>
         </div>
     </div>
 </div>
@@ -275,10 +276,10 @@
 <!-- Main Content Area -->
 <div class="main-area" id="main-area">
     <div class="empty-state" id="empty-state">
-        <div style="font-size: 3em; margin-bottom: 10px;">📚</div>
-        Hãy chọn <strong>Môn học → Chapter → Bài tập</strong> ở menu để bắt đầu.<br>
-        <span style="font-size:0.72em; margin-top:8px; color:#666;">Tiến độ và giao diện sáng/tối được ghi nhớ trên trình duyệt này.</span>
-        <button class="utility-btn resume-last-btn" id="resume-last-btn" type="button" style="display:none; margin-top:18px;">▶ Tiếp tục bài gần nhất</button>
+        <div aria-hidden="true"></div>
+        <strong>Chọn một bài tập để bắt đầu.</strong>
+        <span style="font-size:.78rem;margin-top:6px;">Mở môn học và chương ở thanh bên, sau đó chọn bài bạn muốn làm.</span>
+        <button class="utility-btn resume-last-btn" id="resume-last-btn" type="button" style="display:none; margin-top:18px;">Tiếp tục bài gần nhất</button>
     </div>
 
     <div class="quiz-container" id="quiz-container" style="display: none;">
@@ -334,7 +335,7 @@
     
     <!-- Navigation Bar Grid -->
     <div class="nav-grid-container" id="nav-grid-container" style="display: none;">
-        <div class="nav-title nav-title-row"><span>Bảng điều hướng & Trạng thái câu hỏi</span><button class="nav-toggle-btn" id="nav-toggle-btn" type="button" aria-expanded="false">Mở bảng câu</button></div>
+        <div class="nav-title nav-title-row"><span>Câu hỏi</span><button class="nav-toggle-btn" id="nav-toggle-btn" type="button" aria-expanded="false">Mở danh sách</button></div>
         <div class="nav-filter-bar" id="nav-filter-bar">
             <button class="filter-btn active" type="button" data-filter="all" onclick="setNavFilter('all')">Tất cả</button>
             <button class="filter-btn" type="button" data-filter="unanswered" onclick="setNavFilter('unanswered')">Chưa làm</button>
