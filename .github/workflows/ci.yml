@@ -43,6 +43,7 @@ jobs:
         run: |
           deno check supabase/functions/icaew-ai-import/index.ts
           deno check supabase/functions/icaew-question-translate/index.ts
+          deno check supabase/functions/icaew-translate/index.ts
 
       - name: Static site smoke test
         run: |
