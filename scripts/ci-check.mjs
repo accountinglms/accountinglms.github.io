@@ -54,10 +54,9 @@ for (const file of ['index.html','admin.html','lessons.html','diagnostics.html']
 }
 
 const learnerHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const inlineScripts = [...learnerHtml.matchAll(/<script(?![^>]*\\bsrc=)[^>]*>[\\s\\S]*?<\\/script>/gi)];
-const inlineStyles = [...learnerHtml.matchAll(/<style[^>]*>[\\s\\S]*?<\\/style>/gi)];
-if (inlineScripts.some(m => m[0].length > 1000) || inlineStyles.some(m => m[0].length > 1000)) {
-  throw new Error('index.html must not contain large inline script/style blocks after frontend refactor');
+const scriptTags = learnerHtml.match(/<script\\b[^>]*>/gi) || [];
+if (scriptTags.some(tag => !/\\bsrc=/.test(tag)) || /<style\\b/i.test(learnerHtml)) {
+  throw new Error('index.html must not contain inline script/style blocks after frontend refactor');
 }
 for (const asset of ['assets/learner.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js']) {
   if (!learnerHtml.includes(asset)) throw new Error('index.html is missing modular learner asset: ' + asset);
