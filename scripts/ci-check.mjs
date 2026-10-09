@@ -200,4 +200,16 @@ if (!edge.includes('practical_example_en') || !edge.includes('standard_reference
   throw new Error('AI Import explanation/example/reference safeguards are missing.');
 }
 
+const aiImportIndex = adminHtml.indexOf('id="import-file"');
+const questionLibraryIndex = adminHtml.indexOf('id="question-list"');
+if (aiImportIndex < 0 || questionLibraryIndex < 0 || aiImportIndex > questionLibraryIndex) {
+  throw new Error('Admin must keep AI Import above Question Library.');
+}
+for (const id of ['subject','chapter','exercise','question-form','lesson-form','create-snapshot']) {
+  if (!adminHtml.includes('id="' + id + '"')) throw new Error('Admin AI-first refactor lost control: ' + id);
+}
+if (!adminHtml.includes('class="toolDetails"')) {
+  throw new Error('Admin secondary tools must remain collapsible.');
+}
+
 console.log('Security/static integrity checks passed.');
