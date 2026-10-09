@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Admin · ICAEW LMS</title>
+<title>Quản trị nội dung · ICAEW LMS</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://uangiwgznukuicrfnohq.supabase.co; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests">
 <meta name="theme-color" content="#081019">
 <link rel="manifest" href="manifest.webmanifest">
+<script src="assets/theme-init.js"></script>
 <style>
 *{box-sizing:border-box}
 :root{color-scheme:dark}
@@ -155,14 +156,15 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
   .library{max-height:none}
 }
 </style>
+<link rel="stylesheet" href="assets/ui-system.css">
 </head>
-<body>
+<body class="page-admin">
 <div id="auth-block" class="auth hidden">
   <section class="authCard">
     <div class="eyebrow">ICAEW LMS</div>
-    <h1>Admin Console</h1>
-    <p>Bạn cần đăng nhập ở trang chính trước.</p>
-    <a class="link" href="./">← Về ICAEW LMS</a>
+    <h1>Quản trị nội dung</h1>
+    <p>Bạn cần đăng nhập ở trang học trước khi mở khu vực quản trị.</p>
+    <a class="link" href="./">← Về trang học</a>
   </section>
 </div>
 
@@ -171,13 +173,13 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
     <header class="topbar">
       <div>
         <div class="eyebrow">ICAEW LMS</div>
-        <h1>Admin Console</h1>
-        <p id="admin-user" class="subline">Quản lý nội dung</p>
+        <h1>Quản trị nội dung</h1>
+        <p id="admin-user" class="subline">Tạo, kiểm tra và xuất bản nội dung học tập</p>
       </div>
       <div class="topActions">
-        <button id="refresh" class="ghost">↻ Refresh</button>
-        <a class="link" href="lessons.html">📘 Lessons</a>
-        <a class="link" href="diagnostics.html">🩺 Diagnostics</a>
+        <button id="refresh" class="ghost">↻ Làm mới</button>
+        <a class="link" href="lessons.html">Bài học</a>
+        <a class="link" href="diagnostics.html">Kiểm tra hệ thống</a>
         <a class="link primaryLink" href="./">← Trang học</a>
       </div>
     </header>
@@ -187,15 +189,15 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
     <section class="card aiHero">
       <div class="heroHead">
         <div class="heroTitle">
-          <div class="heroIcon">✦</div>
+          <div class="heroIcon" aria-hidden="true">AI</div>
           <div>
-            <div class="eyebrow">PRIMARY WORKFLOW</div>
-            <h2>AI Import Studio</h2>
-            <p>Đưa ảnh, PDF hoặc TXT vào đây. AI sẽ chuyển nguồn thành Question Bank hoặc Lesson, tự tạo Explanation EN/VI, Practical Example và Standard Reference trước khi bạn review rồi publish.</p>
+            <div class="eyebrow">Nhập nội dung</div>
+            <h2>Nhập nội dung bằng AI</h2>
+            <p>Tải ảnh, PDF hoặc TXT; chọn nơi lưu; kiểm tra bản nháp rồi mới xuất bản. AI chỉ hỗ trợ chuyển đổi và gợi ý, bạn vẫn là người xác nhận nội dung cuối cùng.</p>
           </div>
         </div>
         <div class="flow" aria-label="Quy trình AI Import">
-          <span>1 · Upload</span><span>2 · AI phân loại</span><span>3 · Xác nhận nơi lưu</span><span>4 · Draft</span><span>5 · Review & Publish</span>
+          <span>1 · Tải nguồn</span><span>2 · Phân loại</span><span>3 · Chọn nơi lưu</span><span>4 · Kiểm tra bản nháp</span><span>5 · Xuất bản</span>
         </div>
       </div>
 
@@ -203,66 +205,66 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
         <div class="uploadZone">
           <label class="fileDrop">
             <input id="import-file" type="file" accept=".png,.jpg,.jpeg,.webp,.pdf,.txt,image/png,image/jpeg,image/webp,application/pdf,text/plain">
-            <div class="dropIcon">📤</div>
+            <div class="dropIcon">＋</div>
             <strong id="import-file-name">Chọn ảnh, PDF hoặc TXT</strong>
-            <span id="import-file-meta">Bấm vào đây để chọn file · tối đa 4 MB mỗi file</span>
+            <span id="import-file-meta">Ảnh, PDF hoặc TXT · tối đa 4 MB mỗi file</span>
           </label>
 
           <div class="importTargetRow">
             <label class="field">
-              <span>AI sẽ tạo</span>
+              <span>Loại nội dung</span>
               <select id="import-target">
-                <option value="questions">Question Bank</option>
-                <option value="lesson">Lesson / Notes</option>
+                <option value="questions">Câu hỏi luyện tập</option>
+                <option value="lesson">Bài học / ghi chú</option>
               </select>
             </label>
-            <button id="ai-generate" type="button" class="aiBtn" disabled>✦ Generate Draft</button>
+            <button id="ai-generate" type="button" class="aiBtn" disabled>Tạo bản nháp</button>
           </div>
         </div>
 
         <aside class="destination">
           <div class="destinationHead">
-            <strong>📍 Nơi lưu nội dung</strong>
-            <span class="cloud">● Cloud</span>
+            <strong>Nơi lưu nội dung</strong>
+            <span class="cloud">● Đã kết nối</span>
           </div>
 
           <div class="destinationGrid">
             <div class="destinationFieldRow">
-              <label class="field"><span>Subject · bắt buộc</span><select id="subject"></select></label>
+              <label class="field"><span>Môn học · bắt buộc</span><select id="subject"></select></label>
               <button id="quick-add-subject" class="quickAdd" type="button" aria-label="Tạo Subject mới" title="Tạo Subject mới">＋</button>
             </div>
             <form id="quick-subject-form" class="inlineCreate">
-              <input id="quick-subject-title" placeholder="Tên Subject mới">
+              <input id="quick-subject-title" placeholder="Tên môn học mới">
               <button type="submit">Tạo</button>
             </form>
 
             <div class="destinationFieldRow">
-              <label class="field"><span>Chapter · bắt buộc</span><select id="chapter"></select></label>
+              <label class="field"><span>Chương · bắt buộc</span><select id="chapter"></select></label>
               <button id="quick-add-chapter" class="quickAdd" type="button" aria-label="Tạo Chapter mới" title="Tạo Chapter mới">＋</button>
             </div>
             <form id="quick-chapter-form" class="inlineCreate">
-              <input id="quick-chapter-title" placeholder="Tên Chapter mới">
+              <input id="quick-chapter-title" placeholder="Tên chương mới">
               <button type="submit">Tạo</button>
             </form>
 
             <div id="exercise-destination-row">
               <div class="destinationFieldRow">
-                <label class="field"><span>Exercise · bắt buộc với Question Bank</span><select id="exercise"></select></label>
+                <label class="field"><span>Bài tập · bắt buộc với câu hỏi</span><select id="exercise"></select></label>
                 <button id="quick-add-exercise" class="quickAdd" type="button" aria-label="Tạo Exercise mới" title="Tạo Exercise mới">＋</button>
               </div>
               <form id="quick-exercise-form" class="inlineCreate">
-                <input id="quick-exercise-title" placeholder="Tên Exercise mới">
+                <input id="quick-exercise-title" placeholder="Tên bài tập mới">
                 <button type="submit">Tạo</button>
               </form>
             </div>
           </div>
 
           <div class="destinationActionRow">
-            <button id="ai-route" class="routeBtn" type="button">✨ AI gợi ý nơi lưu</button>
+            <button id="ai-route" class="routeBtn" type="button">Gợi ý nơi lưu</button>
             <button id="confirm-destination" class="confirmDestinationBtn" type="button">✓ Xác nhận nơi lưu</button>
           </div>
 
-          <div id="destination-status" class="destinationStatus">Chưa xác nhận. AI sẽ không tạo Draft cho đến khi bạn chọn đúng nơi lưu.</div>
+          <div id="destination-status" class="destinationStatus">Chưa xác nhận nơi lưu. Hãy chọn đúng môn học, chương và bài tập trước khi tạo bản nháp.</div>
           <div id="route-suggestion" class="routeSuggestion hidden" aria-live="polite"></div>
         </aside>
       </div>
@@ -274,41 +276,41 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
     <section class="card sectionCard sectionPad">
       <div class="sectionHead">
         <div>
-          <h2><span class="step">02</span>Question Library</h2>
-          <p>Xem nhanh các câu đang nằm trong Exercise được chọn ở phía trên.</p>
+          <h2><span class="step">02</span>Ngân hàng câu hỏi</h2>
+          <p>Xem các câu hỏi thuộc bài tập đang chọn.</p>
         </div>
       </div>
-      <div id="question-list" class="library empty">Chọn Exercise để xem question bank.</div>
+      <div id="question-list" class="library empty">Chọn bài tập để xem ngân hàng câu hỏi.</div>
     </section>
 
     <div class="toolStack">
       <details class="toolDetails">
         <summary>
-          <span class="summaryCopy"><span>🗂️ Quản lý cấu trúc khóa học</span><small>Tạo / ẩn Subject, Chapter, Exercise</small></span>
+          <span class="summaryCopy"><span>Cấu trúc khóa học</span><small>Tạo hoặc ẩn môn học, chương và bài tập</small></span>
         </summary>
         <div class="toolBody">
           <div class="structureGrid">
             <section class="structureBlock">
-              <h3>Subject</h3>
+              <h3>Môn học</h3>
               <form id="subject-form" class="inline">
                 <input id="subject-new" placeholder="Tên môn mới">
-                <button aria-label="Thêm Subject">＋</button>
+                <button aria-label="Thêm môn học">＋</button>
               </form>
               <button id="toggle-subject" type="button" class="ghost miniToggle">Ẩn môn</button>
             </section>
             <section class="structureBlock">
-              <h3>Chapter</h3>
+              <h3>Chương</h3>
               <form id="chapter-form" class="inline">
-                <input id="chapter-new" placeholder="Chapter mới">
-                <button aria-label="Thêm Chapter">＋</button>
+                <input id="chapter-new" placeholder="Tên chương mới">
+                <button aria-label="Thêm chương">＋</button>
               </form>
               <button id="toggle-chapter" type="button" class="ghost miniToggle">Ẩn chapter</button>
             </section>
             <section class="structureBlock">
-              <h3>Exercise</h3>
+              <h3>Bài tập</h3>
               <form id="exercise-form" class="inline">
-                <input id="exercise-new" placeholder="Exercise mới">
-                <button aria-label="Thêm Exercise">＋</button>
+                <input id="exercise-new" placeholder="Tên bài tập mới">
+                <button aria-label="Thêm bài tập">＋</button>
               </form>
               <button id="toggle-exercise" type="button" class="ghost miniToggle">Ẩn exercise</button>
             </section>
@@ -321,7 +323,7 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
 
       <details class="toolDetails">
         <summary>
-          <span class="summaryCopy"><span>✍️ Question Editor thủ công</span><small>Chỉ dùng khi muốn tự nhập từng câu</small></span>
+          <span class="summaryCopy"><span>Nhập câu hỏi thủ công</span><small>Dùng khi cần tạo hoặc chỉnh từng câu riêng lẻ</small></span>
         </summary>
         <div class="toolBody">
           <form id="question-form">
@@ -351,7 +353,7 @@ D.</textarea></label>
 
       <details class="toolDetails">
         <summary>
-          <span class="summaryCopy"><span>📘 Lesson Editor thủ công</span><small>Tạo bài lý thuyết bằng tay khi không dùng AI Import</small></span>
+          <span class="summaryCopy"><span>Nhập bài học thủ công</span><small>Dùng khi không cần chuyển đổi từ tài liệu nguồn</small></span>
         </summary>
         <div class="toolBody">
           <form id="lesson-form">
@@ -368,7 +370,7 @@ D.</textarea></label>
 
       <details class="toolDetails">
         <summary>
-          <span class="summaryCopy"><span>🛡️ Activity & Safety</span><small>Lịch sử thay đổi và backup nội dung</small></span>
+          <span class="summaryCopy"><span>Lịch sử & sao lưu</span><small>Theo dõi thay đổi và tạo bản sao nội dung</small></span>
         </summary>
         <div class="toolBody">
           <div class="safetyHead">
@@ -376,7 +378,7 @@ D.</textarea></label>
               <div style="font-weight:800;margin-bottom:4px">Lịch sử quản trị</div>
               <div style="color:#72889b;font-size:.75rem">30 thay đổi nội dung gần nhất được lưu dấu vết trong Supabase.</div>
             </div>
-            <button id="create-snapshot" class="ghost" type="button">💾 Backup nội dung</button>
+            <button id="create-snapshot" class="ghost" type="button">Tạo bản sao</button>
           </div>
           <div id="snapshot-meta" class="answer"><span>Backup gần nhất</span><code>Đang tải…</code></div>
           <div id="audit-list" class="auditList"><div class="empty">Chưa có thay đổi mới kể từ khi bật lịch sử.</div></div>
