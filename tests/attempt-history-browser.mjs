@@ -177,7 +177,7 @@ try{
       exercise_1:{bookmarks:[true],isAnswered:[true],answersStatus:['correct'],updatedAt:Date.now()+180000}
     }));
   },{key:AUTH_KEY,value:session});
-  await page.goto(baseURL+'/',{waitUntil:'domcontentloaded'});
+  await page.goto(baseURL+'/index.html',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.querySelector('#auth-gate')?.classList.contains('hidden')===true);
   await page.waitForSelector('#menu-exercise_1');
   await page.waitForFunction(()=>/Đã đồng bộ/.test(document.querySelector('#cloud-sync-label')?.textContent||''));
