@@ -471,7 +471,7 @@ async function testProgress(browser){
 async function testResponsivePortal(browser){
   const context=await browser.newContext({serviceWorkers:'block',ignoreHTTPSErrors:true,viewport:{width:390,height:844},isMobile:true});
   await installFakeWebSocket(context);
-  await installMock(context);
+  const state=await installMock(context);
   const page=await context.newPage();
   await page.addInitScript(({key,value})=>localStorage.setItem(key,JSON.stringify(value)),{key:AUTH_KEY,value:session});
 
