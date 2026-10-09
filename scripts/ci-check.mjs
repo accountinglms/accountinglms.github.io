@@ -330,8 +330,11 @@ const vgTheme=fs.readFileSync(path.join(root,'assets/vg-theme.css'),'utf8');
 if (!vgTheme.includes('prefers-reduced-motion') || !vgTheme.includes('.subject-cover-art') || !vgTheme.includes('body.page-community .chat-sidebar')) {
   throw new Error('Final theme is missing accessibility, subject-art, or community visual safeguards.');
 }
-if (!learnerHtml.includes('href="home.html"') || !learnerHtml.includes('href="community.html"') || !learnerHtml.includes('href="progress.html"')) {
-  throw new Error('Learner navigation is not connected to the member portal.');
+if (!learnerHtml.includes('href="home.html"') || !learnerHtml.includes('href="history.html"') || !learnerHtml.includes('data-calculator-launcher')) {
+  throw new Error('Focused learner navigation requires Home, attempt history and calculator.');
+}
+if (!homeHtml.includes('href="community.html"') || !homeHtml.includes('href="progress.html"') || !homeHtml.includes('href="account.html"')) {
+  throw new Error('Global navigation belongs to the Home member portal.');
 }
 if (!homeHtml.includes('id="feedback-form"') || !homeHtml.includes('id="announcement-form"') || !homeJs.includes("restInsert('feedback'") || !homeJs.includes("restInsert('announcements'")) {
   throw new Error('Home feedback or admin announcement workflow is incomplete.');
