@@ -7,6 +7,7 @@ let session=null,roomId=null,peerId=null,currentCall=null,pc=null,localStream=nu
 let lastSignalId=0,pollBusy=false,incomingBusy=false,incomingTimer=null,signalTimer=null;
 let inviteVisible=false,seenOffer=false,seenAnswer=false,queuedIce=[],refreshWire=null,lastHeartbeat=0;
 const callButton=$('#voice-call-btn');
+const videoButton=$('#video-call-btn');
 const panel=$('#voice-call-panel');
 const nameOf=id=>(window.__socialNameLookup?.(id)||'thành viên LMS');
 function showPanel(title,detail,buttons=''){
@@ -23,6 +24,8 @@ function cleanup(){
   pc=null;
   if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
   if(remoteAudio){remoteAudio.pause();remoteAudio.srcObject=null;remoteAudio.remove();remoteAudio=null;}
+  for(const el of ['#remote-video','#local-video']){const video=$(el);if(video){video.pause();video.srcObject=null;}}
+  if($('#video-stage'))$('#video-stage').hidden=true;
   currentCall=null;seenOffer=false;seenAnswer=false;queuedIce=[];inviteVisible=false;
   closePanel();
 }
@@ -34,19 +37,27 @@ function initPeer(){
   if(!window.RTCPeerConnection||!navigator.mediaDevices?.getUserMedia)
     throw new Error('Trình duyệt hiện tại không hỗ trợ gọi thoại WebRTC.');
   pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
-  for(const track of localStream.getAudioTracks())pc.addTrack(track,localStream);
-  remoteAudio=document.createElement('audio');
-  remoteAudio.autoplay=true;remoteAudio.playsInline=true;
-  remoteAudio.style.display='none';document.body.appendChild(remoteAudio);
+  for(const track of localStream.getTracks())pc.addTrack(track,localStream);
+  const isVideo=currentCall?.media_kind==='video';
+  const stage=$('#video-stage');
+  if(stage)stage.hidden=!isVideo;
+  if(isVideo){const local=$('#local-video');if(local){local.muted=true;local.playsInline=true;local.srcObject=localStream;local.play().catch(()=>{});}}
+  if(!isVideo){
+    remoteAudio=document.createElement('audio');
+    remoteAudio.autoplay=true;remoteAudio.playsInline=true;
+    remoteAudio.style.display='none';document.body.appendChild(remoteAudio);
+  }
   pc.ontrack=e=>{
-    if(e.streams?.[0])remoteAudio.srcObject=e.streams[0];
-    else remoteAudio.srcObject=new MediaStream([e.track]);
-    remoteAudio.play().catch(()=>{showPanel('Đã kết nối','Nhấn vào trang để bật âm thanh từ trình duyệt.',hangupButton());});
+    const stream=e.streams?.[0]||new MediaStream([e.track]);
+    const output=isVideo?$('#remote-video'):remoteAudio;
+    if(!output)return;
+    output.srcObject=stream;
+    output.play().catch(()=>{showPanel('Đã kết nối','Nhấn vào màn hình để bật âm thanh.',hangupButton());});
   };
   pc.onicecandidate=e=>{if(e.candidate&&currentCall)
     sendSignal('ice',e.candidate.toJSON()).catch(error=>console.warn('ICE signaling:',error));};
   pc.onconnectionstatechange=()=>{
-    if(pc?.connectionState==='connected')showPanel('Đang gọi thoại','Âm thanh được truyền trực tiếp giữa hai thiết bị.',hangupButton());
+    if(pc?.connectionState==='connected')showPanel(currentCall?.media_kind==='video'?'Đang gọi video':'Đang gọi thoại','Âm thanh và hình ảnh truyền trực tiếp giữa hai thiết bị, không được lưu trên LMS.',hangupButton());
     if(pc?.connectionState==='failed')showPanel('Không kết nối được','Có thể do NAT hoặc tường lửa. Bản beta chưa có máy chủ TURN; hãy kết thúc và thử lại.',hangupButton());
   };
 }
@@ -57,14 +68,14 @@ async function hangUp(status='ended'){
   catch(error){console.warn('Could not update call status:',error);}
   cleanup();
 }
-async function startCall(){
+async function startCall(kind='audio'){
   if(!roomId||!peerId||currentCall)return;
   try{
-    localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
-    const id=await restRpc('start_voice_call',{p_group:roomId,p_callee:peerId});
-    currentCall={id,group_id:roomId,caller_id:session.user.id,callee_id:peerId,status:'ringing'};
+    localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:kind==='video'});
+    const id=await restRpc('start_media_call',{p_group:roomId,p_callee:peerId,p_kind:kind});
+    currentCall={id,group_id:roomId,caller_id:session.user.id,callee_id:peerId,status:'ringing',media_kind:kind};
     initPeer();
-    showPanel('Đang gọi…','Đợi người kia chấp nhận cuộc gọi thoại.',hangupButton());
+    showPanel(kind==='video'?'Đang gọi video…':'Đang gọi thoại…','Đợi người kia chấp nhận cuộc gọi.',hangupButton());
     const offer=await pc.createOffer();
     await pc.setLocalDescription(offer);
     await sendSignal('offer',pc.localDescription.toJSON());
@@ -125,7 +136,7 @@ function beginSignalPoll(){
 async function acceptCall(){
   if(!currentCall||currentCall.callee_id!==session.user.id||pc)return;
   try{
-    localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:currentCall.media_kind==='video'});
     initPeer();
     showPanel('Đang kết nối…','Đang thiết lập cuộc gọi thoại an toàn.',hangupButton());
     beginSignalPoll();
@@ -141,7 +152,7 @@ async function checkIncoming(){
     const age=Date.now()-new Date(call.created_at).getTime();
     if(age>180000)return;
     currentCall=call;inviteVisible=true;
-    showPanel('Có cuộc gọi thoại đến','Một thành viên đang gọi cho bạn.',
+    showPanel(call.media_kind==='video'?'Có cuộc gọi video đến':'Có cuộc gọi thoại đến','Một thành viên đang gọi cho bạn.',
       '<button class="voice-answer" type="button" data-call-action="answer">Trả lời</button>'+
       '<button class="voice-hangup" type="button" data-call-action="decline">Từ chối</button>');
   }catch(error){console.warn('Incoming calls:',error);}
@@ -151,8 +162,10 @@ document.addEventListener('lms:room',event=>{
   roomId=event.detail?.kind==='direct'?event.detail.groupId:null;
   peerId=event.detail?.kind==='direct'?event.detail.peerId:null;
   if(callButton)callButton.hidden=!(roomId&&peerId);
+  if(videoButton)videoButton.hidden=!(roomId&&peerId);
 });
-callButton?.addEventListener('click',()=>startCall().catch(console.error));
+callButton?.addEventListener('click',()=>startCall('audio').catch(console.error));
+videoButton?.addEventListener('click',()=>startCall('video').catch(console.error));
 panel?.addEventListener('click',event=>{
   const action=event.target.closest('[data-call-action]')?.dataset.callAction;
   if(action==='end')hangUp().catch(console.error);
@@ -168,6 +181,7 @@ async function init(){
     if(g?.kind==='direct'){
       roomId=g.id;peerId=g.direct_low===session.user.id?g.direct_high:g.direct_low;
       if(callButton)callButton.hidden=false;
+      if(videoButton)videoButton.hidden=false;
     }
   }
   refreshWire=createRealtimeClient(session,[{table:'chat_calls',event:'*'}],()=>{

@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="assets/portal.css">
 <link rel="stylesheet" href="assets/vg-theme.css">
 <link rel="stylesheet" href="assets/community-social.css">
+<link rel="stylesheet" href="assets/community-v48.css">
 </head>
 <body class="page-community">
 <div class="portal-shell">
@@ -32,14 +33,15 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         <span class="notification-badge" id="global-notification-count" hidden>0</span>
       </button>
-      <a class="portal-profile-link" href="account.html"><span class="portal-avatar" id="portal-avatar">U</span><span id="portal-user-name">Tài khoản</span></a>
+      <button class="icon-button" type="button" id="community-profile-open" title="Hồ sơ" aria-label="Chỉnh sửa hồ sơ">♙</button><a class="portal-profile-link" href="account.html"><span class="portal-avatar" id="portal-avatar">U</span><span id="portal-user-name">Tài khoản</span></a>
     </div>
   </header>
 
   <div class="chat-layout">
     <aside class="chat-sidebar" id="chat-sidebar">
       <div class="chat-side-head">
-        <strong>Nhóm trò chuyện</strong>
+        <strong>Trò chuyện</strong>
+        <button class="icon-button" id="community-mobile-close" type="button" aria-label="Đóng danh sách">×</button>
         <button class="icon-button" id="create-group-btn" type="button" aria-label="Tạo nhóm" title="Tạo nhóm">+</button>
       </div>
       <div id="social-tabs" class="social-tabs" role="tablist" aria-label="Trò chuyện và bạn bè"></div>
@@ -52,14 +54,24 @@
       <header class="chat-room-head">
         <div style="display:flex;align-items:center;gap:9px;min-width:0">
           <button class="icon-button mobile-chat-menu" id="mobile-chat-menu" type="button" aria-label="Mở danh sách nhóm">☰</button>
-          <div style="min-width:0"><h1 id="room-title">Chọn một nhóm</h1><p id="room-subtitle">Tham gia nhóm để gửi tin nhắn và file.</p></div>
+          <div style="min-width:0"><h1 id="room-title">Chọn một nhóm</h1><p id="room-subtitle">Tham gia nhóm để gửi tin nhắn và file.</p><span id="typing-indicator" aria-live="polite" hidden></span></div>
         </div>
         <div class="chat-room-actions">
+          <button class="icon-button" id="community-room-profile" type="button" hidden aria-label="Xem hồ sơ bạn chat" title="Hồ sơ">♙</button>
+          <button class="icon-button" id="room-search-btn" type="button" aria-label="Tìm tin nhắn" title="Tìm tin nhắn (Ctrl K)">⌕</button>
           <button class="chat-call-btn" id="voice-call-btn" type="button" hidden title="Gọi thoại 1–1 · beta">☎ Gọi thoại</button>
+          <button class="chat-call-btn" id="video-call-btn" type="button" hidden title="Gọi video 1–1 · beta">▣ Video</button>
+          <button class="icon-button" id="community-mobile-info" type="button" aria-label="Thông tin hội thoại" title="Thông tin">ⓘ</button>
           <span class="connection-state" id="connection-state">Đang kết nối…</span>
         </div>
       </header>
 
+      <div id="chat-search-panel" hidden>
+        <div class="chat-search-heading"><span>Tìm trong cuộc trò chuyện</span><button type="button" id="chat-search-close" aria-label="Đóng">×</button></div>
+        <input id="chat-search-input" type="search" maxlength="100" placeholder="Nhập nội dung tin nhắn…">
+        <div id="chat-search-results"><p>Nhập từ khóa để tìm kiếm.</p></div>
+      </div>
+      <div id="community-drop-zone" hidden>Thả hình ảnh hoặc tài liệu vào đây</div>
       <div class="message-stream" id="message-stream"><div class="empty-compact">Chọn một nhóm để bắt đầu.</div></div>
 
       <div class="chat-composer" id="chat-composer">
@@ -68,6 +80,7 @@
           <button class="btn primary" id="join-group-btn" type="button">Tham gia nhóm</button>
         </div>
         <div id="composer-active">
+          <div id="compose-context" hidden><div><strong id="compose-context-label"></strong><span id="compose-context-text"></span></div><button type="button" id="compose-context-close" aria-label="Hủy trả lời hoặc chỉnh sửa">×</button></div>
           <div class="pending-file" id="pending-file" hidden><span id="pending-file-name"></span><button type="button" id="remove-pending-file" style="border:0;background:none;color:inherit;cursor:pointer">×</button></div>
           <div class="composer-box">
             <textarea id="message-input" maxlength="8000" placeholder="Nhắn vào nhóm…"></textarea>
@@ -82,11 +95,13 @@
               <div class="emoji-popover" id="emoji-popover" hidden></div>
             </div>
           </div>
+          <div id="composer-status" role="status" aria-live="polite"></div>
         </div>
       </div>
     </section>
 
-    <aside class="chat-info">
+    <aside class="chat-info" id="community-info">
+      <button class="icon-button" id="community-info-close" type="button" aria-label="Đóng thông tin">×</button>
       <h2 id="info-title">Thông tin nhóm</h2>
       <p id="info-description">Chọn một nhóm để xem thành viên và quyền truy cập.</p>
       <div class="member-list" id="member-list"></div>
@@ -117,7 +132,30 @@
   </div>
 </div>
 
-<section id="voice-call-panel" hidden role="dialog" aria-label="Cuộc gọi thoại">
+<div id="community-notifications" hidden><strong>Thông báo</strong><div id="community-notify-list"></div></div>
+<div id="community-toast" role="status" aria-live="polite" hidden></div>
+<div id="community-profile-dialog" hidden>
+  <section class="profile-card" role="dialog" aria-modal="true" aria-labelledby="profile-title">
+    <div class="profile-card-top"><h2 id="profile-title">Hồ sơ thành viên</h2><button type="button" id="profile-close" aria-label="Đóng">×</button></div>
+    <div id="profile-avatar">M</div>
+    <label>Tên hiển thị<input id="profile-name" maxlength="70" autocomplete="off"></label>
+    <label>Giới thiệu<textarea id="profile-bio" maxlength="180" placeholder="Bạn đang học gì?"></textarea></label>
+    <div id="profile-colors" aria-label="Màu avatar">
+       <button class="color-chip" style="--chip:#36548a" data-avatar-color="#36548a" title="Xanh lam"></button>
+       <button class="color-chip" style="--chip:#7257a9" data-avatar-color="#7257a9" title="Tím"></button>
+       <button class="color-chip" style="--chip:#176d68" data-avatar-color="#176d68" title="Xanh lục"></button>
+       <button class="color-chip" style="--chip:#b06755" data-avatar-color="#b06755" title="Cam"></button>
+       <button class="color-chip" style="--chip:#a04767" data-avatar-color="#a04767" title="Hồng"></button>
+    </div>
+    <div class="profile-card-actions">
+      <button id="profile-save" type="button">Lưu hồ sơ</button>
+      <button id="profile-report" type="button" hidden>Báo cáo</button>
+      <button id="profile-block" type="button" hidden>Chặn thành viên</button>
+    </div>
+  </section>
+</div>
+<section id="voice-call-panel" hidden role="dialog" aria-label="Cuộc gọi thoại hoặc video">
+  <div id="video-stage" hidden><video id="remote-video" autoplay playsinline></video><video id="local-video" autoplay muted playsinline></video></div>
   <strong id="voice-title">Gọi thoại</strong>
   <p id="voice-description"></p>
   <div class="voice-controls" id="voice-controls"></div>
@@ -125,5 +163,6 @@
 <script type="module" src="assets/community.js"></script>
 <script type="module" src="assets/community-social.js"></script>
 <script type="module" src="assets/community-voice.js"></script>
+<script type="module" src="assets/community-experience.js"></script>
 </body>
 </html>

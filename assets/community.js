@@ -1,5 +1,5 @@
 import {
-  ensureSession,getMyAccess,restGet,restInsert,restDelete,restUpsert,restRpc,
+  ensureSession,getMyAccess,restGet,restInsert,restDelete,restUpsert,restRpc,restPatch,
   uploadChatFile,downloadChatFile,getChatFileBlob,createRealtimeClient
 } from './common.js';
 
@@ -16,6 +16,8 @@ let canLoadOlder=false,loadingOlder=false;
 let pendingFile=null;
 let realtime=null;
 let reloadTimer=null;
+let replyTo=null,editingId=null,lastTypingSent=0,peerReadAt=null;
+const normalizeText=value=>String(value||'').normalize('NFC');
 const imageCache=new Map();
 const safeImageMime=/^image\/(png|jpeg|webp|gif)$/i;
 
@@ -70,7 +72,7 @@ function renderMembers(){
   const rows=memberships.filter(m=>m.group_id===currentGroupId);
   root.innerHTML=rows.map(m=>{
     const p=pmap.get(m.user_id);const name=p?.display_name||m.user_id.slice(0,8);
-    return `<div class="member"><span class="portal-avatar">${esc(initials(name))}</span><div><strong>${esc(name)}</strong><span>${esc(m.role)}</span></div></div>`;
+    return `<div class="member"><span class="portal-avatar">${esc(initials(name))}</span><div><strong>${esc(name)}</strong><span>${esc(m.role)}</span></div><button class="btn" type="button" data-profile-user="${esc(m.user_id)}" title="Xem hồ sơ">Hồ sơ</button></div>`;
   }).join('')||'<div class="empty-compact">Chưa có thành viên.</div>';
   $('#group-manage-tools').hidden=!canManage(currentGroupId);
 }
@@ -102,24 +104,33 @@ function renderMessages(){
     return;
   }
   const pmap=profileMap(),agg=aggregateReactions();
+  const wasNearBottom=root.scrollHeight-root.scrollTop-root.clientHeight<160;
+  const direct=currentGroup()?.kind==='direct';
   root.innerHTML=(canLoadOlder?'<div style="text-align:center;padding:8px"><button class="btn" id="load-older-messages" type="button">Tải tin nhắn cũ hơn</button></div>':'')+currentMessages.map(msg=>{
     const p=pmap.get(msg.sender_id);const name=p?.display_name||(msg.sender_id===session.user.id?'Bạn':'Member');
     const reactions=[...agg.values()].filter(x=>x.message_id===msg.id);
     const deleted=Boolean(msg.deleted_at);
-    return `<article class="message-row" data-message-id="${msg.id}">
+    const original=msg.reply_to?currentMessages.find(m=>m.id===msg.reply_to):null;
+    const replied=msg.reply_to?'<div class="chat-replied">↪ '+esc(original?.body?.slice(0,135)||'Tin nhắn được trả lời')+'</div>':'';
+    const seen=direct&&msg.sender_id===session.user.id&&peerReadAt
+      &&new Date(msg.created_at)<=new Date(peerReadAt);
+    return `<article class="message-row ${msg.sender_id===session.user.id?'own':''}" data-message-id="${msg.id}">
       <span class="message-avatar">${esc(initials(name))}</span>
       <div class="message-main">
         <div class="message-meta"><strong>${esc(name)}</strong><time>${esc(fmtTime(msg.created_at))}</time>${msg.message_type==='assignment'?'<span class="notice-kind">Bài tập</span>':''}</div>
-        <div class="message-body">${deleted?'<em style="color:var(--portal-muted)">Tin nhắn đã xoá</em>':esc(msg.body)}</div>
+        ${replied}
+        <div class="message-body ${msg.message_type==='sticker'?'is-sticker':''}">${deleted?'<em style="color:var(--portal-muted)">Tin nhắn đã xoá</em>':esc(normalizeText(msg.body))}</div>
+        ${msg.edited_at?'<span class="chat-edited">Đã chỉnh sửa</span>':''}
+        ${direct&&msg.sender_id===session.user.id?'<span class="chat-delivery">'+(seen?'✓✓ Đã xem':'✓ Đã gửi')+'</span>':''}
         ${!deleted&&msg.attachment_path&&safeImageMime.test(msg.attachment_mime||'')?`<img class="chat-image-preview" data-preview-path="${esc(msg.attachment_path)}" data-preview-size="${Number(msg.attachment_size)||0}" alt="Ảnh từ ${esc(name)}" hidden>`:''}
          ${!deleted&&msg.attachment_path?`<button class="message-attachment" type="button" data-download="${esc(msg.attachment_path)}" data-name="${esc(msg.attachment_name||'file')}"><span>▣</span><span><strong>${esc(msg.attachment_name||'Tệp đính kèm')}</strong><br>${esc(fmtSize(msg.attachment_size))}</span></button>`:''}
         ${!deleted?`<div class="reaction-row">${reactions.map(r=>`<button class="reaction ${r.mine?'mine':''}" data-react="${esc(r.emoji)}" type="button">${esc(r.emoji)} ${r.count}</button>`).join('')}</div>
-        <div class="message-actions"><button type="button" data-add-reaction="👍">+ 👍</button><button type="button" data-add-reaction="❤️">+ ❤️</button>${msg.sender_id===session.user.id||canManage(currentGroupId)?'<button type="button" data-delete-message>Xoá</button>':''}</div>`:''}
+        <div class="message-actions"><button type="button" data-reply-message title="Trả lời">↪ Trả lời</button><button type="button" data-add-reaction="👍">👍</button><button type="button" data-add-reaction="❤️">❤️</button>${msg.sender_id===session.user.id?'<button type="button" data-edit-message>Sửa</button>':''}${msg.sender_id===session.user.id||canManage(currentGroupId)?'<button type="button" data-delete-message>Xoá</button>':''}</div>`:''}
       </div>
     </article>`;
   }).join('');
   enhanceImagePreviews(root).catch(console.warn);
-  requestAnimationFrame(()=>{if(root.dataset.preserveScroll==='1'){root.dataset.preserveScroll='';return;}root.scrollTop=root.scrollHeight;});
+  requestAnimationFrame(()=>{if(root.dataset.preserveScroll==='1'){root.dataset.preserveScroll='';return;}if(wasNearBottom)root.scrollTop=root.scrollHeight;});
 }
 async function enhanceImagePreviews(root){
   const items=[...root.querySelectorAll('img[data-preview-path]')];
@@ -161,16 +172,23 @@ async function loadCurrentMessages({older=false}={}){
   if(older&&(!canLoadOlder||loadingOlder))return;
   loadingOlder=true;
   const stream=$('#message-stream');
+  const renderRoom=currentGroupId;
   const heightBefore=stream.scrollHeight;
   const oldest=older?currentMessages[0]?.id:null;
   try{
     const query=`select=*&group_id=eq.${encodeURIComponent(currentGroupId)}${oldest?`&id=lt.${encodeURIComponent(oldest)}`:''}&order=id.desc&limit=100`;
     const rows=await restGet('chat_messages',query);
+    if(renderRoom!==currentGroupId)return;
     canLoadOlder=rows.length===100;
     const ordered=[...rows].reverse();
     currentMessages=older?[...ordered,...currentMessages]:ordered;
     const ids=currentMessages.map(m=>m.id);
     currentReactions=ids.length?await restGet('chat_message_reactions',`select=*&message_id=in.(${ids.join(',')})`):[];
+    if(currentGroup()?.kind==='direct'){
+      const rows=await restGet('chat_reads',`select=user_id,last_read_at&group_id=eq.${encodeURIComponent(currentGroupId)}`);
+      peerReadAt=rows.find(r=>r.user_id!==session.user.id)?.last_read_at||null;
+    }else peerReadAt=null;
+    if(renderRoom!==currentGroupId)return;
     if(older)stream.dataset.preserveScroll='1';
     renderMessages();
     if(older)requestAnimationFrame(()=>{stream.scrollTop=stream.scrollHeight-heightBefore;});
@@ -179,6 +197,7 @@ async function loadCurrentMessages({older=false}={}){
 }
 async function selectGroup(id){
   currentGroupId=id;
+  replyTo=null;editingId=null;updateComposeBanner();
   const g=currentGroup();
   if(!g)return;
   const url=new URL(location.href);url.searchParams.set('group',id);history.replaceState(null,'',url);
@@ -229,31 +248,50 @@ function scheduleRefresh(){
     }
   },180);
 }
-async function sendMessage(){
+function updateComposeBanner(){
+  const panel=$('#compose-context');
+  if(!panel)return;
+  const related=currentMessages.find(m=>m.id===(editingId||replyTo));
+  panel.hidden=!(editingId||replyTo);
+  if(editingId||replyTo){
+    $('#compose-context-label').textContent=editingId?'Chỉnh sửa tin nhắn':'Trả lời tin nhắn';
+    $('#compose-context-text').textContent=related?.body?.slice(0,145)||'Nội dung trước đó';
+  }
+  const send=$('#send-btn');if(send)send.textContent=editingId?'Lưu sửa':'Gửi';
+}
+async function sendMessage({sticker=null}={}){
   if(!currentGroupId||!myMembership(currentGroupId))return;
-  const input=$('#message-input'),body=input.value.trim();
+  const input=$('#message-input'),body=normalizeText(sticker||input.value.trim());
   if(!body&&!pendingFile)return;
   const btn=$('#send-btn');btn.disabled=true;
+  const composingRoom=currentGroupId;
   try{
-    let uploaded=null;
-    if(pendingFile)uploaded=await uploadChatFile(currentGroupId,pendingFile);
-    await restInsert('chat_messages',{
-      group_id:currentGroupId,
-      sender_id:session.user.id,
-      body,
-      message_type:$('#message-type').value,
-      attachment_path:uploaded?.storagePath||null,
-      attachment_name:uploaded?.name||null,
-      attachment_mime:uploaded?.mime||null,
-      attachment_size:uploaded?.size||null
-    });
-    input.value='';
-    pendingFile=null;
-    $('#pending-file').hidden=true;
-    $('#file-input').value='';
-    await loadCurrentMessages();
-    await refreshCore();
-  }catch(error){alert(error.message||'Không gửi được tin nhắn.');}
+    if(editingId){
+      if(!body)throw new Error('Nội dung không được để trống.');
+      await restPatch('chat_messages','id=eq.'+editingId+'&sender_id=eq.'+encodeURIComponent(session.user.id),{body});
+    }else{
+      let uploaded=null;
+      if(pendingFile)uploaded=await uploadChatFile(currentGroupId,pendingFile);
+      const nonce=crypto.randomUUID();
+      // Display optimistic feedback without exposing unconfirmed messages as persisted.
+      $('#composer-status').textContent='Đang gửi…';
+      await restInsert('chat_messages',{
+        group_id:currentGroupId,sender_id:session.user.id,body,
+        message_type:sticker?'sticker':$('#message-type').value,
+        reply_to:replyTo,client_nonce:nonce,
+        attachment_path:uploaded?.storagePath||null,
+        attachment_name:uploaded?.name||null,
+        attachment_mime:uploaded?.mime||null,
+        attachment_size:uploaded?.size||null
+      });
+    }
+    if(composingRoom===currentGroupId){
+      input.value='';pendingFile=null;replyTo=null;editingId=null;
+      updateComposeBanner();$('#pending-file').hidden=true;$('#file-input').value='';
+      await loadCurrentMessages();await refreshCore();
+    }
+    $('#composer-status').textContent='';
+  }catch(error){$('#composer-status').textContent='Gửi chưa thành công';alert(error.message||'Không gửi được tin nhắn.');}
   finally{btn.disabled=false;}
 }
 async function toggleReaction(messageId,emoji){
@@ -281,6 +319,7 @@ async function bootstrap(){
   realtime=createRealtimeClient(session,[
     {table:'chat_messages',event:'*'},
     {table:'chat_message_reactions',event:'*'},
+    {table:'chat_reads',event:'*'},
     {table:'chat_groups',event:'*'},
     {table:'announcements',event:'*'}
   ],scheduleRefresh,status=>{
@@ -290,18 +329,15 @@ async function bootstrap(){
   });
 }
 $('#chat-groups').addEventListener('click',e=>{const b=e.target.closest('[data-group]');if(b)selectGroup(b.dataset.group).catch(console.error);});
-$('#send-btn').addEventListener('click',sendMessage);
-$('#message-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}});
+$('#send-btn').addEventListener('click',()=>sendMessage());
+$('#message-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMessage();}});
 $('#file-input').addEventListener('change',e=>{
   pendingFile=e.target.files?.[0]||null;
   if(pendingFile&&pendingFile.size>20*1024*1024){alert('File tối đa 20 MB.');pendingFile=null;e.target.value='';}
   $('#pending-file').hidden=!pendingFile;$('#pending-file-name').textContent=pendingFile?`${pendingFile.name} · ${fmtSize(pendingFile.size)}`:'';
 });
 $('#remove-pending-file').addEventListener('click',()=>{pendingFile=null;$('#file-input').value='';$('#pending-file').hidden=true;});
-const emojis=['😀','😂','🥹','😍','👍','👏','❤️','🔥','✅','❓','💡','📌','📚','🧠','🎯','💯','🙏','😅'];
-$('#emoji-popover').innerHTML=emojis.map(x=>`<button type="button" data-emoji="${x}">${x}</button>`).join('');
-$('#emoji-btn').addEventListener('click',()=>{$('#emoji-popover').hidden=!$('#emoji-popover').hidden;});
-$('#emoji-popover').addEventListener('click',e=>{const b=e.target.closest('[data-emoji]');if(!b)return;$('#message-input').value+=b.dataset.emoji;$('#emoji-popover').hidden=true;$('#message-input').focus();});
+// Rich emoji and sticker picker is provided by community-experience.js.
 $('#message-stream').addEventListener('click',async e=>{
   const preview=e.target.closest('.chat-image-preview');
   if(preview?.src){window.open(preview.src,'_blank','noopener');return;}
@@ -313,6 +349,14 @@ $('#message-stream').addEventListener('click',async e=>{
   const download=e.target.closest('[data-download]');
   if(download){await downloadChatFile(download.dataset.download,download.dataset.name).catch(err=>alert(err.message));return;}
   const row=e.target.closest('[data-message-id]');if(!row)return;
+  const msg=currentMessages.find(m=>String(m.id)===row.dataset.messageId);
+  if(msg&&e.target.closest('[data-reply-message]')){
+    replyTo=msg.id;editingId=null;updateComposeBanner();$('#message-input').focus();return;
+  }
+  if(msg&&msg.sender_id===session.user.id&&e.target.closest('[data-edit-message]')){
+    editingId=msg.id;replyTo=null;$('#message-input').value=msg.body||'';
+    updateComposeBanner();$('#message-input').focus();return;
+  }
   const reaction=e.target.closest('[data-react],[data-add-reaction]');
   if(reaction){await toggleReaction(row.dataset.messageId,reaction.dataset.react||reaction.dataset.addReaction).catch(err=>alert(err.message));return;}
   if(e.target.closest('[data-delete-message]')){
@@ -347,8 +391,32 @@ $('#invite-list').addEventListener('click',async e=>{
   try{await restInsert('chat_group_members',{group_id:currentGroupId,user_id:b.dataset.user,role:'member'});await refreshCore();renderMembers();renderInviteList();}
   catch(error){alert(error.message||'Không thêm được thành viên.');}
 });
+document.addEventListener('lms:open-room',async event=>{
+  const id=event.detail?.id;if(!id)return;
+  try{await refreshCore();await selectGroup(id);}catch(err){alert(err.message||'Không mở được cuộc trò chuyện.');}
+});
+document.addEventListener('lms:send-sticker',e=>{if(e.detail?.emoji)sendMessage({sticker:e.detail.emoji}).catch(console.warn);});
+document.addEventListener('lms:refresh-chat',()=>{loadCurrentMessages().catch(console.warn);refreshCore().catch(console.warn);});
+document.addEventListener('lms:load-older',()=>{if(canLoadOlder&&!loadingOlder)loadCurrentMessages({older:true}).catch(console.warn);});
+document.addEventListener('lms:jump-message',async e=>{
+  const id=e.detail?.id;
+  if(!Number.isSafeInteger(id)||!currentGroupId)return;
+  let tries=0;
+  while(!currentMessages.some(m=>m.id===id)&&canLoadOlder&&tries++<20)
+    await loadCurrentMessages({older:true}).catch(()=>{});
+  const item=document.querySelector('[data-message-id="'+id+'"]');
+  if(item){item.scrollIntoView({block:'center',behavior:'smooth'});item.classList.add('highlight-message');setTimeout(()=>item.classList.remove('highlight-message'),2600);}
+  else alert('Tin nhắn nằm ngoài phạm vi lịch sử đã tải.');
+});
+document.addEventListener('lms:attach-file',e=>{
+  const file=e.detail?.file;if(!file)return;
+  if(file.size>20*1024*1024){alert('Tệp tối đa 20 MB.');return;}
+  pendingFile=file;
+  $('#pending-file').hidden=false;$('#pending-file-name').textContent=file.name+' · '+fmtSize(file.size);
+});
+$('#compose-context-close')?.addEventListener('click',()=>{editingId=null;replyTo=null;updateComposeBanner();});
 $('#mobile-chat-menu').addEventListener('click',()=>$('#chat-sidebar').classList.toggle('open'));
-$('#notification-bell').addEventListener('click',()=>{location.href='home.html';});
+// Notification tray handled by community-experience.js.
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentGroupId)markCurrentRead().catch(()=>{});});
 window.addEventListener('beforeunload',()=>{realtime?.stop();for(const url of imageCache.values())URL.revokeObjectURL(url);imageCache.clear();});
 bootstrap().catch(error=>{console.error(error);$('#message-stream').innerHTML='<div class="empty-compact">Không tải được Community.</div>';});

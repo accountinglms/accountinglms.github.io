@@ -109,3 +109,7 @@ Private attachments reuse `chat-files` storage and inherit group-based access ch
 Safe image formats can be previewed inline. Voice calls use WebRTC (beta, STUN-only, no TURN fallback):
 network conditions may prevent the peer-to-peer connection. No audio is recorded/stored by the app.
 
+
+## Community 2.0 — v48 (2026-10-10)
+
+Improved Vietnamese typography and multi-device chat layout; grouped, scrollable emoji picker, stickers, in-room message search, message replies/edits, typing indicators and DM read receipts. Member profiles with name, bio and avatar colour, reporting and blocking; drag/drop and clipboard image attachments, notification tray. WebRTC video/audio remain beta and use STUN only, so TURN is required for production reliability. Messages and private files remain protected by Supabase RLS. Database migrations: `community_2_experience_security_v48` and `community_2_media_reports_replies_v48`.

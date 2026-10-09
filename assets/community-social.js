@@ -57,7 +57,7 @@ function renderPeople(){
       buttons='<button class="social-action" data-social-action="add" data-user="'+esc(p.id)+'">+ Kết bạn</button>';
     }
     return '<article class="social-person"><span class="social-avatar">'+esc(initials(display))+'</span><div class="social-person-main"><strong>'+esc(display)+
-      '</strong><div class="social-actions">'+buttons+'</div></div></article>';
+      '</strong><div class="social-actions">'+buttons+'<button class="social-action" data-profile-user="'+esc(p.id)+'" type="button">Hồ sơ</button></div></div></article>';
   };
   const selected=new Set([...pending.map(otherFriendId),...mine.map(otherFriendId)]);
   const priority=[...other].sort((a,b)=>{
@@ -105,7 +105,9 @@ async function performAction(btn){
     if(op==='chat'){
       const group=await restRpc('start_direct_chat',{p_friend:uid});
       if(typeof group!=='string'||!group)throw new Error('Không tạo được cuộc trò chuyện.');
-      location.href='community.html?group='+encodeURIComponent(group);
+      document.dispatchEvent(new CustomEvent('lms:open-room',{detail:{id:group}}));
+      switchTab('direct');
+      await refresh();
       return;
     }
     await refresh();
@@ -133,7 +135,7 @@ async function init(){
     const btn=e.target.closest('[data-social-action]');if(btn)performAction(btn).catch(console.error);
   });
   $('#social-direct-list').addEventListener('click',e=>{
-    const room=e.target.closest('[data-social-room]');if(room)location.href='community.html?group='+encodeURIComponent(room.dataset.socialRoom);
+    const room=e.target.closest('[data-social-room]');if(room)document.dispatchEvent(new CustomEvent('lms:open-room',{detail:{id:room.dataset.socialRoom}}));
   });
   await refresh();
   if(requested){

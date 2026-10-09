@@ -39,6 +39,8 @@ const required = [
   'assets/community-social.css',
   'assets/community-voice.js',
   'assets/community-social.js',
+  'assets/community-experience.js',
+  'assets/community-v48.css',
   'assets/progress.js',
   'supabase/functions/icaew-ai-import/index.ts',
   'supabase/functions/icaew-ai-route/index.ts',
@@ -383,7 +385,7 @@ if(brandedIco.length<100||brandedIco.readUInt16LE(0)!==0||brandedIco.readUInt16L
 const brandManifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.webmanifest'),'utf8'));
 if(!['icon-192.png','icon-512.png'].every(src=>brandManifest.icons.some(icon=>icon.src===src)))throw new Error('PWA branding icons missing.');
 const brandSw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
-if(!brandSw.includes("icaew-lms-github-v47")||!brandSw.includes("'./favicon.ico'"))
+if(!brandSw.includes("icaew-lms-github-v48")||!brandSw.includes("'./favicon.ico'"))
   throw new Error('Brand icons absent from updated PWA cache.');
 
 
@@ -404,7 +406,21 @@ if(!voiceJs.includes("start_voice_call")||!voiceJs.includes("getUserMedia")||!vo
  throw new Error('Voice call signaling is incomplete.');
 if(!upgradedCommon.includes('export async function getChatFileBlob')||!chatSocialCss.includes('#social-tabs'))
  throw new Error('Secure private chat media display missing.');
-if(!sw.includes('icaew-lms-github-v47')||!sw.includes("'./assets/community-social.js'"))
+if(!sw.includes('icaew-lms-github-v48')||!sw.includes("'./assets/community-social.js'"))
  throw new Error('PWA v47 social upgrade cache is missing.');
+
+
+const premiumJs=fs.readFileSync(path.join(root,'assets/community-experience.js'),'utf8');
+const premiumCss=fs.readFileSync(path.join(root,'assets/community-v48.css'),'utf8');
+if(!premiumJs.includes('emoji-search')||!premiumJs.includes('search_chat_messages')||!premiumJs.includes('chat_typing')
+ ||!premiumJs.includes('social_reports')||!premiumJs.includes('set_member_block'))
+ throw new Error('Community premium features missing emoji, typing, search, report or block');
+if(!premiumCss.includes('font-family:Inter')||!premiumCss.includes('.message-row.own')||!premiumCss.includes('emoji-scroll'))
+ throw new Error('Community new typeface, chat bubbles or emoji scrolling missing');
+if(!upgradedCommunity.includes('community-experience.js')||!upgradedCommunity.includes('community-v48.css')
+ ||!upgradedCommunity.includes('id="chat-search-input"')||!upgradedCommunity.includes('id="video-call-btn"'))
+ throw new Error('Community 2.0 page missing search, video or styling');
+if(!communityJs.includes('reply_to:replyTo')||!communityJs.includes('data-edit-message')||!communityJs.includes('lms:open-room'))
+ throw new Error('Message replies, editing or fast room navigation missing');
 
 console.log('Security/static integrity checks passed.');
