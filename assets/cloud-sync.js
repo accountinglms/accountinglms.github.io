@@ -914,6 +914,19 @@
         const lastEmail = loadLastEmail();
         if (lastEmail && emailInput && !emailInput.value) emailInput.value = lastEmail;
 
+        const bootParams = new URLSearchParams(location.search);
+        const signedOut = bootParams.get('signed_out');
+        if (signedOut) {
+            history.replaceState(null, '', location.pathname);
+            showGate(true);
+            showAuthView('login');
+            setAuthMessage(
+                signedOut === 'all'
+                    ? 'Đã đăng xuất tất cả thiết bị. Hãy đăng nhập lại khi cần.'
+                    : 'Đã đăng xuất khỏi thiết bị này. Các thiết bị khác vẫn giữ phiên đăng nhập.'
+            );
+        }
+
         if (location.protocol === 'file:') {
             showGate(true);
             if (authOnlineTip) authOnlineTip.hidden = false;
