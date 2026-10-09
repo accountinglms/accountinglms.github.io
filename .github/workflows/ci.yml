@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Security and static integrity checks
+        run: node scripts/ci-check.mjs
+
+      - name: JavaScript syntax checks
+        run: |
+          node --check assets/common.js
+          node --check assets/admin.js
+          node --check assets/lessons.js
+          node --check assets/diagnostics.js
+          node --check assets/lms-patch.js
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Edge Function typecheck
+        run: deno check supabase/functions/icaew-ai-import/index.ts
+
+      - name: Static site smoke test
+        run: |
+          python3 -m http.server 4173 >/tmp/icaew-http.log 2>&1 &
+          SERVER_PID=$!
+          trap "kill $SERVER_PID" EXIT
+          sleep 1
+          curl --fail --silent http://127.0.0.1:4173/ >/dev/null
+          curl --fail --silent http://127.0.0.1:4173/admin.html >/dev/null
+          curl --fail --silent http://127.0.0.1:4173/lessons.html >/dev/null
+          curl --fail --silent http://127.0.0.1:4173/diagnostics.html >/dev/null
