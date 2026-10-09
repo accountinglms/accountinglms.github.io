@@ -178,6 +178,11 @@ try{
   await page.click('#mobile-menu-btn');
   await page.click('#menu-exercise_1');
   await page.waitForSelector('#options-container .option');
+
+  await page.click('#bookmark-btn');
+  await page.waitForFunction(()=>document.querySelector('#bookmark-btn')?.classList.contains('active'));
+  assert(await page.locator('#nav-btn-0').evaluate(el=>el.classList.contains('bookmarked')),'Starred question is not marked in the navigator');
+
   await page.click('#options-container .option:nth-child(1)');
   await page.click('#next-btn');
 
@@ -192,6 +197,8 @@ try{
   assert(mock.rpcPayloads[0].p_duration_seconds==null || mock.rpcPayloads[0].p_duration_seconds<=120,'Legacy progress produced an implausibly large duration');
   assert(mock.rpcPayloads[0].p_question_snapshot?.[0]?.question_id==='question_1','Question snapshot did not preserve database question ID');
   assert(mock.rpcPayloads[0].p_question_snapshot?.[0]?.selected_answer===0,'Question snapshot did not preserve selected answer');
+  assert(mock.rpcPayloads[0].p_bookmarks?.[0]===true,'First attempt did not preserve the starred question');
+  assert(Number(mock.rpcPayloads[0].p_bookmarked_count)===1,'First attempt bookmark count is incorrect');
   assert(mock.rpcPayloads[0].p_context_snapshot?.exercise_id==='exercise_1','Attempt context snapshot is missing exercise identity');
 
   page.once('dialog',dialog=>dialog.accept());
@@ -200,6 +207,20 @@ try{
 
   const badgeAfterReset=await page.textContent('#menu-exercise_1 .section-score-badge');
   assert(badgeAfterReset==='1/1','Latest score disappeared from sidebar after starting a new attempt');
+  assert(await page.locator('#bookmark-btn').evaluate(el=>el.classList.contains('active')),'Starred question was cleared by retry');
+  assert(await page.locator('#nav-btn-0').evaluate(el=>el.classList.contains('bookmarked')),'Navigator lost the star after retry');
+  assert((await page.textContent('#stat-bookmarked'))==='1','Bookmark statistic did not survive retry');
+
+  // Persistence must also survive a real page reload, not only an in-memory retry.
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.querySelector('#auth-gate')?.classList.contains('hidden')===true);
+  await page.waitForSelector('#menu-exercise_1');
+  await page.waitForFunction(()=>/Đã đồng bộ/.test(document.querySelector('#cloud-sync-label')?.textContent||''));
+  await page.click('#mobile-menu-btn');
+  await page.click('#menu-exercise_1');
+  await page.waitForSelector('#options-container .option');
+  assert(await page.locator('#bookmark-btn').evaluate(el=>el.classList.contains('active')),'Starred question did not survive reload');
+  assert(await page.locator('#nav-btn-0').evaluate(el=>el.classList.contains('bookmarked')),'Navigator star did not survive reload');
 
   await page.click('#options-container .option:nth-child(2)');
   await page.click('#next-btn');
@@ -208,6 +229,8 @@ try{
 
   assert(mock.rpcPayloads.length===2,'Second submission did not append a second attempt');
   assert(mock.rpcPayloads[0].p_run_id!==mock.rpcPayloads[1].p_run_id,'Two attempts reused the same run_id');
+  assert(mock.rpcPayloads[1].p_bookmarks?.[0]===true,'Starred question was not carried into the next attempt');
+  assert(Number(mock.rpcPayloads[1].p_bookmarked_count)===1,'Second attempt bookmark count is incorrect');
   assert(mock.attempts.length===2,'Attempt history was overwritten instead of appended');
 
   const history=await context.newPage();
@@ -236,7 +259,7 @@ try{
   assert(/Bạn chọn/.test(detail||''),'Attempt detail does not show selected answer');
   assert(/Đáp án đúng/.test(detail||''),'Wrong attempt detail does not show correct answer');
 
-  console.log(`PASS ${browserName}: append-only attempt history + mobile timeline`);
+  console.log(`PASS ${browserName}: append-only history + persistent starred questions + mobile timeline`);
   await context.close();
 }finally{
   await browser.close();
