@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Tài khoản & bảo mật · ICAEW LMS</title>
+<title>Tài khoản & bảo mật · Accounting LMS</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://uangiwgznukuicrfnohq.supabase.co; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests">
 <meta name="theme-color" content="#0d2543">
 <link rel="manifest" href="manifest.webmanifest">
@@ -17,7 +17,7 @@
   <header class="topbar">
     <div class="brand">
       <img src="icon-192.png" alt="">
-      <div><span>ICAEW LMS</span><strong>Tài khoản & bảo mật</strong></div>
+      <div><span>Accounting LMS</span><strong>Tài khoản & bảo mật</strong></div>
     </div>
     <a class="back" href="home.html">← Trang chủ</a>
   </header>
@@ -77,6 +77,39 @@
           <label class="codeLabel"><span>Mã 6 số để xác minh</span><input id="totp-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000"></label>
           <button id="verify-totp" class="primary" type="button">Xác minh và bật bảo mật hai bước</button>
           <div id="totp-message" class="inlineMessage"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="sectionHead">
+          <div>
+            <span class="eyebrow">Mật khẩu & dữ liệu</span>
+            <h2>Quản lý tài khoản và dữ liệu học tập</h2>
+            <p>Những thao tác nhạy cảm được đặt tại đây, tách khỏi không gian làm bài.</p>
+          </div>
+        </div>
+        <div class="account-settings-grid">
+          <section class="account-setting-section" aria-labelledby="change-password-heading">
+            <h3 id="change-password-heading">Đổi mật khẩu</h3>
+            <p>Mật khẩu mới chỉ được gửi qua kết nối bảo mật tới hệ thống xác thực.</p>
+            <form id="account-password-form" class="account-password-form">
+              <label for="account-new-password">Mật khẩu mới</label>
+              <input id="account-new-password" type="password" minlength="8" maxlength="128" autocomplete="new-password" required placeholder="Ít nhất 8 ký tự">
+              <label for="account-confirm-password">Nhập lại mật khẩu</label>
+              <input id="account-confirm-password" type="password" minlength="8" maxlength="128" autocomplete="new-password" required placeholder="Nhập lại mật khẩu">
+              <button class="secondary" type="submit">Cập nhật mật khẩu</button>
+            </form>
+          </section>
+          <section class="account-setting-section" aria-labelledby="study-data-heading">
+            <h3 id="study-data-heading">Dữ liệu học tập</h3>
+            <p>Kết quả làm bài và câu ★ được đồng bộ với tài khoản khi kết nối thành công.</p>
+            <div class="account-data-info" id="account-data-info" role="status">Đang kiểm tra dữ liệu của tài khoản…</div>
+            <div id="legacy-recovery-panel" class="account-legacy-panel hidden">
+              <strong>Phát hiện dữ liệu từ phiên bản cũ</strong>
+              <p>Chỉ khôi phục nếu dữ liệu lưu trên trình duyệt này thật sự là của bạn. Bản gốc sẽ được giữ nguyên.</p>
+              <button class="secondary" id="account-recover-legacy" type="button">Khôi phục dữ liệu cũ</button>
+            </div>
+          </section>
         </div>
       </section>
 
