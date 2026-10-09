@@ -1876,3 +1876,75 @@ html[data-theme="light"] .standard-reference strong { color:#43545f; }
         margin-bottom:3px;
     }
 }
+
+
+/* ===== Auth boot state: prevent login flash while restoring a saved session ===== */
+.auth-boot {
+    position:fixed;
+    inset:0;
+    z-index:6000;
+    display:grid;
+    place-items:center;
+    padding:max(20px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+    background:#0a0f15;
+}
+.auth-boot.hidden { display:none; }
+.auth-boot-card {
+    min-width:min(86vw, 320px);
+    display:grid;
+    grid-template-columns:42px minmax(0,1fr) 18px;
+    align-items:center;
+    gap:12px;
+    padding:14px 16px;
+    border:1px solid #263848;
+    border-radius:15px;
+    background:#101820;
+    box-shadow:0 18px 55px rgba(0,0,0,.28);
+}
+.auth-boot-card img {
+    width:42px;
+    height:42px;
+    border-radius:12px;
+    object-fit:cover;
+}
+.auth-boot-card strong {
+    display:block;
+    color:#eef5fa;
+    font-size:.9rem;
+}
+.auth-boot-card span {
+    display:block;
+    margin-top:3px;
+    color:#7f93a3;
+    font-size:.74rem;
+}
+.auth-boot-card i {
+    width:16px;
+    height:16px;
+    border:2px solid #3a5266;
+    border-top-color:#73b9e4;
+    border-radius:50%;
+    animation:authBootSpin .75s linear infinite;
+}
+@keyframes authBootSpin { to { transform:rotate(360deg); } }
+
+body.auth-pending .auth-gate { display:none !important; }
+
+html[data-theme="light"] .auth-boot {
+    background:#f7f9fb;
+}
+html[data-theme="light"] .auth-boot-card {
+    border-color:#d7e0e7;
+    background:#fff;
+    box-shadow:0 18px 55px rgba(51,72,88,.12);
+}
+html[data-theme="light"] .auth-boot-card strong { color:#1d2933; }
+html[data-theme="light"] .auth-boot-card span { color:#738493; }
+html[data-theme="light"] .auth-boot-card i {
+    border-color:#c9d8e3;
+    border-top-color:#2d82b8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .auth-boot-card i { animation-duration:1.5s; }
+}
