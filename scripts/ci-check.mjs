@@ -126,8 +126,21 @@ if (!accountHtml.includes('Account & Security') || !accountHtml.includes('id="to
 if (!accountJs.includes('authMfaEnrollTotp') || !accountJs.includes('authMfaVerify') || !accountJs.includes('authMfaUnenroll')) {
   throw new Error('Account TOTP management flow is incomplete.');
 }
-if (!fs.readFileSync(path.join(root, 'assets/common.js'), 'utf8').includes('mfa_satisfied')) {
+const commonJs = fs.readFileSync(path.join(root, 'assets/common.js'), 'utf8');
+if (!commonJs.includes('mfa_satisfied')) {
   throw new Error('Shared authorization is not MFA-aware.');
+}
+if (!commonJs.includes("authSignOut(scope = 'local')") || !commonJs.includes('AUTH_VALIDATION_MS')) {
+  throw new Error('Persistent session validation/scoped sign-out is missing from shared auth.');
+}
+if (!cloudSync.includes("authSignOut(scope='local')") || !cloudSync.includes('authGetCurrentUser();')) {
+  throw new Error('Learner session resume validation or local sign-out is missing.');
+}
+if (!accountHtml.includes('id="logout-current"') || !accountHtml.includes('id="logout-all"')) {
+  throw new Error('Scoped sign-out controls are missing from Account & Security.');
+}
+if (!accountJs.includes("authSignOut('local')") || !accountJs.includes("authSignOut('global')")) {
+  throw new Error('Account session controls are not wired to local/global sign-out.');
 }
 
 console.log('Security/static integrity checks passed.');
