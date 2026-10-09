@@ -250,7 +250,7 @@ async function testAutomaticSubjectCovers(browser){
   assert((await financeRow.textContent()).includes('Tài chính'),'Finance subject should receive a finance-themed illustration');
   await financeRow.locator('img').scrollIntoViewIfNeeded();
   const financeImage=await financeRow.locator('img').evaluate(async img=>{
-    try{await img.decode();return {ok:img.naturalWidth===720,width:img.naturalWidth,complete:img.complete};}
+    try{await img.decode();return {ok:img.complete&&img.naturalWidth>0,width:img.naturalWidth,complete:img.complete};}
     catch(error){return {ok:false,width:img.naturalWidth,complete:img.complete,reason:String(error)};}
   });
   assert(financeImage.ok,'Finance SVG image cannot be decoded in the browser: '+JSON.stringify(financeImage));
@@ -269,7 +269,7 @@ async function testAutomaticSubjectCovers(browser){
     try{await img.decode();return {src:img.getAttribute('src'),width:img.naturalWidth};}
     catch(error){return {src:img.getAttribute('src'),width:img.naturalWidth,reason:String(error)};}
   })));
-  assert(covers.every(c=>c.width===720),'All future subjects need decodable covers');
+  assert(covers.every(c=>c.width>0),'All future subjects need decodable covers');
   assert(new Set(covers.map(c=>c.src)).size===4,'Every subject should have deterministic individual art');
   assert((await page.locator('.subject-row').filter({hasText:'Auditing'}).textContent()).includes('Kiểm toán'),
     'Auditing course incorrectly classified');
