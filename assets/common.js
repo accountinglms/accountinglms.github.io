@@ -344,6 +344,15 @@ export async function restDelete(table, query) {
   return text ? JSON.parse(text) : [];
 }
 
+export async function restRpc(name, payload={}) {
+  const res=await authedFetch(`/rest/v1/rpc/${encodeURIComponent(name)}`,{
+    method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)
+  });
+  const result=await res.text();
+  if(!res.ok)throw new Error(result||`Không đọc được báo cáo ${name}`);
+  return result?JSON.parse(result):[];
+}
+
 export async function restUpsert(table, payload, onConflict) {
   const suffix=onConflict?`?on_conflict=${encodeURIComponent(onConflict)}`:'';
   const res=await authedFetch(`/rest/v1/${table}${suffix}`,{
@@ -412,67 +421,68 @@ export async function downloadChatFile(storagePath, fileName='download') {
   setTimeout(()=>URL.revokeObjectURL(url),30_000);
 }
 
-export function createRealtimeClient(session, subscriptions, onEvent) {
+export function createRealtimeClient(session, subscriptions, onEvent, onStatus=()=>{}) {
   if (!session?.access_token) throw new Error('Thiếu phiên đăng nhập cho Realtime.');
-  const projectRef = new URL(SUPABASE_URL).hostname.split('.')[0];
-  const wsUrl = `wss://${projectRef}.supabase.co/realtime/v1/websocket?apikey=${encodeURIComponent(SUPABASE_KEY)}&vsn=1.0.0`;
-  let socket=null;
-  let heartbeat=null;
-  let reconnect=null;
-  let stopped=false;
-  let ref=0;
-  let joinRef=null;
-  const topic='realtime:portal-' + Math.random().toString(36).slice(2);
+  const projectRef=new URL(SUPABASE_URL).hostname.split('.')[0];
+  const wsUrl=`wss://${projectRef}.supabase.co/realtime/v1/websocket?apikey=${encodeURIComponent(SUPABASE_KEY)}&vsn=1.0.0`;
+  let socket=null,heartbeat=null,reconnect=null,stopped=false,ref=0,joinRef=null,retries=0;
+  const topic='realtime:portal-'+Math.random().toString(36).slice(2);
   const nextRef=()=>String(++ref);
-  const send=(event,payload,refValue=nextRef())=>{
-    if(socket?.readyState!==WebSocket.OPEN) return null;
-    socket.send(JSON.stringify({topic,event,payload,ref:refValue,join_ref:joinRef}));
-    return refValue;
-  };
-  const connect=()=>{
-    if(stopped) return;
+  const report=status=>{try{onStatus?.(status);}catch(error){console.warn('Realtime status:',error);}};
+  const connect=async()=>{
+    if(stopped)return;
+    report('connecting');
+    // Use the refreshed token after a long sleep or disconnection.
+    try{
+      const current=await ensureSession();
+      if(!stopped&&current?.user?.id===session.user.id)session=current;
+    }catch{report('auth-error');return;}
+    if(stopped)return;
     socket=new WebSocket(wsUrl);
     socket.addEventListener('open',()=>{
+      retries=0;
       joinRef=nextRef();
       socket.send(JSON.stringify({
         topic,event:'phx_join',ref:joinRef,join_ref:joinRef,
-        payload:{
-          config:{
-            broadcast:{ack:false,self:false},
-            presence:{enabled:false},
-            postgres_changes:(subscriptions||[]).map(item=>({
-              event:item.event||'*',
-              schema:item.schema||'public',
-              table:item.table,
-              ...(item.filter?{filter:item.filter}:{})
-            })),
-            private:false
-          },
-          access_token:session.access_token
-        }
+        payload:{config:{
+          broadcast:{ack:false,self:false},
+          presence:{enabled:false},
+          postgres_changes:(subscriptions||[]).map(item=>({
+            event:item.event||'*',schema:item.schema||'public',table:item.table,
+            ...(item.filter?{filter:item.filter}:{})
+          })),private:false
+        },access_token:session.access_token}
       }));
-      heartbeat=setInterval(()=>{ if(socket?.readyState===WebSocket.OPEN) socket.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:nextRef(),join_ref:null})); },20_000);
+      heartbeat=setInterval(()=>{
+        if(socket?.readyState===WebSocket.OPEN)
+          socket.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:nextRef(),join_ref:null}));
+      },20_000);
     });
     socket.addEventListener('message',event=>{
-      let msg=null;
+      let msg;
       try{msg=JSON.parse(event.data);}catch{return;}
-      if(msg?.event==='postgres_changes') onEvent?.(msg.payload);
+      if(msg?.event==='phx_reply'&&msg.ref===joinRef)
+        report(msg.payload?.status==='ok'?'connected':'subscription-error');
+      if(msg?.event==='postgres_changes')onEvent?.(msg.payload);
+      if(msg?.event==='phx_error'||msg?.event==='phx_close')report('disconnected');
     });
     socket.addEventListener('close',()=>{
-      clearInterval(heartbeat); heartbeat=null;
-      if(!stopped) reconnect=setTimeout(connect,1800);
+      clearInterval(heartbeat);heartbeat=null;
+      report('disconnected');
+      if(!stopped){
+        const delay=Math.min(20_000,1500*Math.pow(2,Math.min(retries++,4)));
+        reconnect=setTimeout(connect,delay);
+      }
     });
     socket.addEventListener('error',()=>socket?.close());
   };
   connect();
-  return {
-    stop(){
-      stopped=true;
-      clearInterval(heartbeat);
-      clearTimeout(reconnect);
-      try{socket?.close();}catch{}
-    }
-  };
+  return {stop(){
+    stopped=true;
+    clearInterval(heartbeat);
+    clearTimeout(reconnect);
+    try{socket?.close();}catch{}
+  }};
 }
 
 export async function uploadImportFile(file) {
