@@ -323,6 +323,5 @@ if (!commonJs.includes('uploadChatFile') || !commonJs.includes('downloadChatFile
 }
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
 if (manifest.start_url !== './home.html') throw new Error('Installed PWA must launch into member home.');
-}
 
 console.log('Security/static integrity checks passed.');
