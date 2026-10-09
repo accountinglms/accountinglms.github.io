@@ -2023,6 +2023,7 @@
     function resetSection() {
         if (!confirm('Bắt đầu lượt làm mới? Kết quả hiện tại đã được lưu trong Lịch sử làm bài; đáp án và bookmark của lượt đang hiển thị sẽ được làm mới.')) return;
         progressStore[activeSectionId] = createEmptySectionState(activeSectionData.length);
+        ensureAttemptRun(progressStore[activeSectionId]);
         currentQuestion = 0;
         navFilter = 'all';
         updateFilterButtons();
