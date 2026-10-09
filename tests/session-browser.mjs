@@ -412,6 +412,58 @@ async function testLessonTranslationIsOnDemand(browser) {
   await context.close();
 }
 
+
+async function testCompactQuizToolsOnPhone(browser) {
+  const context = await browser.newContext({
+    serviceWorkers: 'block',
+    ignoreHTTPSErrors: true,
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true
+  });
+  const page = await context.newPage();
+  await page.goto(baseURL + '/', { waitUntil:'domcontentloaded' });
+
+  const result = await page.evaluate(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    const quiz = document.querySelector('#quiz-container');
+    const body = document.querySelector('#quiz-body');
+    if (quiz) quiz.style.display = 'block';
+    if (body) body.style.display = 'block';
+
+    const bookmark = document.querySelector('#bookmark-btn');
+    const translate = document.querySelector('#translate-question-btn');
+    const tools = document.querySelector('.question-tools');
+    bookmark?.classList.add('active');
+
+    const b = bookmark.getBoundingClientRect();
+    const t = translate.getBoundingClientRect();
+    const row = tools.getBoundingClientRect();
+    const bStyle = getComputedStyle(bookmark);
+
+    return {
+      bookmarkWidth: b.width,
+      translateWidth: t.width,
+      sameRow: Math.abs(b.top - t.top) < 2,
+      rowWidth: row.width,
+      viewportWidth: window.innerWidth,
+      overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+      activeBackground: bStyle.backgroundColor,
+      bookmarkHeight: b.height,
+      translateHeight: t.height
+    };
+  });
+
+  assert(result.sameRow, 'Bookmark and translation controls did not stay on one mobile row');
+  assert(result.bookmarkWidth < result.viewportWidth * 0.5, 'Bookmark control became a mobile full-width banner');
+  assert(result.translateWidth < result.viewportWidth * 0.45, 'Translation control became a mobile full-width banner');
+  assert(!result.overflow, 'Compact quiz tools caused horizontal overflow on phone');
+  assert(result.activeBackground !== 'rgb(255, 179, 0)', 'Active bookmark reverted to solid yellow banner');
+  assert(result.bookmarkHeight <= 48 && result.translateHeight <= 48, 'Mobile quiz tools are still too tall');
+
+  await context.close();
+}
+
 const browser = await engine.launch({ headless: true });
 try {
   await testLoginMfaPersistence(browser);
@@ -420,6 +472,7 @@ try {
   await testScopedLogout(browser);
   await testLightThemeQuestionStatusColors(browser);
   await testLessonTranslationIsOnDemand(browser);
+  await testCompactQuizToolsOnPhone(browser);
   console.log(`PASS ${browserName}: session + UI + universal translation suite`);
 } finally {
   await browser.close();

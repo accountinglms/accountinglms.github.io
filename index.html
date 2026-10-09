@@ -289,12 +289,20 @@
                     <p class="progress" id="progress">Question 1 of X</p>
                     <span class="save-status" id="save-status" aria-live="polite">Tự động lưu</span>
                 </div>
-                <button class="bookmark-btn" id="bookmark-btn" type="button" onclick="toggleBookmark()">☆ Đánh dấu câu này</button>
             </div>
             
             <div class="question-text" id="question-text">Loading...</div>
-            <div class="question-translation-row">
-                <button class="translate-question-btn" id="translate-question-btn" type="button">🌐 Dịch sang VI</button>
+            <div class="question-tools" aria-label="Công cụ câu hỏi">
+                <button class="question-tool-btn bookmark-btn" id="bookmark-btn" type="button" onclick="toggleBookmark()" aria-pressed="false">
+                    <span class="tool-icon" aria-hidden="true">☆</span>
+                    <span class="tool-label-full">Đánh dấu câu này</span>
+                    <span class="tool-label-short">Đánh dấu</span>
+                </button>
+                <button class="question-tool-btn translate-question-btn" id="translate-question-btn" type="button" aria-pressed="false">
+                    <span class="tool-icon" aria-hidden="true">🌐</span>
+                    <span class="tool-label-full">Dịch sang VI</span>
+                    <span class="tool-label-short">VI</span>
+                </button>
                 <span class="translation-status" id="translation-status" aria-live="polite"></span>
             </div>
             <div class="question-helper" id="question-helper"></div>

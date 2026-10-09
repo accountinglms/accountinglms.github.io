@@ -36,10 +36,34 @@ function sourceKey(source, target) {
   });
 }
 
+function renderTranslationButton(mode, target='vi') {
+  if (!button) return;
+  const isTranslated = mode === 'original';
+  const isLoading = mode === 'loading';
+
+  let icon = '🌐';
+  let full = target === 'vi' ? 'Dịch sang VI' : 'Translate to EN';
+  let short = target === 'vi' ? 'VI' : 'EN';
+
+  if (isTranslated) {
+    icon = '↩';
+    full = target === 'vi' ? 'Xem bản gốc EN' : 'Xem bản gốc VI';
+    short = target === 'vi' ? 'EN' : 'VI';
+  } else if (isLoading) {
+    icon = '…';
+    full = target === 'vi' ? 'Đang dịch' : 'Translating';
+    short = '…';
+  }
+
+  button.innerHTML = `<span class="tool-icon" aria-hidden="true">${icon}</span><span class="tool-label-full">${full}</span><span class="tool-label-short">${short}</span>`;
+  button.setAttribute('aria-label', full);
+  button.title = full;
+}
+
 function setOriginalButtonLabel() {
   const source = window.getQuestionTranslationSource?.();
   const target = source ? targetForSource(source) : 'vi';
-  button.textContent = target === 'vi' ? '🌐 Dịch sang VI' : '🌐 Translate to EN';
+  renderTranslationButton('translate', target);
 }
 
 function resetView() {
@@ -59,7 +83,7 @@ async function showTranslation() {
   const token = ++requestToken;
 
   button.disabled = true;
-  button.textContent = target === 'vi' ? 'Đang dịch…' : 'Translating…';
+  renderTranslationButton('loading', target);
   setStatus('Đang dịch theo ngữ cảnh kế toán…');
 
   try {
@@ -84,7 +108,7 @@ async function showTranslation() {
     if (!applied) return;
 
     translatedView = true;
-    button.textContent = target === 'vi' ? '↩ Xem bản gốc EN' : '↩ Xem bản gốc VI';
+    renderTranslationButton('original', target);
     button.setAttribute('aria-pressed', 'true');
     setStatus(translated.cached ? 'Bản dịch kế toán · đã lưu' : 'Bản dịch kế toán');
   } catch (error) {
