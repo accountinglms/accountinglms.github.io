@@ -136,11 +136,11 @@ function validateQuestion(raw: any, index: number) {
     if (!Array.isArray(raw.correct_answer) || raw.correct_answer.length < 1) {
       throw new Error(`questions[${index}].correct_answer must be a non-empty array`);
     }
-    const answers = raw.correct_answer.map((v: unknown) => Number(v));
-    if (answers.some(v => !Number.isInteger(v) || v < 0 || v >= options.length)) {
+    const answers: number[] = (raw.correct_answer as unknown[]).map((v: unknown) => Number(v));
+    if (answers.some((v: number) => !Number.isInteger(v) || v < 0 || v >= options.length)) {
       throw new Error(`questions[${index}].correct_answer contains an out-of-range index`);
     }
-    const unique = [...new Set(answers)].sort((a,b) => a-b);
+    const unique: number[] = [...new Set<number>(answers)].sort((a: number, b: number) => a - b);
     if (unique.length !== answers.length) throw new Error(`questions[${index}].correct_answer contains duplicates`);
     correct_answer = unique;
     required_selections = unique.length;
