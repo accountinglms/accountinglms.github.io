@@ -72,7 +72,7 @@ try {
   await page.goto(baseURL + '/index.html', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => document.querySelector('#auth-gate')?.classList.contains('hidden') === true);
 
-  const launcher = page.locator('.sidebar-tools [data-calculator-launcher]');
+  const launcher = page.locator('.sidebar-learning-nav [data-calculator-launcher]');
   await launcher.waitFor({ state:'visible' });
   await launcher.click();
   await page.waitForSelector('#lms-calculator:not([hidden])');
