@@ -13,6 +13,7 @@ const required = [
   'sw.js',
   'assets/learner.css',
   'assets/account.css',
+  'assets/ui-system.css',
   'assets/theme-init.js',
   'assets/learner-core.js',
   'assets/cloud-sync.js',
@@ -68,7 +69,7 @@ const scriptTags = learnerHtml.match(/<script\\b[^>]*>/gi) || [];
 if (scriptTags.some(tag => !/\\bsrc=/.test(tag)) || /<style\\b/i.test(learnerHtml)) {
   throw new Error('index.html must not contain inline script/style blocks after frontend refactor');
 }
-for (const asset of ['assets/learner.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/translation.js']) {
+for (const asset of ['assets/learner.css','assets/ui-system.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/translation.js']) {
   if (!learnerHtml.includes(asset)) throw new Error('index.html is missing modular learner asset: ' + asset);
 }
 
@@ -96,7 +97,7 @@ if (!edge.includes('get_my_access')) {
 }
 
 const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-for (const file of ['account.html','admin.html','lessons.html','diagnostics.html','history.html','manifest.webmanifest','assets/learner.css','assets/account.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/translation.js','assets/common.js','assets/account.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js','assets/history.js']) {
+for (const file of ['account.html','admin.html','lessons.html','diagnostics.html','history.html','manifest.webmanifest','assets/learner.css','assets/account.css','assets/ui-system.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/translation.js','assets/common.js','assets/account.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js','assets/history.js']) {
   if (!sw.includes(file)) throw new Error('Service worker cache list is missing: ' + file);
 }
 
@@ -128,7 +129,7 @@ if (!cloudSync.includes('/auth/v1/factors/') || !cloudSync.includes('/challenge'
 }
 const accountHtml = fs.readFileSync(path.join(root, 'account.html'), 'utf8');
 const accountJs = fs.readFileSync(path.join(root, 'assets/account.js'), 'utf8');
-if (!accountHtml.includes('Account & Security') || !accountHtml.includes('id="totp-setup"')) {
+if (!accountHtml.includes('id="account-app"') || !accountHtml.includes('id="totp-setup"')) {
   throw new Error('Account & Security TOTP UI is incomplete.');
 }
 if (!accountJs.includes('authMfaEnrollTotp') || !accountJs.includes('authMfaVerify') || !accountJs.includes('authMfaUnenroll')) {
@@ -239,7 +240,7 @@ if (!adminHtml.includes('class="toolDetails"')) {
   throw new Error('Admin secondary tools must remain collapsible.');
 }
 
-if (!learnerHtml.includes('<body class="auth-pending">') || !learnerHtml.includes('id="auth-boot"')) {
+if (!/<body class="[^"]*\bauth-pending\b[^"]*">/.test(learnerHtml) || !learnerHtml.includes('id="auth-boot"')) {
   throw new Error('Neutral auth boot state is missing from learner shell.');
 }
 if (!learnerHtml.includes('class="auth-gate hidden"')) {
