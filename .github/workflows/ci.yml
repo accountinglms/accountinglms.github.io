@@ -32,7 +32,6 @@ jobs:
           node --check assets/admin.js
           node --check assets/lessons.js
           node --check assets/diagnostics.js
-          node --check assets/lms-patch.js
 
       - uses: denoland/setup-deno@v2
         with:

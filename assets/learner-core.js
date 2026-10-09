@@ -682,6 +682,94 @@
         subject.chapters.map(chapter => ({ ...chapter, subjectId: subject.id, subjectTitle: subject.title }))
     );
 
+    // Snapshot the original bundled question bank once. It is used only as an offline/network fallback.
+    const legacyFallbackByExercise = new Map();
+    lmsData.forEach(subject => subject.chapters.forEach(chapter => chapter.sections.forEach(section => {
+        legacyFallbackByExercise.set(section.id, section.data || []);
+    })));
+
+    function toLegacyQuestion(row) {
+        return {
+            q: row.prompt || '',
+            type: row.question_type || 'single',
+            options: Array.isArray(row.options) ? row.options : [],
+            answer: row.correct_answer,
+            required: Number(row.required_selections || (Array.isArray(row.correct_answer) ? row.correct_answer.length : 1)),
+            expEng: row.explanation_en || '',
+            expVie: row.explanation_vi || '',
+            _legacyMigrated: row.metadata?.legacy_migrated === true
+        };
+    }
+
+    function applyDatabaseCatalog({ subjects = [], chapters = [], exercises = [], questions = [] } = {}) {
+        if (!Array.isArray(subjects) || subjects.length === 0) return false;
+
+        const questionsByExercise = new Map();
+        questions.forEach(row => {
+            if (!questionsByExercise.has(row.exercise_id)) questionsByExercise.set(row.exercise_id, []);
+            questionsByExercise.get(row.exercise_id).push(toLegacyQuestion(row));
+        });
+
+        const nextCatalog = subjects.map(subject => ({
+            id: subject.id,
+            title: subject.title,
+            chapters: chapters
+                .filter(chapter => chapter.subject_id === subject.id)
+                .map(chapter => ({
+                    id: chapter.id,
+                    title: chapter.title,
+                    sections: exercises
+                        .filter(exercise => exercise.chapter_id === chapter.id)
+                        .map(exercise => {
+                            const legacy = legacyFallbackByExercise.get(exercise.id) || [];
+                            const database = questionsByExercise.get(exercise.id) || [];
+                            const data = exercise.content_mode === 'database'
+                                ? database
+                                : (legacy.length
+                                    ? [...legacy, ...database.filter(question => !question._legacyMigrated)]
+                                    : database);
+                            return { id: exercise.id, title: exercise.title, data };
+                        })
+                }))
+        }));
+
+        const activeId = activeSectionId;
+        const activeQuestion = currentQuestion;
+
+        lmsData.splice(0, lmsData.length, ...nextCatalog);
+        courseData.splice(
+            0,
+            courseData.length,
+            ...nextCatalog.flatMap(subject =>
+                subject.chapters.map(chapter => ({ ...chapter, subjectId: subject.id, subjectTitle: subject.title }))
+            )
+        );
+
+        initSidebar();
+
+        if (activeId) {
+            let found = null;
+            courseData.some(chapter => {
+                found = chapter.sections.find(section => section.id === activeId) || null;
+                return Boolean(found);
+            });
+            if (found) {
+                activeSectionData = found.data;
+                activeSectionId = found.id;
+                currentQuestion = Math.min(activeQuestion, Math.max(found.data.length - 1, 0));
+            } else {
+                activeSectionData = null;
+                activeSectionId = null;
+                currentQuestion = 0;
+            }
+        }
+
+        updateAllSidebarScores();
+        updateResumeButton();
+        return true;
+    }
+
+
     // App State — V3 Quiz Engine
     let activeSectionData = null;
     let activeSectionId = null;
@@ -946,7 +1034,7 @@
                 chapContent.className = 'chapter-content';
 
                 chapter.sections.forEach(sec => {
-                    progressStore[sec.id] = normalizeSectionState(savedProgress[sec.id], sec.data.length);
+                    progressStore[sec.id] = normalizeSectionState(progressStore[sec.id] || savedProgress[sec.id], sec.data.length);
 
                     const secItem = document.createElement('div');
                     secItem.className = 'section-item';
@@ -1088,20 +1176,68 @@
         updateNavUI();
     }
 
+    function draftComplete(index) {
+        if (!activeSectionData || !activeSectionId) return false;
+        const state = progressStore[activeSectionId];
+        const question = activeSectionData[index];
+        if (!state || !question) return false;
+        if (state.isAnswered[index]) return true;
+
+        const draft = state.draftSelections[index];
+        if (question.type === 'single') return Number.isInteger(draft);
+        if (question.type === 'multiple') {
+            const required = Number(question.required || (Array.isArray(question.answer) ? question.answer.length : 0));
+            return Array.isArray(draft)
+                && draft.length === required
+                && draft.every(value => Number.isInteger(value));
+        }
+        return Array.isArray(draft)
+            && draft.length === question.options.length
+            && draft.every(value => typeof value === 'boolean');
+    }
+
+    function answeredCount() {
+        if (!activeSectionData || !activeSectionId) return 0;
+        const state = progressStore[activeSectionId];
+        if (!state) return 0;
+        return activeSectionData.reduce(
+            (total, _, index) => total + (state.isAnswered[index] || draftComplete(index) ? 1 : 0),
+            0
+        );
+    }
+
+    function firstIncomplete() {
+        if (!activeSectionData || !activeSectionId) return -1;
+        const state = progressStore[activeSectionId];
+        return activeSectionData.findIndex(
+            (_, index) => !state.isAnswered[index] && !draftComplete(index)
+        );
+    }
+
+    function updateHelper() {
+        if (!questionHelper || !activeSectionData || !activeSectionId) return;
+        const state = progressStore[activeSectionId];
+        if (state.isAnswered[currentQuestion]) return;
+        questionHelper.textContent = draftComplete(currentQuestion)
+            ? '✓ Đáp án đã được lưu. Có thể chuyển câu; “Kiểm tra đáp án” chỉ dùng khi muốn xem đúng/sai ngay.'
+            : 'Chọn đáp án rồi chuyển câu. Hệ thống sẽ tự lưu; không cần kiểm tra từng câu.';
+    }
+
     function updateStats() {
         if (!activeSectionId || !activeSectionData) return;
         const state = progressStore[activeSectionId];
-        const answered = state.isAnswered.filter(Boolean).length;
+        const answered = answeredCount();
         const correct = state.answersStatus.filter(x => x === 'correct').length;
         const wrong = state.answersStatus.filter(x => x === 'wrong').length;
         const bookmarks = state.bookmarks.filter(Boolean).length;
-        statAnswered.textContent = `${answered}/${activeSectionData.length}`;
+        const total = activeSectionData.length;
+        statAnswered.textContent = `${answered}/${total}`;
         statCorrect.textContent = correct;
         statWrong.textContent = wrong;
         statBookmarked.textContent = bookmarks;
-        progressFill.style.width = `${(answered / activeSectionData.length) * 100}%`;
+        progressFill.style.width = total ? `${(answered / total) * 100}%` : '0%';
         progressFill.parentElement.setAttribute('aria-valuenow', answered);
-        progressFill.parentElement.setAttribute('aria-valuemax', activeSectionData.length);
+        progressFill.parentElement.setAttribute('aria-valuemax', total);
     }
 
     function setNavFilter(filter) {
@@ -1114,28 +1250,30 @@
         document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === navFilter));
     }
 
-    function matchesFilter(i, state) {
-        if (navFilter === 'unanswered') return !state.isAnswered[i];
-        if (navFilter === 'wrong') return state.answersStatus[i] === 'wrong';
-        if (navFilter === 'bookmarked') return !!state.bookmarks[i];
+    function matchesFilter(index, state) {
+        if (navFilter === 'unanswered') return !state.isAnswered[index] && !draftComplete(index);
+        if (navFilter === 'wrong') return state.answersStatus[index] === 'wrong';
+        if (navFilter === 'bookmarked') return Boolean(state.bookmarks[index]);
         return true;
     }
 
     function updateNavUI() {
         if (!activeSectionId || !activeSectionData) return;
         const state = progressStore[activeSectionId];
-        activeSectionData.forEach((_, i) => {
-            const btn = document.getElementById(`nav-btn-${i}`);
+        activeSectionData.forEach((_, index) => {
+            const btn = document.getElementById(`nav-btn-${index}`);
             if (!btn) return;
             const classes = ['nav-btn'];
-            if (!state.isAnswered[i]) classes.push('unanswered');
-            if (i === currentQuestion) classes.push('current');
-            if (state.answersStatus[i] === 'correct') classes.push('correct');
-            else if (state.answersStatus[i] === 'wrong') classes.push('wrong');
-            if (state.bookmarks[i]) classes.push('bookmarked');
-            if (!matchesFilter(i, state)) classes.push('filtered-out');
+            const pending = !state.isAnswered[index] && draftComplete(index);
+            if (!state.isAnswered[index] && !pending) classes.push('unanswered');
+            if (pending) classes.push('answered-pending');
+            if (index === currentQuestion) classes.push('current');
+            if (state.answersStatus[index] === 'correct') classes.push('correct');
+            else if (state.answersStatus[index] === 'wrong') classes.push('wrong');
+            if (state.bookmarks[index]) classes.push('bookmarked');
+            if (!matchesFilter(index, state)) classes.push('filtered-out');
             btn.className = classes.join(' ');
-            btn.setAttribute('aria-current', i === currentQuestion ? 'true' : 'false');
+            btn.setAttribute('aria-current', index === currentQuestion ? 'true' : 'false');
         });
 
         if (state.bookmarks[currentQuestion]) {
@@ -1160,17 +1298,21 @@
 
     function saveDraftForCurrentQuestion() {
         if (!activeSectionId) return;
-        const q = activeSectionData[currentQuestion];
+        const question = activeSectionData[currentQuestion];
         const state = progressStore[activeSectionId];
         if (state.isAnswered[currentQuestion]) return;
-        if (q.type === 'single') {
+
+        if (question.type === 'single') {
             state.draftSelections[currentQuestion] = selectedOptions.size ? Array.from(selectedOptions)[0] : null;
-        } else if (q.type === 'multiple') {
-            state.draftSelections[currentQuestion] = Array.from(selectedOptions).sort((a,b) => a-b);
-        } else if (q.type === 'tf') {
+        } else if (question.type === 'multiple') {
+            state.draftSelections[currentQuestion] = Array.from(selectedOptions).sort((a, b) => a - b);
+        } else if (question.type === 'tf') {
             state.draftSelections[currentQuestion] = tfDraft.slice();
         }
+
         saveProgress();
+        updateNavUI();
+        updateHelper();
     }
 
     function jumpToQuestion(index) {
@@ -1201,30 +1343,30 @@
 
         updateNavUI();
         prevBtn.style.visibility = currentQuestion > 0 ? 'visible' : 'hidden';
-        nextBtn.innerHTML = currentQuestion < activeSectionData.length - 1 ? 'Câu tiếp theo ➔' : 'Xem kết quả ➔';
-        nextBtn.style.background = currentQuestion < activeSectionData.length - 1 ? '#1976d2' : '#ffb300';
-        nextBtn.style.color = currentQuestion < activeSectionData.length - 1 ? '#fff' : '#000';
+        const isLastQuestion = currentQuestion === activeSectionData.length - 1;
+        nextBtn.innerHTML = isLastQuestion ? 'Nộp bài & chấm tất cả ➔' : 'Câu tiếp theo ➔';
+        nextBtn.style.background = isLastQuestion ? '#ffb300' : '#1976d2';
+        nextBtn.style.color = isLastQuestion ? '#000' : '#fff';
         nextBtn.style.visibility = 'visible';
 
-        const q = activeSectionData[currentQuestion];
+        const question = activeSectionData[currentQuestion];
         const state = progressStore[activeSectionId];
-        questionText.textContent = safePlainText(q.q);
+        questionText.textContent = safePlainText(question.q);
         progressText.innerText = `Question ${currentQuestion + 1} of ${activeSectionData.length}`;
 
-        if (q.type === 'single') questionHelper.textContent = 'Chọn 1 đáp án, sau đó bấm “Kiểm tra đáp án”.';
-        else if (q.type === 'multiple') questionHelper.textContent = `Chọn đúng ${q.required} đáp án, sau đó bấm “Kiểm tra đáp án”.`;
-        else questionHelper.textContent = 'Chọn True hoặc False cho từng nhận định, sau đó kiểm tra đáp án.';
-
         if (state.isAnswered[currentQuestion]) {
-            renderAnsweredQuestion(q, state.userSelections[currentQuestion]);
+            renderAnsweredQuestion(question, state.userSelections[currentQuestion]);
             submitBtn.style.display = 'none';
-            showExplanation(state.answersStatus[currentQuestion] === 'correct', q.expEng, q.expVie);
+            showExplanation(state.answersStatus[currentQuestion] === 'correct', question.expEng, question.expVie);
         } else {
             const draft = state.draftSelections[currentQuestion];
-            if (q.type === 'tf') renderTFQuestion(q, draft);
-            else renderChoiceQuestion(q, draft);
+            if (question.type === 'tf') renderTFQuestion(question, draft);
+            else renderChoiceQuestion(question, draft);
             submitBtn.style.display = 'block';
+            submitBtn.textContent = 'Kiểm tra đáp án (tùy chọn)';
+            submitBtn.title = 'Có thể bỏ qua và chuyển câu.';
             updateSubmitState();
+            updateHelper();
         }
         updateNavUI();
     }
@@ -1497,10 +1639,57 @@
         if (currentQuestion > 0) jumpToQuestion(currentQuestion - 1);
     }
 
+    function cloneSelection(value) {
+        return Array.isArray(value) ? value.slice() : value;
+    }
+
+    function gradeDrafts() {
+        if (!activeSectionData || !activeSectionId) return;
+        const state = progressStore[activeSectionId];
+
+        activeSectionData.forEach((question, index) => {
+            if (state.isAnswered[index] || !draftComplete(index)) return;
+            const selection = cloneSelection(state.draftSelections[index]);
+            state.userSelections[index] = cloneSelection(selection);
+            state.draftSelections[index] = null;
+            state.isAnswered[index] = true;
+            state.answersStatus[index] = gradeAnswer(question, selection) ? 'correct' : 'wrong';
+        });
+
+        state.score = state.answersStatus.filter(x => x === 'correct').length;
+        saveProgress();
+        updateSidebarScore(activeSectionId, activeSectionData.length);
+    }
+
     function showResults(force = false) {
         saveDraftForCurrentQuestion();
+
+        const total = activeSectionData ? activeSectionData.length : 0;
+        const completedDrafts = answeredCount();
+        const incomplete = Math.max(total - completedDrafts, 0);
+
+        if (incomplete > 0 && !force) {
+            quizBody.style.display = 'none';
+            scoreBoard.style.display = 'block';
+            updateMobileHeader('results');
+            scoreBoard.innerHTML = `
+                <div class="result-card">
+                    <div style="font-size:1.5rem;">Sẵn sàng nộp bài?</div>
+                    <div class="warning-card">
+                        Bạn đã trả lời <strong>${completedDrafts}/${total}</strong> câu.
+                        Còn <strong>${incomplete}</strong> câu chưa có đáp án hoàn chỉnh.
+                    </div>
+                    <div class="result-actions">
+                        <button class="submit-btn" style="display:inline-block;width:auto;" type="button" onclick="continueUnanswered()">Quay lại câu chưa làm</button>
+                        <button class="utility-btn" type="button" onclick="showResults(true)">Nộp phần hiện tại</button>
+                    </div>
+                </div>`;
+            return;
+        }
+
+        gradeDrafts();
+
         const state = progressStore[activeSectionId];
-        const total = activeSectionData.length;
         const answered = state.isAnswered.filter(Boolean).length;
         const correct = state.answersStatus.filter(x => x === 'correct').length;
         const wrong = state.answersStatus.filter(x => x === 'wrong').length;
@@ -1510,24 +1699,15 @@
         quizBody.style.display = 'none';
         scoreBoard.style.display = 'block';
         updateMobileHeader('results');
-        updateSidebarScore(activeSectionId, activeSectionData.length);
+        updateSidebarScore(activeSectionId, total);
 
-        if (unanswered > 0 && !force) {
-            scoreBoard.innerHTML = `
-                <div class="result-card">
-                    <div style="font-size:1.5rem;">Bạn chưa hoàn thành bài</div>
-                    <div class="warning-card">Còn <strong>${unanswered}</strong> câu chưa được kiểm tra đáp án. Bạn có thể tiếp tục làm hoặc kết thúc với các câu này được tính là chưa trả lời.</div>
-                    <div class="result-actions">
-                        <button class="submit-btn" style="display:inline-block;width:auto;" type="button" onclick="continueUnanswered()">Tiếp tục câu chưa làm</button>
-                        <button class="utility-btn" type="button" onclick="showResults(true)">Vẫn xem kết quả</button>
-                    </div>
-                </div>`;
-            return;
-        }
-
-        const percent = Math.round((correct / total) * 100);
+        const percent = total ? Math.round((correct / total) * 100) : 0;
         const accuracy = answered ? Math.round((correct / answered) * 100) : 0;
-        let message = percent === 100 ? 'Tuyệt vời! Bạn nắm rất vững phần này.' : percent >= 70 ? 'Kết quả tốt. Hãy ưu tiên ôn lại các câu sai.' : 'Nên ôn lại các câu sai trước khi làm lại toàn bộ phần này.';
+        const message = percent === 100
+            ? 'Tuyệt vời! Bạn nắm rất vững phần này.'
+            : percent >= 70
+                ? 'Kết quả tốt. Hãy ưu tiên ôn lại các câu sai.'
+                : 'Nên ôn lại các câu sai trước khi làm lại toàn bộ phần này.';
 
         scoreBoard.innerHTML = `
             <div class="result-card">
@@ -1553,9 +1733,9 @@
     function continueUnanswered() {
         scoreBoard.style.display = 'none';
         quizBody.style.display = 'block';
-        const state = progressStore[activeSectionId];
-        const idx = state.isAnswered.findIndex(x => !x);
-        if (idx >= 0) jumpToQuestion(idx); else loadQuestion();
+        const index = firstIncomplete();
+        if (index >= 0) jumpToQuestion(index);
+        else loadQuestion();
     }
 
     function startReview(type) {

@@ -143,10 +143,11 @@
     .filter-btn.active { background:#263238; color:#90caf9; border-color:#64b5f6; }
     .nav-legend { display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-top:12px; color:#888; font-size:.76rem; }
     .legend-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; }
-    .legend-current{background:#64b5f6}.legend-correct{background:#2e7d32}.legend-wrong{background:#c62828}.legend-bookmark{background:#ffb300}
+    .legend-current{background:#64b5f6}.legend-correct{background:#2e7d32}.legend-wrong{background:#c62828}.legend-pending{background:#3d8bc0}.legend-bookmark{background:#ffb300}
 
     .nav-btn.filtered-out { display:none; }
     .nav-btn.unanswered { background:#424242; }
+    .nav-btn.answered-pending { background:#1d4f75; border-color:#64b5f6; color:#e3f2fd; }
 
     .utility-btn { background:#333; color:#ddd; border:1px solid #555; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:700; }
     .utility-btn:hover { background:#404040; }
@@ -802,6 +803,9 @@
     .cloud-sync-label { color:#7e8a95; font-size:.69rem; margin-top:2px; }
     .cloud-actions { display:flex; gap:7px; margin-top:9px; }
     .cloud-mini-btn { border:1px solid #3d4751; background:#222930; color:#b9c4ce; border-radius:8px; min-height:34px; padding:6px 9px; font-size:.7rem; font-weight:700; cursor:pointer; flex:1; }
+    .sidebar-tools { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:7px; margin-top:8px; }
+    .sidebar-tools a { display:flex; align-items:center; justify-content:center; min-height:36px; padding:7px 8px; border:1px solid #3b617b; border-radius:8px; background:#173047; color:#bfe6ff; font-weight:800; font-size:.75rem; text-decoration:none; }
+    .sidebar-tools a[hidden] { display:none; }
     html[data-theme="light"] .auth-gate { background:rgba(239,244,249,.94); }
     html[data-theme="light"] .auth-card { background:#fff; border-color:#d7e0e8; box-shadow:0 22px 65px rgba(35,50,65,.18); }
     html[data-theme="light"] .auth-brand h1 { color:#17212b; }
@@ -814,6 +818,7 @@
     html[data-theme="light"] .cloud-account { background:#f8fafc; border-top-color:#dbe3ea; }
     html[data-theme="light"] .cloud-user-email { color:#25313d; }
     html[data-theme="light"] .cloud-mini-btn { background:#fff; border-color:#cdd7df; color:#455765; }
+    html[data-theme="light"] .sidebar-tools a { background:#eef6fb; color:#145b88; border-color:#b8d8eb; }
     @media (max-width:520px) {
         .auth-card { padding:22px 18px; border-radius:17px; }
         .auth-actions { grid-template-columns:1fr; }
