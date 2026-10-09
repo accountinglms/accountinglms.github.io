@@ -95,6 +95,7 @@ try {
   assert(await calc.locator('.calc-nav-pad').isVisible(), 'FX-style navigation pad is missing');
   assert((await calc.locator('.calc-number-pad .calc-white-key').count()) === 24, 'FX-style 6-column number pad is incomplete');
 
+  await action('clear');
   await action('shift');
   await fn('sin');
   await pressInsert('0');
