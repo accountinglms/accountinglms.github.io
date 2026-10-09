@@ -27,6 +27,7 @@ const required = [
   'assets/calculator-pro.js',
   'assets/translation.js',
   'assets/common.js',
+  'assets/score-model.js',
   'assets/account.js',
   'assets/admin.js',
   'assets/lessons.js',
@@ -111,7 +112,7 @@ if (!edge.includes('get_my_access')) {
 }
 
 const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-for (const file of ['home.html','community.html','progress.html','account.html','admin.html','lessons.html','diagnostics.html','history.html','manifest.webmanifest','assets/learner.css','assets/account.css','assets/history.css','assets/portal.css','assets/vg-theme.css','assets/calculator.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/calculator.js','assets/calculator-pro.js','assets/translation.js','assets/common.js','assets/account.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js','assets/history.js','assets/home.js','assets/community.js','assets/progress.js']) {
+for (const file of ['home.html','community.html','progress.html','account.html','admin.html','lessons.html','diagnostics.html','history.html','manifest.webmanifest','assets/learner.css','assets/account.css','assets/history.css','assets/portal.css','assets/vg-theme.css','assets/calculator.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/calculator.js','assets/calculator-pro.js','assets/translation.js','assets/common.js','assets/score-model.js','assets/account.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js','assets/history.js','assets/home.js','assets/community.js','assets/progress.js']) {
   if (!sw.includes(file)) throw new Error('Service worker cache list is missing: ' + file);
 }
 
@@ -330,6 +331,9 @@ if (!communityHtml.includes('id="global-notification-count"') || !communityHtml.
 }
 if (!progressHtml.includes('id="trend-chart"') || !progressJs.includes("level==='advanced'?50:55") || !progressJs.includes('safeTarget')) {
   throw new Error('Progress plan or ICAEW threshold logic is incomplete.');
+}
+if (!communityJs.includes("get_portal_unread_counts") || !communityJs.includes('id.desc') || !progressJs.includes('examScore')) {
+  throw new Error('Pagination, unread counters and score correctness must remain intact.');
 }
 if (!commonJs.includes('uploadChatFile') || !commonJs.includes('downloadChatFile') || !commonJs.includes('createRealtimeClient')) {
   throw new Error('Portal storage/realtime helpers are missing.');
