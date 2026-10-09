@@ -3,6 +3,56 @@ import { chromium, webkit } from 'playwright';
 const browserName = process.env.BROWSER || 'chromium';
 const engine = browserName === 'webkit' ? webkit : chromium;
 const baseURL = process.env.TEST_BASE_URL || 'https://127.0.0.1:4173';
+const AUTH_KEY = 'icaew-lms-auth-v2';
+
+const user = {
+  id:'11111111-1111-4111-8111-111111111111',
+  email:'calculator.test@example.com',
+  email_confirmed_at:'2026-10-09T00:00:00Z',
+  confirmed_at:'2026-10-09T00:00:00Z',
+  user_metadata:{display_name:'Calculator Test'},
+  factors:[]
+};
+
+const session = {
+  access_token:'token-aal2',
+  refresh_token:'refresh-aal2',
+  expires_at:Math.floor(Date.now()/1000)+3600,
+  token_type:'bearer',
+  user
+};
+
+function cors(){
+  return {
+    'access-control-allow-origin':'*',
+    'access-control-allow-methods':'GET,POST,PATCH,PUT,DELETE,OPTIONS',
+    'access-control-allow-headers':'authorization,apikey,content-type,prefer',
+    'access-control-expose-headers':'*'
+  };
+}
+
+function json(route,body,status=200){
+  return route.fulfill({status,contentType:'application/json',headers:cors(),body:JSON.stringify(body)});
+}
+
+async function installMock(context){
+  await context.route('https://uangiwgznukuicrfnohq.supabase.co/**', async route => {
+    const req=route.request();
+    const url=new URL(req.url());
+    const path=url.pathname;
+
+    if(req.method()==='OPTIONS') return route.fulfill({status:204,headers:cors(),body:''});
+    if(path==='/auth/v1/user') return json(route,user);
+    if(path==='/rest/v1/rpc/get_my_access') {
+      return json(route,{allowed:true,editor:true,role:'owner',mfa_required:false,mfa_satisfied:true,aal:'aal2'});
+    }
+    if(path.startsWith('/rest/v1/')){
+      if(req.method()==='GET') return json(route,[]);
+      return route.fulfill({status:204,headers:cors(),body:''});
+    }
+    return json(route,{});
+  });
+}
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -16,11 +66,15 @@ try {
     ignoreHTTPSErrors: true,
     viewport: { width: 1280, height: 800 }
   });
+  await installMock(context);
   const page = await context.newPage();
+  await page.addInitScript(({key,value}) => localStorage.setItem(key,JSON.stringify(value)), {key:AUTH_KEY,value:session});
   await page.goto(baseURL + '/', { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => document.querySelector('#auth-gate')?.classList.contains('hidden') === true);
 
-  await page.waitForSelector('[data-calculator-launcher]', { state: 'attached' });
-  await page.evaluate(() => document.querySelector('[data-calculator-launcher]')?.click());
+  const launcher = page.locator('.sidebar-tools [data-calculator-launcher]');
+  await launcher.waitFor({ state:'visible' });
+  await launcher.click();
   await page.waitForSelector('#lms-calculator:not([hidden])');
 
   const calc = page.locator('#lms-calculator');
