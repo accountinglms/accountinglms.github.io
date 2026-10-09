@@ -176,6 +176,10 @@ async function testHome(browser){
   assert((await page.textContent('#global-notification-count'))==='2','Home notification badge should combine chat + admin unread');
   assert((await page.locator('#subject-catalog .subject-row').count())===1,'Home subject catalog did not render');
   assert((await page.locator('#subject-catalog .chapter-row').count())===2,'Home chapter TOC did not render');
+  assert((await page.locator('.subject-cover-art').count())===1,'Van Gogh subject cover did not render');
+  assert((await page.locator('#home-mini-trend svg').count())===1,'Home score sparkline did not render');
+  const heroRadius=await page.locator('.hero-card').evaluate(el=>getComputedStyle(el).borderRadius);
+  assert(heroRadius==='10px','Final visual system should use restrained card radii');
 
   await page.fill('#feedback-subject','Need another mock');
   await page.fill('#feedback-message','Please add a timed mock for adjustments.');
@@ -247,6 +251,37 @@ async function testProgress(browser){
   assert((await page.locator('#weak-list .weak-row').count())===2,'Weakness analysis did not cover both chapters');
   assert((await page.locator('#plan-list .plan-step').count())>=2,'Action plan did not render');
   assert((await page.textContent('#standard-copy')).includes('không phải yêu cầu chính thức'),'Safe target disclaimer is missing');
+  const chartStroke=await page.locator('#trend-chart .chart-line').evaluate(el=>getComputedStyle(el).stroke);
+  assert(chartStroke && chartStroke!=='none','Progress chart lost its academic-theme data styling');
+  await context.close();
+}
+
+async function testResponsivePortal(browser){
+  const context=await browser.newContext({serviceWorkers:'block',ignoreHTTPSErrors:true,viewport:{width:390,height:844},isMobile:true});
+  await installFakeWebSocket(context);
+  await installMock(context);
+  const page=await context.newPage();
+  await page.addInitScript(({key,value})=>localStorage.setItem(key,JSON.stringify(value)),{key:AUTH_KEY,value:session});
+
+  for(const path of ['/home.html','/progress.html']){
+    await page.goto(baseURL+path,{waitUntil:'domcontentloaded'});
+    await page.waitForTimeout(250);
+    const geometry=await page.evaluate(()=>({
+      scroll:document.documentElement.scrollWidth,
+      viewport:window.innerWidth,
+      vgLoaded:Array.from(document.styleSheets).some(s=>String(s.href||'').includes('vg-theme.css'))
+    }));
+    assert(geometry.scroll<=geometry.viewport+1,`${path} has horizontal overflow on 390px mobile: ${geometry.scroll} > ${geometry.viewport}`);
+    assert(geometry.vgLoaded,`${path} did not load the final Van Gogh theme stylesheet`);
+  }
+
+  await page.goto(baseURL+'/community.html',{waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.querySelector('#room-title')?.textContent?.includes('General'));
+  let geo=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:window.innerWidth}));
+  assert(geo.scroll<=geo.viewport+1,'Community has horizontal overflow on mobile');
+  await page.click('#mobile-chat-menu');
+  assert(await page.locator('#chat-sidebar').evaluate(el=>el.classList.contains('open')),'Mobile community drawer did not open smoothly');
+
   await context.close();
 }
 
@@ -255,7 +290,8 @@ try{
   await testHome(browser);
   await testCommunity(browser);
   await testProgress(browser);
-  console.log(`PASS ${browserName}: member home + community + progress portal`);
+  await testResponsivePortal(browser);
+  console.log(`PASS ${browserName}: Van Gogh member portal + community + progress + responsive geometry`);
 }finally{
   await browser.close();
 }
