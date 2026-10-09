@@ -1,5 +1,5 @@
 import {
-  ensureSession,getMyAccess,restGet,restInsert,restDelete,restUpsert,
+  ensureSession,getMyAccess,restGet,restInsert,restDelete,restUpsert,restRpc,
   uploadChatFile,downloadChatFile,createRealtimeClient
 } from './common.js';
 
@@ -24,18 +24,17 @@ function canManage(groupId){
   const m=myMembership(groupId);
   return access?.editor===true || ['owner','admin'].includes(m?.role);
 }
+let unreadCounts=[];
 function unreadInfo(){
-  const joined=new Set(memberships.filter(m=>m.user_id===session.user.id).map(m=>m.group_id));
-  const readMap=new Map(reads.map(r=>[r.group_id,Date.parse(r.last_read_at||0)||0]));
-  const byGroup=new Map();
-  for(const msg of recentMessages){
-    if(!joined.has(msg.group_id)||msg.sender_id===session.user.id)continue;
-    if((Date.parse(msg.created_at||0)||0)>(readMap.get(msg.group_id)||0)) byGroup.set(msg.group_id,(byGroup.get(msg.group_id)||0)+1);
-  }
+  const byGroup=new Map(unreadCounts.map(r=>[r.group_id,Number(r.unread_count)||0]));
   const chat=[...byGroup.values()].reduce((a,b)=>a+b,0);
   const readAnnouncements=new Set(announcementReads.map(r=>r.announcement_id));
   const admin=announcements.filter(a=>!readAnnouncements.has(a.id)).length;
   return {byGroup,chat,admin,total:chat+admin};
+}
+async function updateUnread(){
+  unreadCounts=await restRpc('get_portal_unread_counts');
+  renderGroups();renderHeader();
 }
 function renderHeader(){
   const me=profiles.find(p=>p.id===session.user.id);
@@ -100,7 +99,7 @@ function renderMessages(){
       </div>
     </article>`;
   }).join('');
-  requestAnimationFrame(()=>{root.scrollTop=root.scrollHeight;});
+  requestAnimationFrame(()=>{if(root.dataset.preserveScroll==='1'){root.dataset.preserveScroll='';return;}root.scrollTop=root.scrollHeight;});
 }
 function setComposerState(){
   const joined=Boolean(myMembership(currentGroupId));
@@ -108,12 +107,12 @@ function setComposerState(){
   $('#composer-active').hidden=!joined;
 }
 async function markCurrentRead(){
-  if(!currentGroupId)return;
+  if(!currentGroupId||!myMembership(currentGroupId))return;
   const now=new Date().toISOString();
   await restUpsert('chat_reads',{group_id:currentGroupId,user_id:session.user.id,last_read_at:now,updated_at:now},'group_id,user_id');
   const existing=reads.find(r=>r.group_id===currentGroupId);
   if(existing)existing.last_read_at=now;else reads.push({group_id:currentGroupId,user_id:session.user.id,last_read_at:now});
-  renderGroups();renderHeader();
+  await updateUnread().catch(console.error);
 }
 async function loadCurrentMessages({older=false}={}){
   if(!currentGroupId){currentMessages=[];currentReactions=[];renderMessages();return;}
@@ -130,6 +129,7 @@ async function loadCurrentMessages({older=false}={}){
     currentMessages=older?[...ordered,...currentMessages]:ordered;
     const ids=currentMessages.map(m=>m.id);
     currentReactions=ids.length?await restGet('chat_message_reactions',`select=*&message_id=in.(${ids.join(',')})`):[];
+    if(older)stream.dataset.preserveScroll='1';
     renderMessages();
     if(older)requestAnimationFrame(()=>{stream.scrollTop=stream.scrollHeight-heightBefore;});
     if(!older&&document.visibilityState==='visible')await markCurrentRead().catch(()=>{});
@@ -150,7 +150,7 @@ async function selectGroup(id){
 }
 async function refreshCore({keepCurrent=true}={}){
   const [
-    nextGroups,nextMembers,nextReads,nextRecent,nextProfiles,nextAnnouncements,nextAnnouncementReads
+    nextGroups,nextMembers,nextReads,nextRecent,nextProfiles,nextAnnouncements,nextAnnouncementReads,nextUnreadCounts
   ]=await Promise.all([
     restGet('chat_groups','select=*&order=is_official.desc,updated_at.desc'),
     restGet('chat_group_members','select=group_id,user_id,role,joined_at'),
@@ -158,9 +158,10 @@ async function refreshCore({keepCurrent=true}={}){
     restGet('chat_messages','select=id,group_id,sender_id,body,attachment_name,created_at&order=created_at.desc&limit=500'),
     restGet('profiles','select=id,display_name'),
     restGet('announcements','select=id,status,published_at,created_at&status=eq.published&order=published_at.desc.nullslast&limit=50'),
-    restGet('announcement_reads',`select=announcement_id,read_at&user_id=eq.${encodeURIComponent(session.user.id)}`)
+    restGet('announcement_reads',`select=announcement_id,read_at&user_id=eq.${encodeURIComponent(session.user.id)}`),
+    restRpc('get_portal_unread_counts')
   ]);
-  groups=nextGroups;memberships=nextMembers;reads=nextReads;recentMessages=nextRecent;profiles=nextProfiles;announcements=nextAnnouncements;announcementReads=nextAnnouncementReads;
+  groups=nextGroups;memberships=nextMembers;reads=nextReads;recentMessages=nextRecent;profiles=nextProfiles;announcements=nextAnnouncements;announcementReads=nextAnnouncementReads;unreadCounts=nextUnreadCounts;
   renderHeader();renderGroups();
   if(keepCurrent&&currentGroupId&&groups.some(g=>g.id===currentGroupId)){renderMembers();setComposerState();}
 }
@@ -233,9 +234,11 @@ async function bootstrap(){
     {table:'chat_message_reactions',event:'*'},
     {table:'chat_groups',event:'*'},
     {table:'announcements',event:'*'}
-  ],scheduleRefresh);
-  $('#connection-state').textContent='Realtime · đang kết nối';
-  setTimeout(()=>{$('#connection-state').textContent='Realtime · hoạt động';$('#connection-state').classList.add('live');},900);
+  ],scheduleRefresh,status=>{
+    const labels={connected:'Realtime · đã kết nối',connecting:'Đang kết nối…',disconnected:'Mất kết nối · đang thử lại','subscription-error':'Không thể đăng ký nhận tin','auth-error':'Phiên Realtime hết hạn'};
+    $('#connection-state').textContent=labels[status]||'Đang kết nối…';
+    $('#connection-state').classList.toggle('live',status==='connected');
+  });
 }
 $('#chat-groups').addEventListener('click',e=>{const b=e.target.closest('[data-group]');if(b)selectGroup(b.dataset.group).catch(console.error);});
 $('#send-btn').addEventListener('click',sendMessage);
