@@ -992,3 +992,45 @@ body.page-diagnostics .btn.primary{
 .home-mini-trend svg{display:block;width:100%;height:auto;max-height:64px;overflow:visible}
 .home-mini-trend path{fill:none;stroke:var(--vg-cobalt-deep);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .home-mini-trend circle{fill:var(--vg-paper);stroke:var(--vg-gold);stroke-width:1.6}
+
+/* Accessible reading and touch ergonomics: larger than the previous compact chat theme. */
+body.page-community .message-body{font-size:clamp(14px,.92rem,16px);line-height:1.55}
+body.page-community .message-meta strong{font-size:14px}
+body.page-community .message-meta time,
+body.page-community .chat-room-head p{font-size:12px}
+body.page-community .chat-group-main strong{font-size:13px}
+body.page-community .chat-group-main span{font-size:12px}
+body.page-community .chat-composer textarea{font-size:16px;line-height:1.5}
+body.page-community .message-actions{opacity:1}
+body.page-community .message-actions button{font-size:12px;min-height:30px;min-width:36px}
+body.page-community .reaction{min-height:30px;font-size:13px}
+body.page-community .composer-tools button,
+body.page-community .composer-tools label{min-width:40px;min-height:40px}
+body.page-community .chat-group{min-height:46px}
+body.page-home .portal-nav a,
+body.page-community .portal-nav a,
+body.page-progress .portal-nav a{font-size:13px;min-height:42px}
+body.page-home .card-head p,
+body.page-progress .card-head p{font-size:12px}
+body.page-home .notice-row p,
+body.page-home .feedback-row p{font-size:13px;line-height:1.55}
+body.page-home .btn,
+body.page-progress .btn,
+body.page-community .btn{font-size:13px;min-height:40px}
+body.page-home .field input,
+body.page-home .field select,
+body.page-home .field textarea,
+body.page-progress .field input{font-size:14px;min-height:40px}
+body.page-home .field textarea{line-height:1.5}
+body.page-home .subject-row summary strong{font-size:16px}
+body.page-progress .weak-row p,
+body.page-progress .plan-step p,
+body.page-progress .standard-box p{font-size:13px;line-height:1.5}
+body.page-progress .metric span,
+body.page-home .metric span{font-size:12px}
+@media (hover:none), (pointer:coarse){
+  body.page-community .message-actions{opacity:1}
+  body.page-community .message-actions button{min-height:40px;min-width:44px}
+  body.page-community .reaction{min-height:38px}
+  body.page-community .icon-button{min-width:44px;min-height:44px}
+}
