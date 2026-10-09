@@ -311,6 +311,29 @@ try {
   const derivativeText=await calc.locator('#calc-calculus-output').innerText();
   assert(derivativeText.includes('6'), `Numerical derivative failed: ${derivativeText}`);
 
+  assert((await calc.locator('#calc-const-select option').count()) === 47, 'Scientific constant catalog is not the full 47-item Casio set');
+
+  await calc.locator('#calc-utility-type').selectOption('factor');
+  await calc.locator('#calc-utility-a').fill('360');
+  await calc.locator('#calc-utility-run').click();
+  const factorText=await calc.locator('#calc-utility-output').innerText();
+  assert(factorText.includes('2^3') && factorText.includes('3^2') && factorText.includes('5'), `Prime factorization failed: ${factorText}`);
+
+  // Multi-statement: 2+3 : Ans*4 => 20
+  await calc.locator('[data-pro-drawer="optn"]').click();
+  await calc.locator('[data-pro-drawer="optn"]').click();
+  await action('clear');
+  await pressInsert('2'); await pressInsert('+'); await pressInsert('3');
+  await calc.locator('[data-insert=":"]').click();
+  await pressInsert('Ans'); await pressInsert('*'); await pressInsert('4');
+  await action('equals');
+  assert((await calc.locator('.calc-result').textContent()) === '20', 'Multi-statement calculation failed');
+
+  // Angle mode cycle DEG -> RAD -> GRA -> DEG
+  await action('angle'); await action('angle');
+  assert((await calc.locator('.calc-angle-mode').textContent()) === 'GRA', 'Gradian mode is missing');
+  await action('angle');
+
   const before = await calc.boundingBox();
   const handle = calc.locator('[data-calc-drag]');
   const handleBox = await handle.boundingBox();
