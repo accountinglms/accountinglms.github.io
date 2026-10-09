@@ -145,7 +145,13 @@ async function installMock(context){
         const id=Number(url.searchParams.get('id')?.replace('eq.',''));state.messages=state.messages.filter(m=>m.id!==id);return json(route,[]);
       }
       const group=url.searchParams.get('group_id')?.replace('eq.','');
-      const data=group?state.messages.filter(m=>m.group_id===group):[...state.messages].sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at));
+      let data=group?state.messages.filter(m=>m.group_id===group):[...state.messages];
+      const beforeId=Number(url.searchParams.get('id')?.replace('lt.',''));
+      if(Number.isFinite(beforeId)&&beforeId>0)data=data.filter(m=>m.id<beforeId);
+      if((url.searchParams.get('order')||'').includes('desc'))data.sort((a,b)=>Number(b.id)-Number(a.id));
+      else data.sort((a,b)=>Number(a.id)-Number(b.id));
+      const limit=Number(url.searchParams.get('limit'));
+      if(Number.isFinite(limit)&&limit>0)data=data.slice(0,limit);
       return json(route,data);
     }
     if(table==='chat_message_reactions'){
@@ -248,6 +254,25 @@ async function testCommunity(browser){
   await context.close();
 }
 
+async function testChatPagination(browser){
+  const {context,page,state}=await newPortalPage(browser);
+  const groupId=state.groups[0].id;
+  for(let i=2;i<=125;i++){
+    state.messages.push({
+      id:i,group_id:groupId,sender_id:peer.id,body:'Message '+i,
+      message_type:'text',attachment_path:null,attachment_name:null,attachment_size:null,
+      created_at:new Date(Date.UTC(2026,9,9,12,Math.floor(i/60),i%60)).toISOString(),deleted_at:null
+    });
+  }
+  await page.goto(baseURL+'/community.html',{waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.querySelector('#message-stream')?.textContent?.includes('Message 125'));
+  assert(!(await page.textContent('#message-stream')).includes('Message 2'),'Latest messages must load first, not the oldest');
+  await page.click('#load-older-messages');
+  await page.waitForFunction(()=>document.querySelector('#message-stream')?.textContent?.includes('Message 2'));
+  assert((await page.locator('#message-stream .message-row').count())===125,'Cursor pagination did not load complete 125-message history');
+  await context.close();
+}
+
 async function testProgress(browser){
   const {context,page}=await newPortalPage(browser);
   await page.goto(baseURL+'/progress.html',{waitUntil:'domcontentloaded'});
@@ -297,6 +322,7 @@ const browser=await engine.launch({headless:true});
 try{
   await testHome(browser);
   await testCommunity(browser);
+  await testChatPagination(browser);
   await testProgress(browser);
   await testResponsivePortal(browser);
   console.log(`PASS ${browserName}: Van Gogh member portal + community + progress + responsive geometry`);
