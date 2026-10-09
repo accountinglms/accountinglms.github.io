@@ -1173,3 +1173,29 @@ html[data-theme="light"] .page-diagnostics .probe,
 html[data-theme="light"] .page-diagnostics .progressItem{
   color:var(--ui-text-soft)!important;
 }
+
+
+/* Preserve unambiguous quiz status semantics in light mode */
+html[data-theme="light"] .page-learner .nav-btn.unanswered{
+  background:#e5ebf0!important;
+  color:#34414a!important;
+  border-color:#d3dce3!important;
+}
+html[data-theme="light"] .page-learner .nav-btn.answered-pending{
+  background:#d8ecfb!important;
+  color:#164d73!important;
+  border-color:#3f8fc5!important;
+}
+html[data-theme="light"] .page-learner .nav-btn.correct{
+  background:#2e7d32!important;
+  color:#fff!important;
+  border-color:#2e7d32!important;
+}
+html[data-theme="light"] .page-learner .nav-btn.wrong{
+  background:#c62828!important;
+  color:#fff!important;
+  border-color:#c62828!important;
+}
+html[data-theme="light"] .page-learner .nav-btn.current{
+  border-color:#1976d2!important;
+}
