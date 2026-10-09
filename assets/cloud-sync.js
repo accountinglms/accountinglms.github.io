@@ -18,6 +18,8 @@
     const loginBtn = document.getElementById('auth-login-btn');
     const signupBtn = document.getElementById('auth-signup-btn');
     const authMessage = document.getElementById('auth-message');
+    const authOnlineTip = document.getElementById('auth-online-tip');
+    const passwordToggle = document.getElementById('auth-password-toggle');
     window.addEventListener('error', e => { if (authMessage) { authMessage.textContent = 'Lỗi ứng dụng: ' + (e.message || 'JavaScript không chạy đúng.'); authMessage.style.color = '#ef7b7b'; } });
     window.addEventListener('unhandledrejection', e => { if (authMessage) { const m = e.reason?.message || String(e.reason || 'Lỗi kết nối'); authMessage.textContent = 'Lỗi kết nối: ' + m; authMessage.style.color = '#ef7b7b'; } });
     const accountBox = document.getElementById('cloud-account');
@@ -439,15 +441,27 @@
 
     loginBtn.addEventListener('click', login);
     signupBtn.addEventListener('click', signup);
-    logoutBtn.addEventListener('click', logout);    passwordBtn.addEventListener('click', changePassword);
+    logoutBtn.addEventListener('click', logout);
+    passwordBtn.addEventListener('click', changePassword);
     passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+    passwordToggle?.addEventListener('click', () => {
+        const reveal = passwordInput.type === 'password';
+        passwordInput.type = reveal ? 'text' : 'password';
+        passwordToggle.textContent = reveal ? 'Ẩn' : 'Hiện';
+        passwordToggle.setAttribute('aria-label', reveal ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+        passwordToggle.setAttribute('aria-pressed', String(reveal));
+        passwordInput.focus({ preventScroll:true });
+    });
     window.addEventListener('online', () => { setCloudLabel('Đã có mạng · đang đồng bộ…', true); scheduleSyncFlush(50); queuePrefSync(80); });
     window.addEventListener('offline', () => setCloudLabel('Offline · tiến độ vẫn lưu trên máy', false));
 
     (async () => {
         if (location.protocol === 'file:') {
             showGate(true);
-            setAuthMessage('Bạn đang mở file .html cục bộ. Hãy dùng nút “Mở ICAEW LMS Online” để đăng nhập và đồng bộ cloud.', true);
+            if (authOnlineTip) authOnlineTip.hidden = false;
+            setAuthMessage('Bạn đang mở bản file cục bộ. Hãy chuyển sang website chính thức để đăng nhập.', true);
+        } else if (authOnlineTip) {
+            authOnlineTip.hidden = true;
         }
         const saved = loadSession();
         if (saved) {
