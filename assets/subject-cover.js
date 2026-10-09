@@ -16,8 +16,8 @@ const PATTERNS=[
  ['law',/\b(business law|corporate law|legal|law|phap luat|luat|regulation)\b/],
  ['analytics',/\b(analytics|statistics|statistical|business intelligence|excel|data science|phan tich du lieu|thong ke)\b/],
  ['economics',/\b(economics|economic|microeconomics|macroeconomics|kinh te|cung cau|supply and demand)\b/],
- ['finance',/\b(finance|financial management|financial market|investment|investing|valuation|stock market|securities|cash flow|ngan hang|dau tu|tai chinh|co phieu|thi truong chung khoan|corporate finance)\b/],
- ['accounting',/\b(accounting|accountant|bookkeeping|ledger|financial reporting|financial accounting|ifrs|balance sheet|ke toan|bao cao tai chinh|ghi so)\b/]
+ ['accounting',/\b(accounting|accountant|bookkeeping|ledger|financial reporting|financial accounting|ifrs|balance sheet|ke toan|bao cao tai chinh|ghi so)\b/],
+ ['finance',/\b(finance|financial management|financial market|investment|investing|valuation|stock market|securities|cash flow|ngan hang|dau tu|tai chinh|co phieu|thi truong chung khoan|corporate finance)\b/]
 ];
 
 function words(value){
