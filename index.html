@@ -21,25 +21,102 @@
 <body>
 
 
-<!-- V7 Authentication Gate -->
-<div class="auth-gate" id="auth-gate" role="dialog" aria-modal="true" aria-labelledby="auth-title">
-    <div class="auth-card">
-        <div class="auth-brand">
-            <div class="auth-logo" aria-hidden="true">I</div>
-            <div><h1 id="auth-title">ICAEW LMS</h1><p>Đăng nhập để đồng bộ tiến độ giữa các thiết bị</p></div>
-        </div>
-        <div class="auth-online-tip" id="auth-online-tip">
-            <div><strong>Bản Online dành cho Safari</strong><span>Nếu phía trên màn hình đang hiện tên file <code>.html</code>, bạn đang ở trình xem file chứ chưa phải website.</span></div>
-            <a href="./" target="_blank" rel="noopener noreferrer">Mở ICAEW LMS Online ↗</a>
-        </div>
-        <div class="auth-field"><label for="auth-email">Email</label><input id="auth-email" type="email" autocomplete="username" inputmode="email" placeholder="your@email.com" required></div>
-        <div class="auth-field"><label for="auth-password">Mật khẩu</label><input id="auth-password" type="password" autocomplete="current-password" minlength="8" placeholder="Tối thiểu 8 ký tự" required></div>
-        <div class="auth-actions">
-            <button class="auth-btn primary" id="auth-login-btn" type="button">Đăng nhập</button>
-            <button class="auth-btn" id="auth-signup-btn" type="button" hidden aria-hidden="true">Tạo tài khoản lần đầu</button>
-        </div>
-        <div class="auth-message" id="auth-message" aria-live="polite">Chỉ tài khoản đã được Admin cấp quyền mới có thể sử dụng hệ thống.</div>
-        <div class="auth-note">Đăng ký công khai đã tắt. Nếu cần thêm thành viên, Owner sẽ cấp quyền từ hệ thống quản trị.</div>
+<!-- Authentication -->
+<div class="auth-gate" id="auth-gate" aria-labelledby="auth-title">
+    <div class="auth-shell">
+        <section class="auth-showcase" aria-label="ICAEW LMS">
+            <div class="auth-showcase-glow auth-showcase-glow-one" aria-hidden="true"></div>
+            <div class="auth-showcase-glow auth-showcase-glow-two" aria-hidden="true"></div>
+
+            <div class="auth-showcase-top">
+                <div class="auth-product-brand">
+                    <img class="auth-product-icon" src="icon-512.png" alt="">
+                    <div>
+                        <strong>ICAEW LMS</strong>
+                        <span>Accounting & Finance Learning Workspace</span>
+                    </div>
+                </div>
+                <span class="auth-private-badge">Private workspace</span>
+            </div>
+
+            <div class="auth-showcase-copy">
+                <span class="auth-kicker">LEARN · PRACTICE · PROGRESS</span>
+                <h1>Your learning workspace,<br>built to stay in sync.</h1>
+                <p>Study theory, practise questions and keep your progress available across your devices in one focused workspace.</p>
+
+                <div class="auth-feature-row" aria-label="Tính năng chính">
+                    <span>☁ Cloud sync</span>
+                    <span>✓ Progress tracking</span>
+                    <span>⌁ Cross-device</span>
+                </div>
+            </div>
+
+            <div class="auth-showcase-footer">
+                <span>Accounting LMS</span>
+                <span>Secure access for approved members</span>
+            </div>
+        </section>
+
+        <section class="auth-panel">
+            <div class="auth-mobile-brand" aria-hidden="true">
+                <img src="icon-512.png" alt="">
+                <div><strong>ICAEW LMS</strong><span>Learning Workspace</span></div>
+            </div>
+
+            <div class="auth-card">
+                <div class="auth-card-heading">
+                    <span class="auth-eyebrow">WELCOME BACK</span>
+                    <h2 id="auth-title">Đăng nhập</h2>
+                    <p>Tiếp tục học và đồng bộ tiến độ của bạn.</p>
+                </div>
+
+                <div class="auth-online-tip" id="auth-online-tip" hidden>
+                    <div>
+                        <strong>Bạn đang mở bản file cục bộ</strong>
+                        <span>Hãy mở website chính thức để đăng nhập và đồng bộ dữ liệu.</span>
+                    </div>
+                    <a href="https://accountinglms.github.io/" target="_blank" rel="noopener noreferrer">Mở website ↗</a>
+                </div>
+
+                <div class="auth-field">
+                    <label for="auth-email">Email</label>
+                    <div class="auth-input-wrap">
+                        <span class="auth-input-icon" aria-hidden="true">@</span>
+                        <input id="auth-email" type="email" autocomplete="username" inputmode="email" placeholder="name@example.com" required>
+                    </div>
+                </div>
+
+                <div class="auth-field">
+                    <div class="auth-field-label-row">
+                        <label for="auth-password">Mật khẩu</label>
+                    </div>
+                    <div class="auth-input-wrap">
+                        <span class="auth-input-icon" aria-hidden="true">•</span>
+                        <input id="auth-password" type="password" autocomplete="current-password" minlength="8" placeholder="Nhập mật khẩu" required>
+                        <button class="auth-password-toggle" id="auth-password-toggle" type="button" aria-label="Hiện mật khẩu" aria-pressed="false">Hiện</button>
+                    </div>
+                </div>
+
+                <div class="auth-actions">
+                    <button class="auth-btn primary" id="auth-login-btn" type="button">
+                        <span>Đăng nhập</span><span aria-hidden="true">→</span>
+                    </button>
+                    <button class="auth-btn" id="auth-signup-btn" type="button" hidden aria-hidden="true">Tạo tài khoản lần đầu</button>
+                </div>
+
+                <div class="auth-message" id="auth-message" aria-live="polite"></div>
+
+                <div class="auth-access-note">
+                    <span class="auth-access-icon" aria-hidden="true">⌾</span>
+                    <div><strong>Không có tài khoản?</strong><span>Workspace này dành cho thành viên được Owner cấp quyền.</span></div>
+                </div>
+            </div>
+
+            <div class="auth-panel-footer">
+                <span>ICAEW LMS</span>
+                <span>Private learning environment</span>
+            </div>
+        </section>
     </div>
 </div>
 
