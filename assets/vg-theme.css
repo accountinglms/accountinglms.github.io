@@ -1273,3 +1273,226 @@ body.page-community .message-stream{
     font-size:clamp(1.95rem,5vw,2.45rem)!important;
   }
 }
+
+/* v43: Learner is a dedicated practice workspace, not an account dashboard. */
+body.page-learner .cloud-account-service{display:none!important}
+body.page-learner .sidebar{
+  overflow-y:hidden!important;
+  display:flex;
+  flex-direction:column;
+}
+body.page-learner #sidebar-chapters{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+}
+body.page-learner .sidebar-header{
+  flex:none;
+  padding:19px 16px 14px!important;
+  text-align:left!important;
+  background:color-mix(in srgb,var(--vg-quiz-panel) 95%,var(--vg-quiz-panel-2))!important;
+}
+body.page-learner .sidebar-header-title{
+  text-align:left;
+}
+body.page-learner .sidebar-header-title strong{
+  color:var(--vg-cobalt-deep)!important;
+  font-family:var(--vg-display);
+  font-size:18px!important;
+  line-height:1.28!important;
+}
+body.page-learner .sidebar-header-title span{
+  margin-top:3px;
+  color:var(--vg-quiz-muted)!important;
+  font-family:var(--vg-ui);
+  font-weight:700!important;
+  font-size:10.5px!important;
+  line-height:1.35!important;
+  letter-spacing:.115em!important;
+}
+body.page-learner .sidebar-learning-nav{
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
+  padding:12px 13px max(14px,env(safe-area-inset-bottom));
+  border-top:1px solid var(--vg-quiz-line);
+  background:color-mix(in srgb,var(--vg-quiz-panel) 98%,transparent);
+}
+body.page-learner .learner-nav-link{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  width:100%;
+  min-height:43px;
+  padding:9px 8px;
+  border:1px solid var(--vg-quiz-line);
+  border-radius:7px;
+  background:var(--vg-quiz-panel-2);
+  color:var(--vg-quiz-text);
+  font-family:var(--vg-ui);
+  font-size:12px;
+  font-weight:650;
+  line-height:1.3;
+  text-decoration:none;
+  cursor:pointer;
+}
+body.page-learner .learner-nav-home{
+  grid-column:span 2;
+  justify-content:flex-start;
+  padding-inline:14px;
+  color:var(--vg-cobalt-deep);
+  background:color-mix(in srgb,var(--vg-cobalt) 9%,var(--vg-quiz-panel));
+}
+body.page-learner .learner-nav-link:hover{
+  color:var(--vg-gold);
+  border-color:var(--vg-gold);
+  transform:translateY(-1px);
+}
+body.page-learner .learner-nav-link svg{
+  width:17px;
+  height:17px;
+  flex:none;
+}
+body.page-learner #empty-state.learner-start{
+  display:flex;
+  align-self:stretch;
+  justify-content:center;
+  align-items:center;
+  width:100%;
+  height:auto;
+  min-height:100%;
+  color:var(--vg-quiz-text);
+  padding:clamp(22px,5vw,60px) 10px;
+  text-align:left;
+}
+body.page-learner #empty-state.learner-start[style*="display: none"]{display:none!important}
+body.page-learner .learner-start-inner{
+  width:min(100%,685px);
+  margin:auto;
+  padding:clamp(21px,4vw,34px);
+  border:1px solid var(--vg-quiz-line);
+  border-radius:12px;
+  background:
+    radial-gradient(ellipse at 98% 3%,color-mix(in srgb,var(--vg-gold) 10%,transparent),transparent 48%),
+    var(--vg-quiz-panel);
+  box-shadow:var(--vg-shadow-soft);
+}
+body.page-learner .learner-start-symbol{
+  width:46px;height:46px;
+  display:grid;place-items:center;
+  margin:0 0 20px;
+  border-radius:10px;
+  background:color-mix(in srgb,var(--vg-cobalt) 13%,var(--vg-quiz-panel-2));
+  border:1px solid var(--vg-quiz-line);
+  color:var(--vg-cobalt-deep);
+  font-size:24px;
+}
+body.page-learner .learner-start-eyebrow{
+  display:block;
+  color:var(--vg-gold);
+  letter-spacing:.13em;
+  font-size:11px;
+  font-weight:750;
+}
+body.page-learner .learner-start-inner h1{
+  margin:10px 0;
+  font-family:var(--vg-display);
+  font-size:clamp(1.55rem,2.55vw,2.15rem);
+  line-height:1.2;
+  letter-spacing:-.027em;
+  color:var(--vg-cobalt-deep);
+  font-weight:600;
+  word-break:normal;
+  hyphens:none;
+}
+body.page-learner .learner-start-intro{
+  max-width:570px;
+  margin:0;
+  font-size:14px;
+  line-height:1.72;
+  color:var(--vg-quiz-muted);
+}
+body.page-learner .learner-resume{
+  margin:20px 0 0!important;
+  min-width:0;
+  min-height:43px;
+  padding:10px 16px;
+  background:var(--vg-cobalt-deep);
+  color:#fff;
+  border:1px solid var(--vg-cobalt-deep);
+  border-radius:7px;
+  font-size:13px;
+}
+body.page-learner .learner-start-divider{
+  height:1px;
+  margin:24px 0 18px;
+  background:var(--vg-quiz-line);
+}
+body.page-learner .learner-start-list-label{
+  margin-bottom:12px;
+  font-size:13px;
+  font-weight:750;
+  color:var(--vg-quiz-text);
+}
+body.page-learner .learner-start-options{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+}
+body.page-learner .learner-start-option{
+  min-width:0;
+  text-align:left;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding:14px;
+  border:1px solid var(--vg-quiz-line);
+  border-radius:8px;
+  background:var(--vg-quiz-panel-2);
+  color:var(--vg-quiz-text);
+  font:inherit;
+  cursor:pointer;
+}
+body.page-learner .learner-start-option strong{
+  font-size:13px;
+  font-weight:700;
+  line-height:1.42;
+  overflow-wrap:break-word;
+}
+body.page-learner .learner-start-option span{
+  color:var(--vg-quiz-muted);
+  font-size:12px;
+  line-height:1.4;
+}
+body.page-learner .learner-start-option:hover{
+  transform:translateY(-1px);
+  border-color:var(--vg-gold);
+}
+body.page-learner .learner-start-footnote{
+  margin:16px 0 0;
+  font-size:12px;
+  line-height:1.6;
+  color:var(--vg-quiz-muted);
+}
+html[data-theme="light"] body.page-learner .sidebar-header-title strong{color:#244f85!important}
+html[data-theme="dark"] body.page-learner .sidebar-header-title strong{color:#c9dded!important}
+body.page-home .portal-nav a:hover:not(.active){
+  background:color-mix(in srgb,var(--vg-cobalt) 5%,transparent);
+  color:var(--vg-cobalt-deep);
+}
+@media(max-width:760px){
+  body.page-learner .sidebar-learning-nav{
+    padding-bottom:max(16px,env(safe-area-inset-bottom));
+  }
+  body.page-learner .learner-start-options{grid-template-columns:1fr}
+  body.page-learner #empty-state.learner-start{
+    align-items:flex-start;
+    min-height:70dvh;
+    padding:16px 10px;
+  }
+  body.page-learner .learner-start-inner{padding:22px 17px}
+}
