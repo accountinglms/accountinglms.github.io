@@ -41,6 +41,27 @@ for (const file of clientFiles) {
   }
 }
 
+
+for (const file of ['index.html','admin.html','lessons.html','diagnostics.html']) {
+  const text = fs.readFileSync(path.join(root, file), 'utf8');
+  if (!text.includes('http-equiv="Content-Security-Policy"')) {
+    throw new Error('Missing Content Security Policy meta tag: ' + file);
+  }
+}
+
+const learnerHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+for (const unsafePattern of [
+  'questionText.innerHTML = q.q',
+  'textSpan.innerHTML = opt',
+  'statementEl.innerHTML = statement',
+  'id="eng-exp">${textEng}',
+  'id="vie-exp">${textVie}'
+]) {
+  if (learnerHtml.includes(unsafePattern)) {
+    throw new Error('Unsafe database-to-innerHTML rendering detected: ' + unsafePattern);
+  }
+}
+
 const edge = fs.readFileSync(path.join(root, 'supabase/functions/icaew-ai-import/index.ts'), 'utf8');
 if (/Access-Control-Allow-Origin["']?\s*:\s*["']\*["']/.test(edge)) {
   throw new Error('AI Edge Function must not use wildcard CORS.');
