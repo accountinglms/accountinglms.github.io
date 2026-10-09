@@ -1288,7 +1288,7 @@
         updateMobileHeader('question');
     }
 
-    function toggleBookmark() {    function toggleBookmark() {
+    function toggleBookmark() {
         if (!activeSectionId) return;
         const state = progressStore[activeSectionId];
         state.bookmarks[currentQuestion] = !state.bookmarks[currentQuestion];
@@ -1315,7 +1315,7 @@
         updateHelper();
     }
 
-    function jumpToQuestion(index) {    function jumpToQuestion(index) {
+    function jumpToQuestion(index) {
         if (!activeSectionData || index < 0 || index >= activeSectionData.length) return;
         saveDraftForCurrentQuestion();
         currentQuestion = index;
@@ -1371,7 +1371,7 @@
         updateNavUI();
     }
 
-    function createChoiceOption(opt, index, type, isSelected = false) {    function createChoiceOption(opt, index, type, isSelected = false) {
+    function createChoiceOption(opt, index, type, isSelected = false) {
         const optDiv = document.createElement('div');
         optDiv.className = `option ${type === 'single' ? 'single' : 'multiple'}${isSelected ? ' pending' : ''}`;
         optDiv.tabIndex = 0;
@@ -1738,7 +1738,7 @@
         else loadQuestion();
     }
 
-    function startReview(type) {    function startReview(type) {
+    function startReview(type) {
         scoreBoard.style.display = 'none';
         quizBody.style.display = 'block';
         setNavFilter(type);
