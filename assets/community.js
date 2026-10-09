@@ -258,12 +258,13 @@ $('#create-group-btn').addEventListener('click',openGroupModal);
 document.querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.closeModal)));
 $('#group-form').addEventListener('submit',async e=>{
   e.preventDefault();
+  const form=e.currentTarget;
   try{
     const rows=await restInsert('chat_groups',{
       name:$('#group-name').value.trim(),description:$('#group-description').value.trim(),
       is_public:$('#group-public').checked,is_official:false,created_by:session.user.id
     });
-    closeModal('group-modal');e.currentTarget.reset();$('#group-public').checked=true;
+    closeModal('group-modal');form.reset();$('#group-public').checked=true;
     await refreshCore({keepCurrent:false});
     if(rows?.[0]?.id)await selectGroup(rows[0].id);
   }catch(error){alert(error.message||'Không tạo được nhóm.');}
