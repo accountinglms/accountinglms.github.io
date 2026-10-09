@@ -103,10 +103,135 @@ async function toggleActive(table,id,item,label){if(!item)return;const next=!ite
 $('#toggle-subject').addEventListener('click',()=>{const id=selected('#subject');return toggleActive('subjects',id,subjects.find(x=>x.id===id),'môn')});
 $('#toggle-chapter').addEventListener('click',()=>{const id=selected('#chapter');return toggleActive('chapters',id,chapters.find(x=>x.id===id),'chapter')});
 $('#toggle-exercise').addEventListener('click',()=>{const id=selected('#exercise');return toggleActive('exercises',id,exercises.find(x=>x.id===id),'exercise')});
-$('#subject').addEventListener('change',()=>{renderStructure();renderQuestions()});$('#chapter').addEventListener('change',()=>{const e=$('#exercise');const es=exercises.filter(x=>x.chapter_id===$('#chapter').value);e.innerHTML='<option value="">— Chọn exercise —</option>'+es.map(x=>`<option value="${x.id}">${esc(x.title)}</option>`).join('');e.value=es[0]?.id||'';renderQuestions()});$('#exercise').addEventListener('change',renderQuestions);$('#refresh').addEventListener('click',()=>reload().catch(e=>notice(e.message,'error')));
-$('#subject-form').addEventListener('submit',async e=>{e.preventDefault();const title=$('#subject-new').value.trim();if(!title)return;const base=slugify(title)||'subject';const id=subjects.some(x=>x.id===base)?base+'_'+Date.now().toString().slice(-5):base;await restInsert('subjects',{id,title,sort_order:subjects.length,is_active:true});$('#subject-new').value='';await reload();$('#subject').value=id;renderStructure()});
-$('#chapter-form').addEventListener('submit',async e=>{e.preventDefault();const title=$('#chapter-new').value.trim(),sid=selected('#subject');if(!title||!sid)return;const id=sid+'__'+(slugify(title)||'chapter')+'_'+Date.now().toString().slice(-4);await restInsert('chapters',{id,subject_id:sid,title,sort_order:chapters.filter(x=>x.subject_id===sid).length,is_active:true});$('#chapter-new').value='';await reload()});
-$('#exercise-form').addEventListener('submit',async e=>{e.preventDefault();const title=$('#exercise-new').value.trim(),cid=selected('#chapter');if(!title||!cid)return;const id=cid+'__'+(slugify(title)||'exercise')+'_'+Date.now().toString().slice(-4);await restInsert('exercises',{id,chapter_id:cid,title,sort_order:exercises.filter(x=>x.chapter_id===cid).length,is_active:true,question_count:0});$('#exercise-new').value='';await reload()});
+$('#subject').addEventListener('change',()=>{renderStructure();renderQuestions();invalidateDestination()});
+$('#chapter').addEventListener('change',()=>{renderStructure();renderQuestions();invalidateDestination()});
+$('#exercise').addEventListener('change',()=>{renderQuestions();invalidateDestination()});
+$('#import-target').addEventListener('change',()=>{clearRouteSuggestion();invalidateDestination();updateImportTargetUI()});
+$('#refresh').addEventListener('click',()=>reload().then(()=>invalidateDestination()).catch(e=>notice(e.message,'error')));
+
+$('#subject-form').addEventListener('submit',async e=>{e.preventDefault();const title=$('#subject-new').value.trim();if(!title)return;const base=slugify(title)||'subject';const id=subjects.some(x=>x.id===base)?base+'_'+Date.now().toString().slice(-5):base;await restInsert('subjects',{id,title,sort_order:subjects.length,is_active:true});$('#subject-new').value='';await reload();$('#subject').value=id;renderStructure();invalidateDestination()});
+$('#chapter-form').addEventListener('submit',async e=>{e.preventDefault();const title=$('#chapter-new').value.trim(),sid=selected('#subject');if(!title||!sid)return;const id=sid+'__'+(slugify(title)||'chapter')+'_'+Date.now().toString().slice(-4);await restInsert('chapters',{id,subject_id:sid,title,sort_order:chapters.filter(x=>x.subject_id===sid).length,is_active:true});$('#chapter-new').value='';await reload();$('#subject').value=sid;renderStructure();$('#chapter').value=id;renderStructure();invalidateDestination()});
+$('#exercise-form').addEventListener('submit',async e=>{e.preventDefault();const title=$('#exercise-new').value.trim(),cid=selected('#chapter'),sid=selected('#subject');if(!title||!cid)return;const id=cid+'__'+(slugify(title)||'exercise')+'_'+Date.now().toString().slice(-4);await restInsert('exercises',{id,chapter_id:cid,title,sort_order:exercises.filter(x=>x.chapter_id===cid).length,is_active:true,question_count:0});$('#exercise-new').value='';await reload();$('#subject').value=sid;renderStructure();$('#chapter').value=cid;renderStructure();$('#exercise').value=id;renderQuestions();invalidateDestination()});
+
+$('#quick-add-subject').addEventListener('click',()=>$('#quick-subject-form').classList.toggle('show'));
+$('#quick-add-chapter').addEventListener('click',()=>$('#quick-chapter-form').classList.toggle('show'));
+$('#quick-add-exercise').addEventListener('click',()=>$('#quick-exercise-form').classList.toggle('show'));
+
+$('#quick-subject-form').addEventListener('submit',async e=>{e.preventDefault();try{const title=$('#quick-subject-title').value.trim();if(!title)throw new Error('Nhập tên Subject mới.');const base=slugify(title)||'subject';const id=subjects.some(x=>x.id===base)?base+'_'+Date.now().toString().slice(-5):base;await restInsert('subjects',{id,title,sort_order:subjects.length,is_active:true});$('#quick-subject-title').value='';$('#quick-subject-form').classList.remove('show');await reload();$('#subject').value=id;renderStructure();invalidateDestination('Đã tạo Subject mới. Hãy chọn/tạo Chapter rồi xác nhận nơi lưu.')}catch(err){notice(err.message,'error')}});
+$('#quick-chapter-form').addEventListener('submit',async e=>{e.preventDefault();try{const sid=selected('#subject'),title=$('#quick-chapter-title').value.trim();if(!sid)throw new Error('Hãy chọn Subject trước khi tạo Chapter.');if(!title)throw new Error('Nhập tên Chapter mới.');const id=sid+'__'+(slugify(title)||'chapter')+'_'+Date.now().toString().slice(-4);await restInsert('chapters',{id,subject_id:sid,title,sort_order:chapters.filter(x=>x.subject_id===sid).length,is_active:true});$('#quick-chapter-title').value='';$('#quick-chapter-form').classList.remove('show');await reload();$('#subject').value=sid;renderStructure();$('#chapter').value=id;renderStructure();invalidateDestination('Đã tạo Chapter mới. Hãy chọn/tạo Exercise nếu cần rồi xác nhận nơi lưu.')}catch(err){notice(err.message,'error')}});
+$('#quick-exercise-form').addEventListener('submit',async e=>{e.preventDefault();try{const sid=selected('#subject'),cid=selected('#chapter'),title=$('#quick-exercise-title').value.trim();if(!cid)throw new Error('Hãy chọn Chapter trước khi tạo Exercise.');if(!title)throw new Error('Nhập tên Exercise mới.');const id=cid+'__'+(slugify(title)||'exercise')+'_'+Date.now().toString().slice(-4);await restInsert('exercises',{id,chapter_id:cid,title,sort_order:exercises.filter(x=>x.chapter_id===cid).length,is_active:true,question_count:0});$('#quick-exercise-title').value='';$('#quick-exercise-form').classList.remove('show');await reload();$('#subject').value=sid;renderStructure();$('#chapter').value=cid;renderStructure();$('#exercise').value=id;renderQuestions();invalidateDestination('Đã tạo Exercise mới. Hãy xác nhận nơi lưu.')}catch(err){notice(err.message,'error')}});
+
+$('#confirm-destination').addEventListener('click',()=>{
+  if(!destinationComplete()){
+    const needed=currentTargetType()==='lesson'?'Subject và Chapter':'Subject, Chapter và Exercise';
+    return updateDestinationStatus('Thiếu đích lưu. Hãy chọn '+needed+'.','warning');
+  }
+  destinationConfirmed=true;
+  destinationSignature=currentDestinationSignature();
+  updateDestinationStatus();
+  updateGenerateState();
+});
+
+function renderRouteSuggestion(result){
+  routeSuggestion=result;
+  const box=$('#route-suggestion');
+  const confidence=Math.round(Number(result?.confidence||0)*100);
+  const node=(label,item)=>{
+    if(!item)return '';
+    const title=item.match_title||item.suggested_title||'Chưa xác định';
+    return `<div class="routeNode"><div><span>${esc(label)}</span><strong>${esc(title)}</strong></div><em>${item.match_id?'Đã có':'Đề xuất mới'}</em></div>`;
+  };
+  const mixed=result?.mixed_subjects===true;
+  const hasNew=Boolean(result?.subject?.create_new||result?.chapter?.create_new||(currentTargetType()==='questions'&&result?.exercise?.create_new));
+  const topics=(result?.detected_topics||[]).filter(Boolean);
+  box.classList.remove('hidden');
+  box.innerHTML=`<div class="routeSuggestionHead"><div><strong>${mixed?'⚠ File có nhiều nhóm nội dung':'✨ AI gợi ý nơi lưu'}</strong></div><span class="routeConfidence">${confidence}%</span></div>
+    <div class="routePath">${node('Subject',result?.subject)}${node('Chapter',result?.chapter)}${currentTargetType()==='questions'?node('Exercise',result?.exercise):''}</div>
+    ${topics.length?`<div class="routeTopics"><b>Nhận diện:</b> ${topics.map(esc).join(' · ')}</div>`:''}
+    ${mixed?'<div class="warning">AI phát hiện file có thể chứa nhiều môn/chủ đề. Không tự áp dụng gợi ý; hãy tách file hoặc chọn đích thủ công trước khi xác nhận.</div>':''}
+    <div class="routeSuggestionActions">
+      <button id="route-apply" class="routeApply" type="button" ${mixed?'disabled':''}>${hasNew?'＋ Tạo mục còn thiếu & áp dụng':'✓ Áp dụng gợi ý'}</button>
+      <button id="route-dismiss" class="routeDismiss" type="button">Chọn thủ công</button>
+    </div>`;
+}
+
+async function applyRouteSuggestion(){
+  if(!routeSuggestion||routeSuggestion.mixed_subjects)throw new Error('File có nhiều nhóm nội dung; hãy chọn nơi lưu thủ công.');
+  let subjectId=routeSuggestion.subject?.match_id||'';
+  if(!subjectId){
+    const title=routeSuggestion.subject?.suggested_title?.trim();
+    if(!title)throw new Error('AI chưa đưa ra tên Subject hợp lệ.');
+    const base=slugify(title)||'subject';
+    subjectId=subjects.some(x=>x.id===base)?base+'_'+Date.now().toString().slice(-5):base;
+    await restInsert('subjects',{id:subjectId,title,sort_order:subjects.length,is_active:true});
+  }
+
+  let chapterId=routeSuggestion.chapter?.match_id||'';
+  if(chapterId){
+    const existing=chapters.find(x=>x.id===chapterId);
+    if(!existing||existing.subject_id!==subjectId)chapterId='';
+  }
+  if(!chapterId){
+    const title=routeSuggestion.chapter?.suggested_title?.trim();
+    if(!title)throw new Error('AI chưa đưa ra tên Chapter hợp lệ.');
+    chapterId=subjectId+'__'+(slugify(title)||'chapter')+'_'+Date.now().toString().slice(-4);
+    await restInsert('chapters',{id:chapterId,subject_id:subjectId,title,sort_order:chapters.filter(x=>x.subject_id===subjectId).length,is_active:true});
+  }
+
+  let exerciseId='';
+  if(currentTargetType()==='questions'){
+    exerciseId=routeSuggestion.exercise?.match_id||'';
+    if(exerciseId){
+      const existing=exercises.find(x=>x.id===exerciseId);
+      if(!existing||existing.chapter_id!==chapterId)exerciseId='';
+    }
+    if(!exerciseId){
+      const title=routeSuggestion.exercise?.suggested_title?.trim()||'Practice Questions';
+      exerciseId=chapterId+'__'+(slugify(title)||'exercise')+'_'+Date.now().toString().slice(-4);
+      await restInsert('exercises',{id:exerciseId,chapter_id:chapterId,title,sort_order:exercises.filter(x=>x.chapter_id===chapterId).length,is_active:true,question_count:0});
+    }
+  }
+
+  await reload();
+  $('#subject').value=subjectId;renderStructure();
+  $('#chapter').value=chapterId;renderStructure();
+  if(exerciseId){$('#exercise').value=exerciseId;renderQuestions()}
+  destinationConfirmed=true;
+  destinationSignature=currentDestinationSignature();
+  updateDestinationStatus();
+  updateGenerateState();
+  notice('Đã áp dụng nơi lưu do AI gợi ý. Bạn vẫn có thể đổi thủ công trước khi Generate Draft.','ok');
+}
+
+$('#route-suggestion').addEventListener('click',async e=>{
+  if(e.target.id==='route-dismiss'){clearRouteSuggestion();return}
+  if(e.target.id!=='route-apply')return;
+  const btn=e.target;
+  if(btn.disabled)return;
+  btn.disabled=true;
+  try{await applyRouteSuggestion()}catch(err){notice(err.message,'error');btn.disabled=false}
+});
+
+$('#ai-route').addEventListener('click',async()=>{
+  const btn=$('#ai-route');
+  if(btn.disabled)return;
+  const label=btn.textContent;
+  btn.disabled=true;
+  btn.textContent='✨ Đang phân loại…';
+  try{
+    const file=$('#import-file').files?.[0];
+    if(!file)throw new Error('Hãy chọn file trước.');
+    if(file.size>4*1024*1024)throw new Error('File vượt quá 4 MB.');
+    notice('Đang đọc file và so khớp với Subject / Chapter hiện có…');
+    const prepared=await ensurePreparedUpload(file);
+    const result=await callAiRoute({storagePath:prepared.storagePath,fileName:file.name,mimeType:file.type,targetType:currentTargetType()});
+    renderRouteSuggestion(result);
+    invalidateDestination(result.mixed_subjects?'AI phát hiện nhiều nhóm nội dung. Hãy chọn đích thủ công.':'AI đã gợi ý nơi lưu. Hãy áp dụng hoặc chọn thủ công rồi xác nhận.');
+    notice(result.mixed_subjects?'AI phát hiện file có thể chứa nhiều môn/chủ đề.':'AI đã phân loại xong. Hãy xác nhận nơi lưu trước khi Generate Draft.',result.mixed_subjects?'error':'ok');
+  }catch(err){notice(err.message,'error')}
+  finally{btn.textContent=label;updateGenerateState()}
+});
+
 $('#question-form').addEventListener('submit',async e=>{e.preventDefault();try{const exercise_id=selected('#exercise');if(!exercise_id)throw new Error('Hãy chọn Exercise trước.');const type=selected('#q-type');const options=$('#q-options').value.split('\n').map(v=>v.trim()).filter(Boolean);if(options.length<2)throw new Error('Cần ít nhất 2 lựa chọn.');const answer=parseAnswer(type,$('#q-answer').value,options);const qs=questions.filter(q=>q.exercise_id===exercise_id);const sort_order=qs.length?Math.max(...qs.map(q=>q.sort_order))+1:0;await restInsert('questions',{exercise_id,question_type:type,prompt:$('#q-prompt').value.trim(),options,correct_answer:answer,required_selections:type==='multiple'?answer.length:type==='tf'?options.length:1,explanation_en:$('#q-en').value.trim()||null,explanation_vi:$('#q-vi').value.trim()||null,practical_example_en:$('#q-example-en').value.trim()||null,practical_example_vi:$('#q-example-vi').value.trim()||null,standard_reference:$('#q-standard-ref').value.trim()||null,verification_status:'unreviewed',verification_note:'Câu hỏi tạo thủ công; chưa chạy kiểm định tự động.',status:selected('#q-status'),sort_order,source_page:null,metadata:{manual_created:true}});e.target.reset();$('#q-options').value='A. \nB. \nC. \nD. ';await reload();notice('Đã lưu question.','ok')}catch(err){notice(err.message,'error')}});
 $('#question-list').addEventListener('click',async e=>{const b=e.target.closest('[data-qid]');if(!b)return;const next=b.dataset.status==='published'?'draft':'published';const label=next==='draft'?'ẩn câu này khỏi người học':'publish câu này cho người học';if(!confirm('Xác nhận '+label+'?'))return;await restPatch('questions','id=eq.'+encodeURIComponent(b.dataset.qid),{status:next});await reload()});
 
