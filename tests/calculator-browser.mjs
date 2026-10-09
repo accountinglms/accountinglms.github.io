@@ -107,6 +107,61 @@ try {
   await action('fraction');
   assert((await calc.locator('.calc-result').textContent()) === '1/3', 'S⇔D fraction conversion failed');
 
+  const switchMode = async name => {
+    await calc.locator(`[data-mode="${name}"]`).click({ force:true });
+    await calc.locator(`[data-mode-panel="${name}"].active`).waitFor();
+  };
+
+  // Polynomial equation: x² - 5x + 6 = 0 => 2, 3
+  await switchMode('equation');
+  const eqInputs = calc.locator('#calc-equation-inputs input');
+  await eqInputs.nth(0).fill('1');
+  await eqInputs.nth(1).fill('-5');
+  await eqInputs.nth(2).fill('6');
+  await calc.locator('#calc-equation-solve').click();
+  const eqText = await calc.locator('#calc-equation-output').innerText();
+  assert(eqText.includes('2') && eqText.includes('3'), `Equation solver failed: ${eqText}`);
+
+  // Linear system: 2x + y = 5; x - y = 1 => x=2, y=1
+  await switchMode('system');
+  const sysCoeff = calc.locator('#calc-system-grid input[data-col]');
+  const sysConst = calc.locator('#calc-system-grid input[data-constant]');
+  await sysCoeff.nth(0).fill('2');
+  await sysCoeff.nth(1).fill('1');
+  await sysCoeff.nth(2).fill('1');
+  await sysCoeff.nth(3).fill('-1');
+  await sysConst.nth(0).fill('5');
+  await sysConst.nth(1).fill('1');
+  await calc.locator('#calc-system-solve').click();
+  const sysText = await calc.locator('#calc-system-output').innerText();
+  assert(/x\s*2/.test(sysText) && /y\s*1/.test(sysText), `System solver failed: ${sysText}`);
+
+  // One-variable statistics
+  await switchMode('statistics');
+  await calc.locator('#calc-stat-x').fill('1, 2, 3, 4');
+  await calc.locator('#calc-stat-solve').click();
+  const statText = await calc.locator('#calc-stat-output').innerText();
+  assert(statText.includes('2.5') && statText.includes('10'), `Statistics failed: ${statText}`);
+
+  // Matrix A × I = A
+  await switchMode('matrix');
+  const matA = calc.locator('#calc-matrix-a input');
+  for (const [index,value] of ['1','2','3','4'].entries()) await matA.nth(index).fill(value);
+  await calc.locator('[data-matrix-op="multiply"]').click();
+  const matrixValues = await calc.locator('#calc-matrix-output .calc-matrix-result span').allTextContents();
+  assert(matrixValues.join(',') === '1,2,3,4', `Matrix multiplication failed: ${matrixValues.join(',')}`);
+
+  // Vector cross product in 3D
+  await switchMode('vector');
+  await calc.locator('#calc-vector-size').selectOption('3');
+  const vecA = calc.locator('#calc-vector-a input');
+  const vecB = calc.locator('#calc-vector-b input');
+  for (const [index,value] of ['1','0','0'].entries()) await vecA.nth(index).fill(value);
+  for (const [index,value] of ['0','1','0'].entries()) await vecB.nth(index).fill(value);
+  await calc.locator('[data-vector-op="cross"]').click();
+  const vectorText = await calc.locator('#calc-vector-output').innerText();
+  assert(vectorText.includes('[0, 0, 1]'), `Vector cross product failed: ${vectorText}`);
+
   const before = await calc.boundingBox();
   const handle = calc.locator('[data-calc-drag]');
   const handleBox = await handle.boundingBox();
@@ -123,7 +178,7 @@ try {
   await calc.locator('.calc-close').click({ force: true });
   assert(await calc.getAttribute('hidden') !== null, 'Calculator close button did not hide the panel');
 
-  console.log(`PASS ${browserName}: integrated draggable scientific calculator`);
+  console.log(`PASS ${browserName}: scientific calculator + equations + systems + statistics + matrix + vector`);
   await context.close();
 } finally {
   await browser.close();
