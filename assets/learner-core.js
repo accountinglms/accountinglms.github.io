@@ -1282,7 +1282,7 @@
         bookmarkBtn.setAttribute('aria-label', isBookmarked ? 'Bỏ đánh dấu câu này' : 'Đánh dấu câu này');
         bookmarkBtn.title = isBookmarked ? 'Bỏ đánh dấu câu này' : 'Đánh dấu câu này';
         bookmarkBtn.innerHTML = isBookmarked
-            ? '<span class="tool-icon" aria-hidden="true">★</span><span class="tool-label-full">Đã đánh dấu</span><span class="tool-label-short">Đã dấu</span>'
+            ? '<span class="tool-icon" aria-hidden="true">★</span><span class="tool-label-full">Đã đánh dấu</span><span class="tool-label-short">Đã đánh dấu</span>'
             : '<span class="tool-icon" aria-hidden="true">☆</span><span class="tool-label-full">Đánh dấu câu này</span><span class="tool-label-short">Đánh dấu</span>';
         updateStats();
         updateSidebarScore(activeSectionId, activeSectionData.length);
