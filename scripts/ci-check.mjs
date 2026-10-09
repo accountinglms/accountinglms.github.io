@@ -18,6 +18,7 @@ const required = [
   'assets/account.css',
   'assets/history.css',
   'assets/portal.css',
+  'assets/vg-theme.css',
   'assets/calculator.css',
   'assets/theme-init.js',
   'assets/learner-core.js',
@@ -110,7 +111,7 @@ if (!edge.includes('get_my_access')) {
 }
 
 const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-for (const file of ['home.html','community.html','progress.html','account.html','admin.html','lessons.html','diagnostics.html','history.html','manifest.webmanifest','assets/learner.css','assets/account.css','assets/history.css','assets/portal.css','assets/calculator.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/calculator.js','assets/calculator-pro.js','assets/translation.js','assets/common.js','assets/account.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js','assets/history.js','assets/home.js','assets/community.js','assets/progress.js']) {
+for (const file of ['home.html','community.html','progress.html','account.html','admin.html','lessons.html','diagnostics.html','history.html','manifest.webmanifest','assets/learner.css','assets/account.css','assets/history.css','assets/portal.css','assets/vg-theme.css','assets/calculator.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/calculator.js','assets/calculator-pro.js','assets/translation.js','assets/common.js','assets/account.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js','assets/history.js','assets/home.js','assets/community.js','assets/progress.js']) {
   if (!sw.includes(file)) throw new Error('Service worker cache list is missing: ' + file);
 }
 
@@ -304,7 +305,16 @@ const progressJs = fs.readFileSync(path.join(root, 'assets/progress.js'), 'utf8'
 
 for (const [name, html] of [['home',homeHtml],['community',communityHtml],['progress',progressHtml]]) {
   if (!html.includes('assets/portal.css')) throw new Error(name + ' page is missing the portal design system.');
+  if (!html.includes('assets/vg-theme.css')) throw new Error(name + ' page is missing Van Gogh Academic Modernism.');
   if (!html.includes('wss://uangiwgznukuicrfnohq.supabase.co')) throw new Error(name + ' page CSP is missing Supabase Realtime.');
+}
+for (const file of ['index.html','lessons.html','history.html','account.html','admin.html','diagnostics.html']) {
+  const html=fs.readFileSync(path.join(root,file),'utf8');
+  if (!html.includes('assets/vg-theme.css')) throw new Error(file + ' is missing the final visual theme.');
+}
+const vgTheme=fs.readFileSync(path.join(root,'assets/vg-theme.css'),'utf8');
+if (!vgTheme.includes('prefers-reduced-motion') || !vgTheme.includes('.subject-cover-art') || !vgTheme.includes('body.page-community .chat-sidebar')) {
+  throw new Error('Final theme is missing accessibility, subject-art, or community visual safeguards.');
 }
 if (!learnerHtml.includes('href="home.html"') || !learnerHtml.includes('href="community.html"') || !learnerHtml.includes('href="progress.html"')) {
   throw new Error('Learner navigation is not connected to the member portal.');
