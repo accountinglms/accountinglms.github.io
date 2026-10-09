@@ -603,7 +603,13 @@
 
   function calculate(source, variables = {}) {
     if (!source.trim()) return 0;
-    return new Parser(tokenize(source), variables).parse();
+    const statements=source.split(':').map(part=>part.trim()).filter(Boolean);
+    if(!statements.length) return 0;
+    let value=0;
+    for(const statement of statements){
+      value=new Parser(tokenize(statement), {...variables,Ans:value||answer}).parse();
+    }
+    return value;
   }
 
   function render() {
