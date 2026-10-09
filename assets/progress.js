@@ -211,7 +211,7 @@ async function renderNotifications(){
 }
 async function bootstrap(){
   try{session=await ensureSession();access=await getMyAccess(session,true);}
-  catch{location.replace('index.html');return;}
+  catch{location.replace('index.html?returnTo='+encodeURIComponent(location.pathname.split('/').pop()+location.search));return;}
   [subjects,chapters,exercises,attempts,profiles]=await Promise.all([
     restGet('subjects','select=*&is_active=eq.true&order=sort_order.asc'),
     restGet('chapters','select=*&is_active=eq.true&order=sort_order.asc'),
