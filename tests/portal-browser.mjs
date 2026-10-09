@@ -562,10 +562,11 @@ async function testAvatarUpload(browser){
      const el=document.querySelector('#profile-avatar');
      return {className:el?.className,token:el?.dataset?.avatarToken,text:el?.textContent,
        css:el?.style.backgroundImage,hasImage:el?.classList.contains('has-avatar-image'),
+       avatarError:el?.dataset?.avatarError,
        state:document.querySelector('#avatar-edit-status')?.textContent,
        online:navigator.onLine};
    });
-   console.log('WEBKIT AVATAR DEBUG',JSON.stringify(debug),'stored files',state.avatarFiles.size,'profile',JSON.stringify(state.profiles[0]));
+   console.log('WEBKIT AVATAR DEBUG',JSON.stringify(debug),'stored files',state.avatarFiles.size,'file byte sizes',[...state.avatarFiles.values()].map(x=>x.length),'profile',JSON.stringify(state.profiles[0]));
    throw error;
  }
  await page.goto(baseURL+'/home.html',{waitUntil:'domcontentloaded'});
