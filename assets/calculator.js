@@ -588,8 +588,8 @@
         const id = this.tokens[this.index++].value;
         if (id === 'pi') return Math.PI;
         if (id === 'e') return Math.E;
-        if (id === 'Ans') return answer;
-        if (id === 'PreAns') return previousAnswer;
+        if (id === 'Ans') return Object.prototype.hasOwnProperty.call(this.variables,'Ans') ? Number(this.variables.Ans) : answer;
+        if (id === 'PreAns') return Object.prototype.hasOwnProperty.call(this.variables,'PreAns') ? Number(this.variables.PreAns) : previousAnswer;
         if (Object.prototype.hasOwnProperty.call(this.variables,id)) return Number(this.variables[id]);
         if (!this.peek('(')) throw new Error('Syntax ERROR');
         const args=this.parseArgs();
