@@ -32,7 +32,10 @@ try {
   await pressInsert('+');
   await pressInsert('3');
   await action('equals');
-  assert((await calc.locator('.calc-result').textContent()) === '5', 'Basic calculator arithmetic failed');
+  await page.waitForTimeout(30);
+  const arithmeticExpression = await calc.locator('.calc-expression').textContent();
+  const arithmeticResult = await calc.locator('.calc-result').textContent();
+  assert(arithmeticResult === '5', `Basic calculator arithmetic failed: expression=${arithmeticExpression} result=${arithmeticResult}`);
 
   await action('clear');
   await fn('sin');
