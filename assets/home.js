@@ -174,6 +174,19 @@ async function loadAdminFeedback(){
   const rows=await restGet('feedback','select=*&order=created_at.desc&limit=50');
   renderAdminFeedback(rows);
 }
+function renderSubjectLevelAdmin(){
+  const root=$('#subject-level-admin');
+  if(!root)return;
+  root.innerHTML=subjects.map(subject=>`<div class="feedback-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+    <div><strong>${esc(subject.title)}</strong><small>ICAEW exam level</small></div>
+    <select class="subject-level-select" data-subject="${esc(subject.id)}" style="min-height:34px;border:1px solid var(--portal-line);border-radius:7px;background:var(--portal-bg);color:var(--portal-ink);padding:0 8px">
+      <option value="certificate" ${subject.exam_level==='certificate'?'selected':''}>Certificate</option>
+      <option value="professional" ${subject.exam_level==='professional'?'selected':''}>Professional</option>
+      <option value="advanced" ${subject.exam_level==='advanced'?'selected':''}>Advanced</option>
+    </select>
+  </div>`).join('');
+}
+
 async function bootstrap(){
   try{
     session=await ensureSession();
@@ -208,6 +221,7 @@ async function bootstrap(){
   await loadFeedback().catch(console.error);
   if(access?.editor){
     $('#admin-home-panel').hidden=false;
+    renderSubjectLevelAdmin();
     await loadAdminFeedback().catch(console.error);
   }
   realtime=createRealtimeClient(session,[
@@ -269,6 +283,20 @@ $('#announcement-form').addEventListener('submit',async event=>{
     renderAnnouncements();renderMetrics();
   }catch(error){status.textContent='Không đăng được: '+(error.message||'Lỗi');}
 });
+$('#subject-level-admin').addEventListener('change',async event=>{
+  const select=event.target.closest('.subject-level-select');
+  if(!select)return;
+  select.disabled=true;
+  try{
+    await restPatch('subjects',`id=eq.${encodeURIComponent(select.dataset.subject)}`,{exam_level:select.value});
+    const subject=subjects.find(item=>item.id===select.dataset.subject);
+    if(subject)subject.exam_level=select.value;
+    renderMetrics();
+  }catch(error){
+    alert(error.message||'Không cập nhật được cấp thi.');
+  }finally{select.disabled=false;}
+});
+
 $('#admin-feedback').addEventListener('click',async event=>{
   const btn=event.target.closest('.admin-feedback-save,.admin-feedback-resolve');
   if(!btn)return;
