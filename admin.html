@@ -237,6 +237,10 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
               <input id="quick-subject-title" placeholder="Tên môn học mới">
               <button type="submit">Tạo</button>
             </form>
+            <div class="subject-cover-preview subject-cover-preview-quick" id="subject-cover-preview-quick" hidden>
+              <img id="subject-cover-image-quick" alt="Xem trước ảnh môn học mới" width="720" height="440">
+              <div><strong>Cover được tạo tự động</strong><span id="subject-cover-label-quick">Không gọi API tạo ảnh</span></div>
+            </div>
 
             <div class="destinationFieldRow">
               <label class="field"><span>Chương · bắt buộc</span><select id="chapter"></select></label>
@@ -293,9 +297,13 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
             <section class="structureBlock">
               <h3>Môn học</h3>
               <form id="subject-form" class="inline">
-                <input id="subject-new" placeholder="Tên môn mới">
+                <input id="subject-new" placeholder="Tên môn mới" aria-label="Tên môn học mới">
                 <button aria-label="Thêm môn học">＋</button>
               </form>
+              <div class="subject-cover-preview" id="subject-cover-preview-main">
+                <img id="subject-cover-image-main" alt="Xem trước ảnh môn học được tạo tự động" width="720" height="440">
+                <div><strong>Ảnh đại diện tự động</strong><span id="subject-cover-label-main">Theo tên và chủ đề môn học · miễn phí</span></div>
+              </div>
               <button id="toggle-subject" type="button" class="ghost miniToggle">Ẩn môn</button>
             </section>
             <section class="structureBlock">
