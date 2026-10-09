@@ -146,7 +146,7 @@ try{
     localStorage.setItem(key,JSON.stringify(value));
   },{key:AUTH_KEY,value:session});
 
-  await page.goto(baseURL+'/',{waitUntil:'domcontentloaded'});
+  await page.goto(baseURL+'/index.html',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.querySelector('#auth-gate')?.classList.contains('hidden')===true);
   await page.waitForSelector('#menu-exercise_1');
 
