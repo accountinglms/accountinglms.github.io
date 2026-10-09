@@ -698,7 +698,7 @@
         cells.push(`<label><input type="number" step="any" inputmode="decimal" value="${r===col ? 1 : 0}" data-row="${r}" data-col="${col}"><span>${variables[col]}</span></label>`);
       }
       cells.push(`<span class="calc-equals-sign">=</span><input class="calc-system-constant" type="number" step="any" inputmode="decimal" value="0" data-row="${r}" data-constant="1">`);
-      rows.push(`<div class="calc-system-row">${cells.join('')}</div>`);
+      rows.push(`<div class="calc-system-row" style="--system-size:${size}">${cells.join('')}</div>`);
     }
     systemGrid.innerHTML = rows.join('');
     systemOutput.innerHTML = '';
