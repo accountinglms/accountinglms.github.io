@@ -55,6 +55,7 @@ async function installSupabaseMock(context, opts={}) {
   const state = {
     logoutScopes: [],
     refreshCount: 0,
+    requests: [],
     failRefreshFor: new Set(opts.failRefreshFor || [])
   };
 
@@ -62,6 +63,7 @@ async function installSupabaseMock(context, opts={}) {
     const req = route.request();
     const url = new URL(req.url());
     const path = url.pathname;
+    state.requests.push({ method: req.method(), path, search: url.search });
     const auth = req.headers()['authorization'] || '';
     const token = auth.replace(/^Bearer\s+/i, '');
 
@@ -172,13 +174,28 @@ async function testLoginMfaPersistence(browser) {
   });
   const mock = await installSupabaseMock(context);
   let page = await context.newPage();
+  page.on('console', msg => console.log(`[${browserName} console] ${msg.type()}: ${msg.text()}`));
+  page.on('pageerror', error => console.log(`[${browserName} pageerror] ${error.stack || error.message}`));
 
   await page.goto(baseURL + '/', { waitUntil: 'domcontentloaded' });
   await page.fill('#auth-email', 'session.test@example.com');
   await page.fill('#auth-password', 'CorrectHorseBatteryStaple!');
   await page.click('#auth-login-btn');
 
-  await page.waitForSelector('#auth-mfa-view:not([hidden])');
+  try {
+    await page.waitForSelector('#auth-mfa-view:not([hidden])', { timeout: 7000 });
+  } catch (error) {
+    const diag = await page.evaluate(key => ({
+      authMessage: document.querySelector('#auth-message')?.textContent || '',
+      loginHidden: document.querySelector('#auth-login-view')?.hidden,
+      mfaHidden: document.querySelector('#auth-mfa-view')?.hidden,
+      gateHidden: document.querySelector('#auth-gate')?.classList.contains('hidden'),
+      stored: localStorage.getItem(key)
+    }), AUTH_KEY);
+    console.log(`[${browserName} diagnostic]`, JSON.stringify(diag));
+    console.log(`[${browserName} mock requests]`, JSON.stringify(mock.requests));
+    throw error;
+  }
   await page.fill('#auth-mfa-code', '123456');
   await page.click('#auth-mfa-submit');
   await waitForWorkspace(page);
