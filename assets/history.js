@@ -37,9 +37,11 @@ function fmtDuration(seconds) {
   const rounded = Math.round(value);
   const mins = Math.floor(rounded / 60);
   const secs = rounded % 60;
-  if (mins < 60) return mins ? `${mins}m ${secs}s` : `${secs}s`;
+  if (mins < 1) return `${secs} giây`;
+  if (mins < 60) return secs ? `${mins} phút ${secs} giây` : `${mins} phút`;
   const hours = Math.floor(mins / 60);
-  return `${hours}h ${mins % 60}m`;
+  const restMins = mins % 60;
+  return restMins ? `${hours} giờ ${restMins} phút` : `${hours} giờ`;
 }
 
 function attemptDurationSeconds(value) {
@@ -86,11 +88,11 @@ function catalogContext(attempt) {
   const subject = subjects.find(x => x.id === (snap.subject_id || chapter?.subject_id));
   return {
     subjectId: snap.subject_id || subject?.id || '',
-    subjectTitle: snap.subject_title || subject?.title || 'Subject',
+    subjectTitle: snap.subject_title || subject?.title || 'Môn học',
     chapterId: snap.chapter_id || chapter?.id || '',
-    chapterTitle: snap.chapter_title || chapter?.title || 'Chapter',
+    chapterTitle: snap.chapter_title || chapter?.title || 'Chương',
     exerciseId: attempt.exercise_id,
-    exerciseTitle: snap.exercise_title || exercise?.title || attempt.exercise_id
+    exerciseTitle: snap.exercise_title || exercise?.title || 'Bài tập'
   };
 }
 
@@ -119,11 +121,18 @@ function fillSelect(select, rows, placeholder, valueKey='id', labelKey='title', 
 
 function renderFilters(initial=false) {
   const previous = currentFilters();
-  fillSelect($('#filter-subject'), subjects, 'Tất cả Subject', 'id', 'title', previous.subject);
+  fillSelect($('#filter-subject'), subjects, 'Tất cả môn học', 'id', 'title', previous.subject);
+  const subjectField = $('#filter-subject').closest('.field');
+  if (subjects.length === 1) {
+    $('#filter-subject').value = subjects[0].id;
+    subjectField.hidden = true;
+  } else {
+    subjectField.hidden = false;
+  }
 
   const subjectId = $('#filter-subject').value;
   const chapterRows = subjectId ? chapters.filter(x => x.subject_id === subjectId) : chapters;
-  fillSelect($('#filter-chapter'), chapterRows, 'Tất cả Chapter', 'id', 'title', previous.chapter);
+  fillSelect($('#filter-chapter'), chapterRows, 'Tất cả chương', 'id', 'title', previous.chapter);
 
   const chapterId = $('#filter-chapter').value;
   let exerciseRows = exercises;
@@ -132,7 +141,7 @@ function renderFilters(initial=false) {
     const chapterIds = new Set(chapters.filter(x => x.subject_id === subjectId).map(x => x.id));
     exerciseRows = exercises.filter(x => chapterIds.has(x.chapter_id));
   }
-  fillSelect($('#filter-exercise'), exerciseRows, 'Tất cả Exercise', 'id', 'title', previous.exercise);
+  fillSelect($('#filter-exercise'), exerciseRows, 'Tất cả bài tập', 'id', 'title', previous.exercise);
 
   if (initial) {
     const requested = new URLSearchParams(location.search).get('exercise');
@@ -242,7 +251,7 @@ function buildQuestion(question, index) {
 function renderTimeline() {
   const rows = filteredAttempts();
   renderSummary(rows);
-  $('#result-count').textContent = `${rows.length} attempt`;
+  $('#result-count').textContent = `${rows.length} lượt`;
 
   const timeline = $('#timeline');
   timeline.replaceChildren();
@@ -250,7 +259,7 @@ function renderTimeline() {
   if (!rows.length) {
     const empty = document.createElement('div');
     empty.className = 'empty';
-    empty.textContent = 'Chưa có lịch sử phù hợp với bộ lọc này. Lịch sử được tạo mỗi khi bạn nộp một lượt làm bài.';
+    empty.textContent = 'Chưa có lượt làm phù hợp với bộ lọc này. Kết quả sẽ xuất hiện sau khi bạn nộp bài.';
     timeline.appendChild(empty);
     return;
   }
@@ -282,20 +291,29 @@ function renderTimeline() {
 
     const number = document.createElement('span');
     number.className = 'chip';
-    number.textContent = `Lần #${attempt.attempt_no || '?'}`;
+    number.textContent = `Lần ${attempt.attempt_no || '?'}`;
     topline.appendChild(number);
 
-    if (attempt.id === latestId) {
-      const latest = document.createElement('span');
-      latest.className = 'chip latest';
-      latest.textContent = 'Gần nhất';
-      topline.appendChild(latest);
-    }
-    if (bestByExercise.get(attempt.exercise_id)?.id === attempt.id) {
-      const best = document.createElement('span');
-      best.className = 'chip best';
-      best.textContent = 'Tốt nhất';
-      topline.appendChild(best);
+    const isLatest = attempt.id === latestId;
+    const isBest = bestByExercise.get(attempt.exercise_id)?.id === attempt.id;
+    if (isLatest && isBest) {
+      const combined = document.createElement('span');
+      combined.className = 'chip best-latest';
+      combined.textContent = 'Tốt nhất · gần nhất';
+      topline.appendChild(combined);
+    } else {
+      if (isLatest) {
+        const latest = document.createElement('span');
+        latest.className = 'chip latest';
+        latest.textContent = 'Gần nhất';
+        topline.appendChild(latest);
+      }
+      if (isBest) {
+        const best = document.createElement('span');
+        best.className = 'chip best';
+        best.textContent = 'Tốt nhất';
+        topline.appendChild(best);
+      }
     }
 
     const path = document.createElement('div');
@@ -389,7 +407,7 @@ function closeRealtime() {
 function connectRealtime() {
   if (!session?.access_token || !session?.user?.id) return;
   closeRealtime();
-  setLiveStatus('connecting','Đang kết nối realtime…');
+  setLiveStatus('connecting','Đang đồng bộ…');
 
   const topic = `realtime:attempt-history-${session.user.id}`;
   const url = `wss://${SUPABASE_REF}.supabase.co/realtime/v1/websocket?apikey=${encodeURIComponent(SUPABASE_KEY)}&vsn=1.0.0`;
@@ -429,26 +447,26 @@ function connectRealtime() {
     let message = null;
     try { message = JSON.parse(event.data); } catch { return; }
     if (message?.event === 'phx_reply' && message?.payload?.status === 'ok') {
-      setLiveStatus('online','Realtime · đang đồng bộ');
+      setLiveStatus('online','Đã đồng bộ');
     }
     if (message?.event === 'postgres_changes') {
       clearTimeout(refreshTimer);
       refreshTimer = setTimeout(() => loadAttempts({silent:true}),150);
     }
     if (message?.event === 'phx_error') {
-      setLiveStatus('connecting','Realtime · đang kết nối lại');
+      setLiveStatus('connecting','Đang kết nối lại…');
     }
   });
 
   socket.addEventListener('close',() => {
     clearInterval(heartbeat);
     heartbeat = null;
-    setLiveStatus('connecting','Realtime · đang kết nối lại');
+    setLiveStatus('connecting','Đang kết nối lại…');
     reconnectTimer = setTimeout(connectRealtime,5000);
   });
 
   socket.addEventListener('error',() => {
-    setLiveStatus('connecting','Realtime · tạm gián đoạn');
+    setLiveStatus('connecting','Đồng bộ tạm gián đoạn');
   });
 }
 
