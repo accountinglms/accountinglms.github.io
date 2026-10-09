@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cộng đồng · Accounting LMS</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://uangiwgznukuicrfnohq.supabase.co wss://uangiwgznukuicrfnohq.supabase.co; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<meta name="theme-color" content="#f4f6f8">
+<script src="assets/theme-init.js"></script>
+<link rel="stylesheet" href="assets/portal.css">
+</head>
+<body>
+<div class="portal-shell">
+  <header class="portal-topbar">
+    <a class="portal-brand" href="home.html"><img src="icon-512.png" alt=""><div><strong>Accounting LMS</strong><span>Member workspace</span></div></a>
+    <nav class="portal-nav" aria-label="Điều hướng chính">
+      <a href="home.html">⌂ <span>Trang chủ</span></a>
+      <a href="index.html">✓ <span>Làm bài</span></a>
+      <a href="lessons.html">▤ <span>Tài liệu</span></a>
+      <a class="active" href="community.html"># <span>Cộng đồng</span></a>
+      <a href="progress.html">↗ <span>Tiến độ</span></a>
+    </nav>
+    <div class="portal-actions">
+      <button class="icon-button" id="notification-bell" type="button" aria-label="Thông báo">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <span class="notification-badge" id="global-notification-count" hidden>0</span>
+      </button>
+      <a class="portal-profile-link" href="account.html"><span class="portal-avatar" id="portal-avatar">U</span><span id="portal-user-name">Tài khoản</span></a>
+    </div>
+  </header>
+
+  <div class="chat-layout">
+    <aside class="chat-sidebar" id="chat-sidebar">
+      <div class="chat-side-head">
+        <strong>Nhóm trò chuyện</strong>
+        <button class="icon-button" id="create-group-btn" type="button" aria-label="Tạo nhóm" title="Tạo nhóm">+</button>
+      </div>
+      <div class="chat-groups" id="chat-groups"><div class="empty-compact">Đang tải nhóm…</div></div>
+    </aside>
+
+    <section class="chat-center">
+      <header class="chat-room-head">
+        <div style="display:flex;align-items:center;gap:9px;min-width:0">
+          <button class="icon-button mobile-chat-menu" id="mobile-chat-menu" type="button" aria-label="Mở danh sách nhóm">☰</button>
+          <div style="min-width:0"><h1 id="room-title">Chọn một nhóm</h1><p id="room-subtitle">Tham gia nhóm để gửi tin nhắn và file.</p></div>
+        </div>
+        <span class="connection-state" id="connection-state">Đang kết nối…</span>
+      </header>
+
+      <div class="message-stream" id="message-stream"><div class="empty-compact">Chọn một nhóm để bắt đầu.</div></div>
+
+      <div class="chat-composer" id="chat-composer">
+        <div class="join-card" id="join-card" hidden>
+          <p>Bạn có thể đọc nhóm công khai này. Tham gia để gửi tin nhắn, reaction và file.</p>
+          <button class="btn primary" id="join-group-btn" type="button">Tham gia nhóm</button>
+        </div>
+        <div id="composer-active">
+          <div class="pending-file" id="pending-file" hidden><span id="pending-file-name"></span><button type="button" id="remove-pending-file" style="border:0;background:none;color:inherit;cursor:pointer">×</button></div>
+          <div class="composer-box">
+            <textarea id="message-input" maxlength="8000" placeholder="Nhắn vào nhóm…"></textarea>
+            <div class="composer-tools" style="position:relative">
+              <button type="button" id="emoji-btn" title="Emoji">☺</button>
+              <label title="Gửi file">＋<input id="file-input" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip,image/*"></label>
+              <select id="message-type" aria-label="Loại tin nhắn" style="height:30px;border:0;background:transparent;color:var(--portal-muted);font-size:.58rem">
+                <option value="text">Tin nhắn</option>
+                <option value="assignment">Bài tập</option>
+              </select>
+              <button class="send" type="button" id="send-btn">Gửi</button>
+              <div class="emoji-popover" id="emoji-popover" hidden></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="chat-info">
+      <h2 id="info-title">Thông tin nhóm</h2>
+      <p id="info-description">Chọn một nhóm để xem thành viên và quyền truy cập.</p>
+      <div class="member-list" id="member-list"></div>
+      <div id="group-manage-tools" style="margin-top:16px" hidden>
+        <button class="btn" id="invite-member-btn" type="button">Thêm thành viên</button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="group-modal" hidden>
+  <div class="modal">
+    <h2>Tạo nhóm mới</h2>
+    <form id="group-form">
+      <label class="field"><span>Tên nhóm</span><input id="group-name" maxlength="80" required placeholder="Ví dụ: Accounting Fundamentals"></label>
+      <label class="field"><span>Mô tả</span><textarea id="group-description" maxlength="500" placeholder="Mục đích của nhóm…"></textarea></label>
+      <label style="display:flex;gap:8px;align-items:center;font-size:.66rem;margin:8px 0 14px"><input id="group-public" type="checkbox" checked> Nhóm công khai cho members</label>
+      <div class="form-actions"><button class="btn" type="button" data-close-modal="group-modal">Huỷ</button><button class="btn primary" type="submit">Tạo nhóm</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="invite-modal" hidden>
+  <div class="modal">
+    <h2>Thêm thành viên</h2>
+    <div id="invite-list" class="member-list"></div>
+    <div class="form-actions" style="margin-top:14px"><button class="btn" type="button" data-close-modal="invite-modal">Đóng</button></div>
+  </div>
+</div>
+
+<script type="module" src="assets/community.js"></script>
+</body>
+</html>
