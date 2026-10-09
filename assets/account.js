@@ -1,3 +1,4 @@
+import {paintAvatar} from './avatar.js';
 import {
   ensureBaseSession,
   getMyAccess,
@@ -45,6 +46,7 @@ function render() {
   const displayName = profile?.display_name || authUser?.user_metadata?.display_name || authUser?.email?.split('@')[0] || 'Account';
   $('#profile-name').textContent = displayName;
   $('#profile-avatar').textContent = initials(displayName);
+  paintAvatar($('#profile-avatar'),profile,displayName).catch(()=>{});
   $('#profile-email').textContent = authUser?.email || '—';
   $('#identity-email').textContent = authUser?.email || '—';
   $('#display-name').value = profile?.display_name || '';
@@ -357,3 +359,5 @@ $('#factor-list').addEventListener('click', async event => {
     notice('Không mở được Account & Security: ' + error.message, 'error');
   }
 })();
+
+document.addEventListener('lms:profile-image',e=>{if(e.detail?.profile?.id!==session?.user?.id)return;profile={...profile,...e.detail.profile};render();});

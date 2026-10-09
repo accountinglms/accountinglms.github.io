@@ -19,6 +19,11 @@ const required = [
   'assets/history.css',
   'assets/portal.css',
   'assets/portal-navigation.css',
+  'assets/avatar.js',
+  'assets/avatar-editor.js',
+  'assets/avatar.css',
+  'assets/community-v50.css',
+  'assets/community-polish.js',
   'assets/vg-theme.css',
   'assets/calculator.css',
   'assets/theme-init.js',
@@ -386,7 +391,7 @@ if(brandedIco.length<100||brandedIco.readUInt16LE(0)!==0||brandedIco.readUInt16L
 const brandManifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.webmanifest'),'utf8'));
 if(!['icon-192.png','icon-512.png'].every(src=>brandManifest.icons.some(icon=>icon.src===src)))throw new Error('PWA branding icons missing.');
 const brandSw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
-if(!brandSw.includes("icaew-lms-github-v49")||!brandSw.includes("'./favicon.ico'"))
+if(!brandSw.includes("icaew-lms-github-v50")||!brandSw.includes("'./favicon.ico'"))
   throw new Error('Brand icons absent from updated PWA cache.');
 
 
@@ -407,7 +412,7 @@ if(!voiceJs.includes("start_media_call")||!voiceJs.includes("getUserMedia")||!vo
  throw new Error('Voice call signaling is incomplete.');
 if(!upgradedCommon.includes('export async function getChatFileBlob')||!chatSocialCss.includes('#social-tabs'))
  throw new Error('Secure private chat media display missing.');
-if(!sw.includes('icaew-lms-github-v49')||!sw.includes("'./assets/community-social.js'"))
+if(!sw.includes('icaew-lms-github-v50')||!sw.includes("'./assets/community-social.js'"))
  throw new Error('PWA v47 social upgrade cache is missing.');
 
 
@@ -440,5 +445,29 @@ if(!responsiveNavCSS.includes('min-height:55px')||!responsiveNavCSS.includes('sa
   throw new Error('Responsive navigation requires safe touch targets, safe areas and chat composer space.');
 if(!sw.includes("'./assets/portal-navigation.css'"))
   throw new Error('New navigation is absent from the offline cache.');
+
+
+const avatarCore=fs.readFileSync(path.join(root,'assets/avatar.js'),'utf8');
+const avatarEditor=fs.readFileSync(path.join(root,'assets/avatar-editor.js'),'utf8');
+const polishedChat=fs.readFileSync(path.join(root,'assets/community-v50.css'),'utf8');
+for(const page of ['community.html','account.html']){
+ const html=fs.readFileSync(path.join(root,page),'utf8');
+ if(!html.includes('assets/avatar.css')||!html.includes('assets/avatar-editor.js')
+ ||!html.includes('id="avatar-source-input"')||!html.includes('id="avatar-crop-canvas"'))
+   throw new Error('Photo editor is not available in '+page);
+}
+for(const page of ['home.html','progress.html'])
+ if(!fs.readFileSync(path.join(root,page),'utf8').includes('assets/avatar.css'))
+   throw new Error('Avatar styles missing in '+page);
+if(!avatarCore.includes('profile-avatars')||!avatarCore.includes('avatar_path')||!avatarCore.includes('private'))
+ throw new Error('Authenticated avatar storage is not implemented.');
+if(!avatarEditor.includes('canvas.toBlob')||!avatarEditor.includes('avatar-zoom')||!avatarEditor.includes('uploadAvatar'))
+ throw new Error('Client-side photo crop/compress is incomplete.');
+if(!polishedChat.includes('.chat-more-btn')||!polishedChat.includes('44px')||!polishedChat.includes('.composer-box'))
+ throw new Error('Chat header and composer are not sized for touch screens.');
+if(!fs.readFileSync(path.join(root,'community.html'),'utf8').includes('assets/community-polish.js'))
+ throw new Error('Contextual mobile chat menu is missing.');
+for(const file of ["assets/avatar.js","assets/avatar-editor.js","assets/avatar.css","assets/community-v50.css","assets/community-polish.js"])
+ if(!sw.includes("'./"+file+"'"))throw new Error('PWA cache missing '+file);
 
 console.log('Security/static integrity checks passed.');

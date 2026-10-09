@@ -1,3 +1,4 @@
+import {paintAvatar} from './avatar.js';
 import { ensureSession,getMyAccess,restGet } from './common.js';
 import {examScore,weightedScores,assessmentConfidence} from './score-model.js';
 
@@ -217,10 +218,11 @@ async function bootstrap(){
     restGet('chapters','select=*&is_active=eq.true&order=sort_order.asc'),
     restGet('exercises','select=id,chapter_id,title,question_count&is_active=eq.true'),
     restGet('exercise_attempts',`select=*&user_id=eq.${encodeURIComponent(session.user.id)}&order=completed_at.asc&limit=500`),
-    restGet('profiles','select=id,display_name')
+    restGet('profiles','select=id,display_name,avatar_path')
   ]);
   const me=profiles.find(p=>p.id===session.user.id);const name=me?.display_name||session.user.user_metadata?.display_name||session.user.email?.split('@')[0]||'Member';
   $('#portal-user-name').textContent=name;$('#portal-avatar').textContent=initials(name);
+  paintAvatar($('#portal-avatar'),me,name).catch(()=>{});
   activeSubjectId=new URLSearchParams(location.search).get('subject');
   if(!subjects.some(s=>s.id===activeSubjectId))activeSubjectId=subjects.find(s=>subjectAttempts(s.id).length)?.id||subjects[0]?.id||null;
   $('#progress-loading').hidden=true;$('#progress-content').hidden=false;

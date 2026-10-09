@@ -14,9 +14,11 @@
 <script src="assets/theme-init.js"></script>
 <link rel="stylesheet" href="assets/portal.css">
 <link rel="stylesheet" href="assets/vg-theme.css">
+<link rel="stylesheet" href="assets/avatar.css">
 <link rel="stylesheet" href="assets/community-social.css">
 <link rel="stylesheet" href="assets/community-v48.css">
 <link rel="stylesheet" href="assets/portal-navigation.css">
+<link rel="stylesheet" href="assets/community-v50.css">
 </head>
 <body class="page-community">
 <div class="portal-shell">
@@ -61,19 +63,21 @@
     <section class="chat-center">
       <header class="chat-room-head">
         <div style="display:flex;align-items:center;gap:9px;min-width:0">
-          <button class="icon-button mobile-chat-menu" id="mobile-chat-menu" type="button" aria-label="Mở danh sách nhóm">☰</button>
-          <div style="min-width:0"><h1 id="room-title">Chọn một nhóm</h1><p id="room-subtitle">Tham gia nhóm để gửi tin nhắn và file.</p><span id="typing-indicator" aria-live="polite" hidden></span></div>
+          <button class="icon-button mobile-chat-menu" id="mobile-chat-menu" type="button" aria-label="Mở danh sách nhóm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button>
+          <span id="chat-room-avatar" class="chat-room-avatar" aria-hidden="true">#</span><div class="chat-room-copy"><h1 id="room-title">Chọn một nhóm</h1><p id="room-subtitle">Tham gia nhóm để gửi tin nhắn và file.</p><span id="typing-indicator" aria-live="polite" hidden></span></div>
         </div>
         <div class="chat-room-actions">
-          <button class="icon-button" id="community-room-profile" type="button" hidden aria-label="Xem hồ sơ bạn chat" title="Hồ sơ">♙</button>
-          <button class="icon-button" id="room-search-btn" type="button" aria-label="Tìm tin nhắn" title="Tìm tin nhắn (Ctrl K)">⌕</button>
-          <button class="chat-call-btn" id="voice-call-btn" type="button" hidden title="Gọi thoại 1–1 · beta">☎ Gọi thoại</button>
-          <button class="chat-call-btn" id="video-call-btn" type="button" hidden title="Gọi video 1–1 · beta">▣ Video</button>
-          <button class="icon-button" id="community-mobile-info" type="button" aria-label="Thông tin hội thoại" title="Thông tin">ⓘ</button>
+          <button class="icon-button" id="community-room-profile" type="button" hidden aria-label="Xem hồ sơ bạn chat" title="Hồ sơ"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8" r="3"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></button>
+          <button class="icon-button" id="room-search-btn" type="button" aria-label="Tìm tin nhắn" title="Tìm tin nhắn (Ctrl K)"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button>
+          <button class="chat-call-btn" id="voice-call-btn" type="button" hidden title="Gọi thoại 1–1 · beta"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6.8 3.8 10 7l-2 3c1.4 2.8 3.1 4.5 6 6l3-2 3.2 3.2-1.3 3c-7 .7-15-7.3-14.3-14.3z"/></svg><span>Gọi thoại</span></button>
+          <button class="chat-call-btn" id="video-call-btn" type="button" hidden title="Gọi video 1–1 · beta"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg><span>Video</span></button>
+          <button class="icon-button" id="community-mobile-info" type="button" aria-label="Thông tin hội thoại" title="Thông tin"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 10v7"/><circle cx="12" cy="7" r=".8" fill="currentColor" stroke="none"/></svg></button>
+          <button class="icon-button chat-more-btn" id="chat-more-btn" type="button" aria-expanded="false" aria-controls="chat-more-menu" title="Thêm tùy chọn" aria-label="Mở tùy chọn chat"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg></button>
           <span class="connection-state" id="connection-state">Đang kết nối…</span>
         </div>
       </header>
 
+      <div id="chat-more-menu" hidden role="menu" aria-label="Tùy chọn hội thoại"><button role="menuitem" type="button" data-chat-menu="search">⌕ Tìm trong tin nhắn</button><button role="menuitem" type="button" data-chat-menu="audio">☎ Gọi thoại</button><button role="menuitem" type="button" data-chat-menu="video">▣ Gọi video</button><button role="menuitem" type="button" data-chat-menu="profile">♙ Xem hồ sơ</button><button role="menuitem" type="button" data-chat-menu="info">ⓘ Thông tin hội thoại</button></div>
       <div id="chat-search-panel" hidden>
         <div class="chat-search-heading"><span>Tìm trong cuộc trò chuyện</span><button type="button" id="chat-search-close" aria-label="Đóng">×</button></div>
         <input id="chat-search-input" type="search" maxlength="100" placeholder="Nhập nội dung tin nhắn…">
@@ -93,13 +97,13 @@
           <div class="composer-box">
             <textarea id="message-input" maxlength="8000" placeholder="Nhắn vào nhóm…"></textarea>
             <div class="composer-tools" style="position:relative">
-              <button type="button" id="emoji-btn" title="Emoji">☺</button>
-              <label title="Gửi file">＋<input id="file-input" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip,image/*"></label>
+              <button type="button" id="emoji-btn" title="Emoji" aria-label="Chọn emoji"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 14c1.5 2.3 6.5 2.3 8 0" stroke-linecap="round"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg></button>
+              <label title="Thêm ảnh hoặc tài liệu" aria-label="Thêm ảnh hoặc tài liệu"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><input id="file-input" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip,image/*"></label>
               <select id="message-type" aria-label="Loại tin nhắn" style="height:30px;border:0;background:transparent;color:var(--portal-muted);font-size:.58rem">
                 <option value="text">Tin nhắn</option>
                 <option value="assignment">Bài tập</option>
               </select>
-              <button class="send" type="button" id="send-btn">Gửi</button>
+              <button class="send" type="button" id="send-btn"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="m21 3-8.2 18-2.6-7.2L3 11.2 21 3Z"/><path d="M10.2 13.8 21 3"/></svg><span>Gửi</span></button>
               <div class="emoji-popover" id="emoji-popover" hidden></div>
             </div>
           </div>
@@ -142,10 +146,22 @@
 
 <div id="community-notifications" hidden><strong>Thông báo</strong><div id="community-notify-list"></div></div>
 <div id="community-toast" role="status" aria-live="polite" hidden></div>
+<input id="avatar-source-input" type="file" accept="image/*" aria-label="Chọn ảnh từ thư viện ảnh trên thiết bị">
+<div id="avatar-edit-dialog" hidden>
+  <section class="avatar-editor-card" role="dialog" aria-modal="true" aria-labelledby="avatar-edit-heading">
+    <div class="avatar-editor-title"><strong id="avatar-edit-heading">Chỉnh ảnh đại diện</strong><button id="avatar-crop-close" type="button" aria-label="Đóng">×</button></div>
+    <p>Kéo ảnh để căn khuôn mặt, dùng thanh trượt để thu phóng. Ảnh được nén trước khi lưu vào hồ sơ.</p>
+    <div class="avatar-crop-frame"><canvas id="avatar-crop-canvas" width="400" height="400" aria-label="Ảnh đại diện xem trước"></canvas></div>
+    <label class="avatar-zoom-row">Thu phóng<input id="avatar-zoom" type="range" min="1" max="2.8" step=".05" value="1"></label>
+    <div class="avatar-editor-actions"><button type="button" id="avatar-cancel-crop">Hủy</button><button type="button" id="avatar-save-crop">Lưu ảnh đại diện</button></div>
+    <div id="avatar-edit-status" role="status" aria-live="polite"></div>
+  </section>
+</div>
 <div id="community-profile-dialog" hidden>
   <section class="profile-card" role="dialog" aria-modal="true" aria-labelledby="profile-title">
     <div class="profile-card-top"><h2 id="profile-title">Hồ sơ thành viên</h2><button type="button" id="profile-close" aria-label="Đóng">×</button></div>
     <div id="profile-avatar">M</div>
+    <div id="avatar-own-controls" hidden><button id="avatar-editor-trigger" type="button">▣ Chọn ảnh từ thiết bị</button><button id="avatar-remove-trigger" type="button" hidden>Xóa ảnh</button></div>
     <label>Tên hiển thị<input id="profile-name" maxlength="70" autocomplete="off"></label>
     <label>Giới thiệu<textarea id="profile-bio" maxlength="180" placeholder="Bạn đang học gì?"></textarea></label>
     <div id="profile-colors" aria-label="Màu avatar">
@@ -172,5 +188,7 @@
 <script type="module" src="assets/community-social.js"></script>
 <script type="module" src="assets/community-voice.js"></script>
 <script type="module" src="assets/community-experience.js"></script>
+<script type="module" src="assets/community-polish.js"></script>
+<script type="module" src="assets/avatar-editor.js"></script>
 </body>
 </html>

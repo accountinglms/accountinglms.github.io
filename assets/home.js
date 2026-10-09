@@ -1,3 +1,4 @@
+import {paintAvatar} from './avatar.js';
 import {
   ensureSession,
   getMyAccess,
@@ -49,6 +50,7 @@ function renderHeader(){
   const name=currentName();
   setText('#portal-user-name',name);
   setText('#portal-avatar',initials(name));
+  paintAvatar($('#portal-avatar'),profiles.find(p=>p.id===session.user.id),name).catch(()=>{});
   const humanName = name.trim().replace(/[_.-]+/g,' ');
   const looksLikeHandle = /[0-9]/.test(humanName) || humanName.length>28 || humanName.includes('@');
   setText('#welcome-title',looksLikeHandle?'Chào mừng trở lại':`Xin chào, ${name}`);
@@ -242,7 +244,7 @@ async function bootstrap(){
       restGet('chat_group_members',`select=group_id,user_id,role&user_id=eq.${encodeURIComponent(session.user.id)}`),
       restGet('chat_reads',`select=group_id,last_read_at&user_id=eq.${encodeURIComponent(session.user.id)}`),
       restGet('chat_messages','select=id,group_id,sender_id,body,attachment_name,created_at&order=created_at.desc&limit=250'),
-      restGet('profiles','select=id,display_name'),
+      restGet('profiles','select=id,display_name,avatar_path'),
       restRpc('get_portal_unread_counts')
     ]);
   }catch(error){

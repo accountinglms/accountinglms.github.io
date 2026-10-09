@@ -1,3 +1,4 @@
+import {hydrateAvatars} from './avatar.js';
 import {ensureSession,restGet,restRpc,createRealtimeClient} from './common.js';
 
 // Friendship requests and 1-to-1 rooms are authoritative in Supabase.
@@ -31,10 +32,11 @@ function renderDirect(){
     const other=otherId(r),name=nameOf(other);
     return '<button type="button" class="chat-group social-direct-room'+
       (new URLSearchParams(location.search).get('group')===r.id?' active':'')+
-      '" data-social-room="'+esc(r.id)+'"><span class="chat-group-icon">'+esc(initials(name))+
+      '" data-social-room="'+esc(r.id)+'"><span class="chat-group-icon" data-avatar-user="'+esc(other)+'">'+esc(initials(name))+
       '</span><span class="chat-group-main"><strong>'+esc(name)+
       '</strong><span>Cuộc trò chuyện riêng tư</span></span></button>';
   }).join(''):'<div class="social-empty">Chưa có tin nhắn riêng. Vào Bạn bè để bắt đầu.</div>';
+  hydrateAvatars(root,people);
 }
 function renderPeople(){
   const root=$('#social-people-list');if(!root)return;
@@ -56,7 +58,7 @@ function renderPeople(){
     }else{
       buttons='<button class="social-action" data-social-action="add" data-user="'+esc(p.id)+'">+ Kết bạn</button>';
     }
-    return '<article class="social-person"><span class="social-avatar">'+esc(initials(display))+'</span><div class="social-person-main"><strong>'+esc(display)+
+    return '<article class="social-person"><span class="social-avatar" data-avatar-user="'+esc(p.id)+'">'+esc(initials(display))+'</span><div class="social-person-main"><strong>'+esc(display)+
       '</strong><div class="social-actions">'+buttons+'<button class="social-action" data-profile-user="'+esc(p.id)+'" type="button">Hồ sơ</button></div></div></article>';
   };
   const selected=new Set([...pending.map(otherFriendId),...mine.map(otherFriendId)]);
@@ -67,6 +69,7 @@ function renderPeople(){
   root.innerHTML='<div class="social-people-search"><input id="social-user-search" aria-label="Tìm thành viên LMS" placeholder="Tìm tên thành viên…" maxlength="80" value="'+esc(search)+'"></div>'+
     (pending.length?'<div class="social-section-caption">Lời mời đang chờ · '+pending.length+'</div>':'')+
     (priority.length?priority.map(renderPerson).join(''):'<div class="social-empty">Không tìm thấy thành viên phù hợp.</div>');
+  hydrateAvatars(root,people);
 }
 function render(){
   const notice=$('#social-pending-count');
@@ -82,7 +85,7 @@ async function refresh(){
     const data=await Promise.all([
       restGet('social_friendships','select=*&order=created_at.desc&limit=500'),
       restGet('chat_groups','select=id,kind,direct_low,direct_high,updated_at&kind=eq.direct&order=updated_at.desc&limit=100'),
-      restGet('profiles','select=id,display_name&order=display_name.asc&limit=500')
+      restGet('profiles','select=id,display_name,avatar_path&order=display_name.asc&limit=500')
     ]);
     friends=data[0];directRooms=data[1];people=data[2];
     render();
@@ -149,3 +152,5 @@ async function init(){
   window.addEventListener('beforeunload',()=>{socialRealtime?.stop();clearTimeout(refreshTimer);});
 }
 init().catch(error=>console.warn('Social contacts unavailable:',error));
+
+document.addEventListener('lms:profile-image',e=>{const p=e.detail?.profile;if(!p)return;people=people.map(x=>x.id===p.id?{...x,...p}:x);render();});

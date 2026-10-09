@@ -1,3 +1,4 @@
+import {paintAvatar} from './avatar.js';
 import {ensureSession,restGet,restRpc,restPatch,restUpsert,restInsert} from './common.js';
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -78,13 +79,15 @@ function initFiles(){
 async function openProfile(uid){
  if(!session||!uid)return;
  try{
-  const rows=await restGet('profiles','select=id,display_name,bio,avatar_color&id=eq.'+encodeURIComponent(uid)+'&limit=1'),p=rows[0];if(!p)return;
+  const rows=await restGet('profiles','select=id,display_name,bio,avatar_color,avatar_path&id=eq.'+encodeURIComponent(uid)+'&limit=1'),p=rows[0];if(!p)return;
   const mine=uid===session.user.id,d=$('#community-profile-dialog');d.hidden=false;d.dataset.user=uid;d.dataset.color=p.avatar_color||'#36548a';
   $('#profile-title').textContent=mine?'Hồ sơ của tôi':(p.display_name||'Thành viên');
   $('#profile-name').value=p.display_name||'';$('#profile-name').disabled=!mine;
   $('#profile-bio').value=p.bio||'';$('#profile-bio').disabled=!mine;
   $('#profile-avatar').textContent=(p.display_name||'M').trim().split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase();
   $('#profile-avatar').style.backgroundColor=d.dataset.color;
+  await paintAvatar($('#profile-avatar'),p,p.display_name||'');
+  document.dispatchEvent(new CustomEvent('lms:open-member-profile',{detail:{userId:uid}}));
   $('#profile-colors').hidden=!mine;$('#profile-save').hidden=!mine;$('#profile-report').hidden=mine;$('#profile-block').hidden=mine;
  }catch(error){toast('Không thể mở hồ sơ.');}
 }

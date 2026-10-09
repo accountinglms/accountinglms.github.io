@@ -14,6 +14,7 @@
 <script src="assets/theme-init.js"></script>
 <link rel="stylesheet" href="assets/account.css">
 <link rel="stylesheet" href="assets/vg-theme.css">
+<link rel="stylesheet" href="assets/avatar.css">
 </head>
 <body class="page-account">
 <main class="page">
@@ -29,7 +30,7 @@
 
   <section id="account-app" class="shell hidden">
     <aside class="profileCard card">
-      <div class="avatar" id="profile-avatar">U</div>
+      <div class="avatar" id="profile-avatar">U</div><div id="avatar-own-controls"><button id="avatar-editor-trigger" type="button">▣ Chọn ảnh từ thiết bị</button><button id="avatar-remove-trigger" type="button" hidden>Xóa ảnh</button></div>
       <div class="roleLine"><span id="profile-role">Thành viên</span><i id="security-dot"></i></div>
       <h1 id="profile-name">Tài khoản</h1>
       <p id="profile-email">—</p>
@@ -148,6 +149,18 @@
     <a class="primary linkButton" href="./">Về trang đăng nhập</a>
   </section>
 </main>
+<input id="avatar-source-input" type="file" accept="image/*" aria-label="Chọn ảnh từ thư viện ảnh trên thiết bị">
+<div id="avatar-edit-dialog" hidden>
+  <section class="avatar-editor-card" role="dialog" aria-modal="true" aria-labelledby="avatar-edit-heading">
+    <div class="avatar-editor-title"><strong id="avatar-edit-heading">Chỉnh ảnh đại diện</strong><button id="avatar-crop-close" type="button" aria-label="Đóng">×</button></div>
+    <p>Kéo ảnh để căn khuôn mặt, dùng thanh trượt để thu phóng. Ảnh được nén trước khi lưu vào hồ sơ.</p>
+    <div class="avatar-crop-frame"><canvas id="avatar-crop-canvas" width="400" height="400" aria-label="Ảnh đại diện xem trước"></canvas></div>
+    <label class="avatar-zoom-row">Thu phóng<input id="avatar-zoom" type="range" min="1" max="2.8" step=".05" value="1"></label>
+    <div class="avatar-editor-actions"><button type="button" id="avatar-cancel-crop">Hủy</button><button type="button" id="avatar-save-crop">Lưu ảnh đại diện</button></div>
+    <div id="avatar-edit-status" role="status" aria-live="polite"></div>
+  </section>
+</div>
 <script type="module" src="assets/account.js"></script>
+<script type="module" src="assets/avatar-editor.js"></script>
 </body>
 </html>

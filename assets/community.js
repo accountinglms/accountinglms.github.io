@@ -1,3 +1,4 @@
+import {paintAvatar,hydrateAvatars,avatarMark} from './avatar.js';
 import {
   ensureSession,getMyAccess,restGet,restInsert,restDelete,restUpsert,restRpc,restPatch,
   uploadChatFile,downloadChatFile,getChatFileBlob,createRealtimeClient
@@ -46,6 +47,7 @@ function renderHeader(){
   const name=me?.display_name||session.user.user_metadata?.display_name||session.user.email?.split('@')[0]||'Member';
   $('#portal-user-name').textContent=name;
   $('#portal-avatar').textContent=initials(name);
+  paintAvatar($('#portal-avatar'),me,name).catch(()=>{});
   const u=unreadInfo();
   const badge=$('#global-notification-count');
   badge.hidden=!u.total;badge.textContent=u.total>99?'99+':String(u.total);
@@ -72,9 +74,10 @@ function renderMembers(){
   const rows=memberships.filter(m=>m.group_id===currentGroupId);
   root.innerHTML=rows.map(m=>{
     const p=pmap.get(m.user_id);const name=p?.display_name||m.user_id.slice(0,8);
-    return `<div class="member"><span class="portal-avatar">${esc(initials(name))}</span><div><strong>${esc(name)}</strong><span>${esc(m.role)}</span></div><button class="btn" type="button" data-profile-user="${esc(m.user_id)}" title="Xem hồ sơ">Hồ sơ</button></div>`;
+    return `<div class="member">${avatarMark(p,{className:'portal-avatar',name})}<div><strong>${esc(name)}</strong><span>${esc(m.role)}</span></div><button class="btn" type="button" data-profile-user="${esc(m.user_id)}" title="Xem hồ sơ">Hồ sơ</button></div>`;
   }).join('')||'<div class="empty-compact">Chưa có thành viên.</div>';
   $('#group-manage-tools').hidden=!canManage(currentGroupId);
+  hydrateAvatars(root,profiles);
 }
 function aggregateReactions(){
   const map=new Map();
@@ -115,7 +118,7 @@ function renderMessages(){
     const seen=direct&&msg.sender_id===session.user.id&&peerReadAt
       &&new Date(msg.created_at)<=new Date(peerReadAt);
     return `<article class="message-row ${msg.sender_id===session.user.id?'own':''}" data-message-id="${msg.id}">
-      <span class="message-avatar">${esc(initials(name))}</span>
+      ${avatarMark(p,{className:'message-avatar',name})}
       <div class="message-main">
         <div class="message-meta"><strong>${esc(name)}</strong><time>${esc(fmtTime(msg.created_at))}</time>${msg.message_type==='assignment'?'<span class="notice-kind">Bài tập</span>':''}</div>
         ${replied}
@@ -129,6 +132,7 @@ function renderMessages(){
       </div>
     </article>`;
   }).join('');
+  hydrateAvatars(root,profiles);
   enhanceImagePreviews(root).catch(console.warn);
   requestAnimationFrame(()=>{if(root.dataset.preserveScroll==='1'){root.dataset.preserveScroll='';return;}if(wasNearBottom)root.scrollTop=root.scrollHeight;});
 }
@@ -206,6 +210,11 @@ async function selectGroup(id){
   const peer=other?profiles.find(p=>p.id===other):null;
   const roomName=direct?(peer?.display_name||'Thành viên LMS'):g.name;
   $('#room-title').textContent=direct?roomName:'# '+roomName;
+  const badge=$('#chat-room-avatar');
+  if(badge){
+   if(direct&&peer){badge.dataset.avatarUser=peer.id;paintAvatar(badge,peer,roomName).catch(()=>{});}
+   else{delete badge.dataset.avatarUser;badge.dataset.avatarToken='room';badge.style.backgroundImage='';badge.classList.remove('has-avatar-image');badge.textContent=g.is_official?'◆':'#';}
+  }
   $('#room-subtitle').textContent=direct?'Trò chuyện riêng · chỉ hai người tham gia':(g.description|| (g.is_public?'Nhóm công khai':'Nhóm riêng'));
   $('#info-title').textContent=direct?'Người đang trò chuyện':g.name;
   $('#info-description').textContent=direct?'Tin nhắn riêng chỉ hiển thị với người tham gia.':(g.description||'Không có mô tả.');
@@ -321,6 +330,7 @@ async function bootstrap(){
     {table:'chat_message_reactions',event:'*'},
     {table:'chat_reads',event:'*'},
     {table:'chat_groups',event:'*'},
+    {table:'profiles',event:'UPDATE'},
     {table:'announcements',event:'*'}
   ],scheduleRefresh,status=>{
     const labels={connected:'Realtime · đã kết nối',connecting:'Đang kết nối…',disconnected:'Mất kết nối · đang thử lại','subscription-error':'Không thể đăng ký nhận tin','auth-error':'Phiên Realtime hết hạn'};
@@ -420,3 +430,5 @@ $('#mobile-chat-menu').addEventListener('click',()=>$('#chat-sidebar').classList
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentGroupId)markCurrentRead().catch(()=>{});});
 window.addEventListener('beforeunload',()=>{realtime?.stop();for(const url of imageCache.values())URL.revokeObjectURL(url);imageCache.clear();});
 bootstrap().catch(error=>{console.error(error);$('#message-stream').innerHTML='<div class="empty-compact">Không tải được Community.</div>';});
+
+document.addEventListener('lms:profile-image',e=>{const p=e.detail?.profile;if(!p)return;profiles=profiles.map(x=>x.id===p.id?{...x,...p}:x);renderHeader();renderMembers();renderMessages();});

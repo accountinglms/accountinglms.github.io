@@ -58,6 +58,7 @@ async function installMock(context){
     profiles:[{id:user.id,display_name:'Portal Owner'},peer],
     friendships:[{id:'req-1',requester_id:peer.id,recipient_id:user.id,status:'pending',created_at:'2026-10-09T12:00:00Z'}],
     feedback:[],
+    avatarFiles:new Map(),
     mutations:{feedback:0,announcement:0,message:0,reaction:0,file:0,subjectPatch:0}
   };
 
@@ -117,6 +118,18 @@ async function installMock(context){
       return json(route,id);
     }
 
+    if(path.startsWith('/storage/v1/object/profile-avatars/')){
+      if(method==='POST'){
+        state.avatarFiles.set(path,req.postDataBuffer());
+        return json(route,{Key:path},201);
+      }
+      if(method==='GET'){
+        const buffer=state.avatarFiles.get(path);
+        return buffer?route.fulfill({status:200,headers:{...cors(),'content-type':'image/webp'},body:buffer})
+          :json(route,{message:'File not found'},404);
+      }
+      if(method==='DELETE'){state.avatarFiles.delete(path);return json(route,{});}
+    }
     if(path.startsWith('/storage/v1/object/chat-files/')){
       state.mutations.file++;
       return json(route,{Key:'ok'});
@@ -141,7 +154,15 @@ async function installMock(context){
     if(table==='exercises')return json(route,state.exercises);
     if(table==='exercise_attempts')return json(route,state.attempts);
     if(table==='user_progress')return json(route,state.progress);
-    if(table==='profiles')return json(route,state.profiles);
+    if(table==='profiles'){
+      if(method==='PATCH'){
+        const uid=url.searchParams.get('id')?.replace('eq.','');
+        const row=state.profiles.find(p=>p.id===uid);
+        if(row)Object.assign(row,JSON.parse(req.postData()||'{}'));
+        return json(route,row?[row]:[]);
+      }
+      return json(route,state.profiles);
+    }
     if(table==='social_friendships')return json(route,state.friendships);
 
     if(table==='announcements'){
@@ -499,10 +520,47 @@ async function testResponsivePortal(browser){
   await page.waitForFunction(()=>document.querySelector('#room-title')?.textContent?.includes('General'));
   let geo=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:window.innerWidth}));
   assert(geo.scroll<=geo.viewport+1,'Community has horizontal overflow on mobile');
+  const actions=await page.evaluate(()=>{
+    const selectors=['#mobile-chat-menu','#room-search-btn','#chat-more-btn'];
+    return selectors.map(s=>{const el=document.querySelector(s),r=el.getBoundingClientRect();return {name:s,w:r.width,h:r.height};});
+  });
+  assert(actions.every(a=>a.w>=44&&a.h>=44),'Mobile chat header controls must have 44px tap targets');
+  await page.click('#chat-more-btn');
+  assert(await page.locator('#chat-more-menu').evaluate(el=>!el.hidden),'Chat overflow actions should open');
+  await page.click('#chat-more-btn');
   await page.click('#mobile-chat-menu');
   assert(await page.locator('#chat-sidebar').evaluate(el=>el.classList.contains('open')),'Mobile community drawer did not open smoothly');
 
   await context.close();
+}
+
+
+async function testAvatarUpload(browser){
+ const {context,page,state}=await newPortalPage(browser);
+ await page.goto(baseURL+'/account.html',{waitUntil:'domcontentloaded'});
+ await page.waitForSelector('#account-app:not(.hidden)');
+ await page.waitForSelector('#avatar-editor-trigger');
+ const imageBase64=await page.evaluate(()=>{
+  const c=document.createElement('canvas');c.width=300;c.height=300;
+  const ctx=c.getContext('2d');ctx.fillStyle='#2566aa';ctx.fillRect(0,0,300,300);
+  ctx.fillStyle='#ffeecc';ctx.beginPath();ctx.arc(150,145,98,0,2*Math.PI);ctx.fill();
+  return c.toDataURL('image/png').split(',')[1];
+ });
+ await page.setInputFiles('#avatar-source-input',{
+   name:'portrait.png',mimeType:'image/png',buffer:Buffer.from(imageBase64,'base64')
+ });
+ await page.waitForSelector('#avatar-edit-dialog:not([hidden])');
+ await page.locator('#avatar-zoom').fill('1.5');
+ await page.click('#avatar-save-crop');
+ await page.waitForFunction(()=>document.querySelector('#avatar-edit-dialog')?.hidden===true, null,{timeout:20000});
+ assert(state.profiles[0].avatar_path?.startsWith(user.id+'/'),'Avatar must be stored in the owner's storage folder');
+ assert(state.avatarFiles.size===1,'Avatar upload must reach private Supabase Storage');
+ await page.waitForFunction(()=>document.querySelector('#profile-avatar')?.classList.contains('has-avatar-image'),null,{timeout:10000});
+ await page.goto(baseURL+'/home.html',{waitUntil:'domcontentloaded'});
+ await page.waitForFunction(()=>document.querySelector('#portal-avatar')?.classList.contains('has-avatar-image'),null,{timeout:10000});
+ assert((await page.locator('#portal-avatar').evaluate(el=>getComputedStyle(el).backgroundImage)).startsWith('url('),
+  'Saved avatar should hydrate across member pages');
+ await context.close();
 }
 
 const browser=await engine.launch({headless:true});
@@ -511,6 +569,7 @@ try{
   await testAutomaticSubjectCovers(browser);
   await testCommunity(browser);
   await testCommunityEmptyState(browser);
+  await testAvatarUpload(browser);
   await testChatPagination(browser);
   await testProgress(browser);
   await testResponsivePortal(browser);
