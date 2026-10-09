@@ -154,8 +154,8 @@ function renderAssessment(subject,rows,rd,stats){
   const levelLabel=level==='advanced'?'Advanced Level':level==='professional'?'Professional Level':'Certificate Level';
   $('#official-pass').textContent=pct(rd.pass);
   $('#safe-target').textContent=pct(rd.safe);
-  $('#pass-scale').textContent=`Pass ${rd.pass}%`;
-  $('#safe-scale').textContent=`Safe ${rd.safe}%`;
+  $('#pass-scale').textContent='Chỉ số học tập · không phải điểm thi';
+  $('#safe-scale').hidden=true;
   $('#standard-level').textContent=`ICAEW · ${levelLabel}`;
   $('#standard-copy').textContent=`Pass mark tham chiếu: ${rd.pass}%. Safe target ${rd.safe}% là mục tiêu luyện tập nội bộ. Chỉ số readiness không phải điểm thi, không phải xác suất đỗ và chưa xét đủ dạng bài/trọng số đề thực tế.`;
   if(rd.score==null){
