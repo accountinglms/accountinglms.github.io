@@ -9,6 +9,10 @@ const required = [
   'diagnostics.html',
   'manifest.webmanifest',
   'sw.js',
+  'assets/learner.css',
+  'assets/theme-init.js',
+  'assets/learner-core.js',
+  'assets/cloud-sync.js',
   'assets/common.js',
   'assets/admin.js',
   'assets/lessons.js',
@@ -50,6 +54,14 @@ for (const file of ['index.html','admin.html','lessons.html','diagnostics.html']
 }
 
 const learnerHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const scriptTags = learnerHtml.match(/<script\\b[^>]*>/gi) || [];
+if (scriptTags.some(tag => !/\\bsrc=/.test(tag)) || /<style\\b/i.test(learnerHtml)) {
+  throw new Error('index.html must not contain inline script/style blocks after frontend refactor');
+}
+for (const asset of ['assets/learner.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js']) {
+  if (!learnerHtml.includes(asset)) throw new Error('index.html is missing modular learner asset: ' + asset);
+}
+
 for (const unsafePattern of [
   'questionText.innerHTML = q.q',
   'textSpan.innerHTML = opt',
