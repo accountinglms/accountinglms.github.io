@@ -463,6 +463,38 @@ async function testResponsivePortal(browser){
     assert(geometry.vgLoaded,`${path} did not load the final Van Gogh theme stylesheet`);
   }
 
+
+  // iPhone-size destinations must be labeled and large enough to tap, not punctuation.
+  for(const width of [320,375,390,430]){
+    await page.setViewportSize({width,height:844});
+    const nav=await page.evaluate(()=>{
+      const root=document.querySelector('.portal-mobile-nav');
+      const r=root?.getBoundingClientRect();
+      return {
+        visible:root&&getComputedStyle(root).display==='grid',
+        topNavHidden:getComputedStyle(document.querySelector('.portal-topbar .portal-nav')).display==='none',
+        bottom:r?.bottom,screen:innerHeight,
+        items:[...root.querySelectorAll('a')].map(a=>{
+          const b=a.getBoundingClientRect(),label=a.querySelector('span'),icon=a.querySelector('svg');
+          return {width:b.width,height:b.height,label:label?.textContent?.trim(),
+            labelVisible:label&&getComputedStyle(label).display!=='none',iconSize:icon?.getBoundingClientRect().width};
+        })
+      };
+    });
+    assert(nav.visible&&nav.topNavHidden,'Mobile navbar is not correctly relocated at '+width+'px');
+    assert(Math.abs(nav.bottom-nav.screen)<2,'Mobile navbar must hug the bottom safe area at '+width+'px');
+    assert(nav.items.length===5&&nav.items.every(a=>a.width>=48&&a.height>=44&&a.labelVisible&&a.label&&a.iconSize>=20),
+      'Mobile navigation needs 5 named, usable tap targets at '+width+'px');
+  }
+  await page.setViewportSize({width:820,height:900});
+  const tablet=await page.evaluate(()=>({
+    mobileVisible:getComputedStyle(document.querySelector('.portal-mobile-nav')).display!=='none',
+    labels:[...document.querySelectorAll('.portal-topbar .portal-nav a span')].map(x=>getComputedStyle(x).display)
+  }));
+  assert(!tablet.mobileVisible&&tablet.labels.length===5&&tablet.labels.every(x=>x!=='none'),
+    'Tablet navigation should retain its text labels');
+  await page.setViewportSize({width:390,height:844});
+
   await page.goto(baseURL+'/community.html',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.querySelector('#room-title')?.textContent?.includes('General'));
   let geo=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:window.innerWidth}));

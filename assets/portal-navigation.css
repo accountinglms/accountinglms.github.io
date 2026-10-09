@@ -1,0 +1,195 @@
+/* LMS responsive navigation v49 — shared across Home / Community / Progress.
+   Keep desktop nav in header; on phones use a dedicated viewport-fixed tab bar
+   OUTSIDE the backdrop-filtered header (avoids iOS fixed-position clipping). */
+:root{
+  --lms-mobile-tab-height:68px;
+  --lms-mobile-bottom:env(safe-area-inset-bottom,0px);
+}
+body.page-home .portal-mobile-nav,
+body.page-community .portal-mobile-nav,
+body.page-progress .portal-mobile-nav{display:none;}
+body.page-home .portal-nav-icon,
+body.page-community .portal-nav-icon,
+body.page-progress .portal-nav-icon{
+  width:19px;height:19px;flex:none;display:block;
+  stroke-width:1.85;
+}
+body.page-home .portal-nav a,
+body.page-community .portal-nav a,
+body.page-progress .portal-nav a{
+  min-height:44px;
+  gap:7px;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:0;
+  white-space:nowrap;
+  justify-content:center;
+  transition:color .16s ease,background .16s ease;
+}
+body.page-home .portal-nav a:focus-visible,
+body.page-community .portal-nav a:focus-visible,
+body.page-progress .portal-nav a:focus-visible{
+  outline:3px solid var(--portal-accent);outline-offset:2px;
+}
+/* Keep tablet labels instead of collapsing the whole navigation to punctuation. */
+@media(min-width:701px) and (max-width:1100px){
+  body.page-home .portal-topbar,
+  body.page-community .portal-topbar,
+  body.page-progress .portal-topbar{gap:10px;padding-inline:14px;}
+  body.page-home .portal-brand,
+  body.page-community .portal-brand,
+  body.page-progress .portal-brand{min-width:0;}
+  body.page-home .portal-brand span,
+  body.page-community .portal-brand span,
+  body.page-progress .portal-brand span{display:none;}
+  body.page-home .portal-brand strong,
+  body.page-community .portal-brand strong,
+  body.page-progress .portal-brand strong{font-size:13px;white-space:nowrap;}
+  body.page-home .portal-nav,
+  body.page-community .portal-nav,
+  body.page-progress .portal-nav{overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;}
+  body.page-home .portal-nav::-webkit-scrollbar,
+  body.page-community .portal-nav::-webkit-scrollbar,
+  body.page-progress .portal-nav::-webkit-scrollbar{display:none;}
+  body.page-home .portal-nav a,
+  body.page-community .portal-nav a,
+  body.page-progress .portal-nav a{flex:0 0 auto;padding-inline:9px;font-size:12px;}
+  body.page-home .portal-nav a span,
+  body.page-community .portal-nav a span,
+  body.page-progress .portal-nav a span{display:inline!important;}
+  body.page-community #community-profile-open{display:none;}
+}
+/* For iPhone/Android: 5 spacious, labeled destinations anchored above home indicator. */
+@media(max-width:700px){
+  body.page-home .portal-topbar,
+  body.page-community .portal-topbar,
+  body.page-progress .portal-topbar{
+    height:58px!important;
+    min-height:58px;
+    justify-content:space-between;
+    padding-inline:15px;
+    gap:12px;
+  }
+  body.page-home .portal-topbar>.portal-nav,
+  body.page-community .portal-topbar>.portal-nav,
+  body.page-progress .portal-topbar>.portal-nav{display:none!important;}
+  body.page-home .portal-brand img,
+  body.page-community .portal-brand img,
+  body.page-progress .portal-brand img{
+    width:40px;height:40px;border-radius:12px;
+  }
+  body.page-home .portal-brand,
+  body.page-community .portal-brand,
+  body.page-progress .portal-brand{flex:0 1 auto;min-width:0;}
+  body.page-home .portal-actions,
+  body.page-community .portal-actions,
+  body.page-progress .portal-actions{margin-left:auto;flex:0 0 auto;gap:8px;}
+  body.page-home .portal-actions .icon-button,
+  body.page-community .portal-actions .icon-button,
+  body.page-progress .portal-actions .icon-button,
+  body.page-home .portal-profile-link,
+  body.page-community .portal-profile-link,
+  body.page-progress .portal-profile-link{
+    min-width:44px;min-height:44px;width:44px;height:44px;
+    padding:0;display:grid;place-items:center;border-radius:12px;
+  }
+  body.page-home .portal-profile-link .portal-avatar,
+  body.page-community .portal-profile-link .portal-avatar,
+  body.page-progress .portal-profile-link .portal-avatar{width:29px;height:29px;font-size:12px;}
+  body.page-community #community-profile-open{display:none!important;}
+  body.page-home .portal-mobile-nav,
+  body.page-community .portal-mobile-nav,
+  body.page-progress .portal-mobile-nav{
+    position:fixed;
+    inset:auto 0 0;
+    z-index:110;
+    height:calc(var(--lms-mobile-tab-height) + var(--lms-mobile-bottom));
+    padding:5px max(5px,env(safe-area-inset-right,0px))
+            calc(5px + var(--lms-mobile-bottom))
+            max(5px,env(safe-area-inset-left,0px));
+    display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:1px;
+    background:color-mix(in srgb,var(--portal-surface) 97%,transparent);
+    border-top:1px solid var(--portal-line);
+    box-shadow:0 -7px 24px rgba(16,28,47,.09);
+    -webkit-backdrop-filter:blur(20px);
+    backdrop-filter:blur(20px);
+  }
+  body.page-home .portal-mobile-nav a,
+  body.page-community .portal-mobile-nav a,
+  body.page-progress .portal-mobile-nav a{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-width:0;min-height:55px;
+    gap:4px;
+    padding:6px 1px 5px;
+    color:var(--portal-muted);
+    border-radius:12px;
+    font-size:11px;
+    font-weight:700;
+    line-height:1.15;
+    text-align:center;
+    text-decoration:none;
+    white-space:nowrap;
+    touch-action:manipulation;
+    -webkit-tap-highlight-color:transparent;
+  }
+  body.page-home .portal-mobile-nav a span,
+  body.page-community .portal-mobile-nav a span,
+  body.page-progress .portal-mobile-nav a span{
+    display:block!important;font-size:11px;font-weight:700;letter-spacing:0;
+  }
+  body.page-home .portal-mobile-nav .portal-nav-icon,
+  body.page-community .portal-mobile-nav .portal-nav-icon,
+  body.page-progress .portal-mobile-nav .portal-nav-icon{
+    width:23px;height:23px;stroke-width:1.9;
+  }
+  body.page-home .portal-mobile-nav a.active,
+  body.page-community .portal-mobile-nav a.active,
+  body.page-progress .portal-mobile-nav a.active{
+    color:var(--portal-accent-2);
+    background:color-mix(in srgb,var(--portal-accent) 11%,var(--portal-surface));
+  }
+  body.page-home .portal-mobile-nav a:focus-visible,
+  body.page-community .portal-mobile-nav a:focus-visible,
+  body.page-progress .portal-mobile-nav a:focus-visible{
+    outline:2px solid var(--portal-accent);outline-offset:-2px;
+  }
+  /* Reserve space for fixed tabs rather than covering home content or chat input. */
+  body.page-home .portal-main,
+  body.page-progress .portal-main{
+    padding-bottom:calc(40px + var(--lms-mobile-tab-height) + var(--lms-mobile-bottom))!important;
+  }
+  body.page-community .chat-layout{
+    height:calc(100dvh - 58px - var(--lms-mobile-tab-height) - var(--lms-mobile-bottom))!important;
+    min-height:0;
+  }
+  body.page-community .chat-center{
+    height:100%!important;
+    min-height:0;
+  }
+  body.page-community .chat-sidebar{
+    bottom:calc(var(--lms-mobile-tab-height) + var(--lms-mobile-bottom))!important;
+  }
+  body.page-community .chat-info{
+    bottom:calc(var(--lms-mobile-tab-height) + var(--lms-mobile-bottom))!important;
+  }
+  body.page-community .chat-composer{
+    padding-bottom:10px!important;
+  }
+  body.page-community #voice-call-panel{
+    bottom:calc(16px + var(--lms-mobile-tab-height) + var(--lms-mobile-bottom));
+  }
+}
+@media(max-width:355px){
+  body.page-home .portal-mobile-nav a span,
+  body.page-community .portal-mobile-nav a span,
+  body.page-progress .portal-mobile-nav a span{font-size:10px;}
+  body.page-home .portal-mobile-nav .portal-nav-icon,
+  body.page-community .portal-mobile-nav .portal-nav-icon,
+  body.page-progress .portal-mobile-nav .portal-nav-icon{width:21px;height:21px;}
+}
+@media(prefers-reduced-motion:reduce){
+  body.page-home .portal-nav a,
+  body.page-community .portal-nav a,
+  body.page-progress .portal-nav a{transition:none;}
+}

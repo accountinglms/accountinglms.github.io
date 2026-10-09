@@ -18,6 +18,7 @@ const required = [
   'assets/account.css',
   'assets/history.css',
   'assets/portal.css',
+  'assets/portal-navigation.css',
   'assets/vg-theme.css',
   'assets/calculator.css',
   'assets/theme-init.js',
@@ -385,7 +386,7 @@ if(brandedIco.length<100||brandedIco.readUInt16LE(0)!==0||brandedIco.readUInt16L
 const brandManifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.webmanifest'),'utf8'));
 if(!['icon-192.png','icon-512.png'].every(src=>brandManifest.icons.some(icon=>icon.src===src)))throw new Error('PWA branding icons missing.');
 const brandSw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
-if(!brandSw.includes("icaew-lms-github-v48")||!brandSw.includes("'./favicon.ico'"))
+if(!brandSw.includes("icaew-lms-github-v49")||!brandSw.includes("'./favicon.ico'"))
   throw new Error('Brand icons absent from updated PWA cache.');
 
 
@@ -406,7 +407,7 @@ if(!voiceJs.includes("start_media_call")||!voiceJs.includes("getUserMedia")||!vo
  throw new Error('Voice call signaling is incomplete.');
 if(!upgradedCommon.includes('export async function getChatFileBlob')||!chatSocialCss.includes('#social-tabs'))
  throw new Error('Secure private chat media display missing.');
-if(!sw.includes('icaew-lms-github-v48')||!sw.includes("'./assets/community-social.js'"))
+if(!sw.includes('icaew-lms-github-v49')||!sw.includes("'./assets/community-social.js'"))
  throw new Error('PWA v47 social upgrade cache is missing.');
 
 
@@ -422,5 +423,22 @@ if(!upgradedCommunity.includes('community-experience.js')||!upgradedCommunity.in
  throw new Error('Community 2.0 page missing search, video or styling');
 if(!communityJs.includes('reply_to:replyTo')||!communityJs.includes('data-edit-message')||!communityJs.includes('lms:open-room'))
  throw new Error('Message replies, editing or fast room navigation missing');
+
+
+const responsiveNavCSS=fs.readFileSync(path.join(root,'assets/portal-navigation.css'),'utf8');
+for(const page of ['home.html','community.html','progress.html']){
+ const html=fs.readFileSync(path.join(root,page),'utf8');
+ if(!html.includes('assets/portal-navigation.css') || !html.includes('class="portal-mobile-nav"'))
+   throw new Error('Mobile-first navigation missing from '+page);
+ if((html.match(/class="portal-nav-icon"/g)||[]).length!==10)
+   throw new Error('Mobile and desktop nav icons are incomplete in '+page);
+ if((html.match(/aria-current="page"/g)||[]).length!==2)
+   throw new Error('Active destination must be accessible in '+page);
+}
+if(!responsiveNavCSS.includes('min-height:55px')||!responsiveNavCSS.includes('safe-area-inset-bottom')
+ ||!responsiveNavCSS.includes('.chat-layout')||!responsiveNavCSS.includes('max-width:1100px'))
+  throw new Error('Responsive navigation requires safe touch targets, safe areas and chat composer space.');
+if(!sw.includes("'./assets/portal-navigation.css'"))
+  throw new Error('New navigation is absent from the offline cache.');
 
 console.log('Security/static integrity checks passed.');

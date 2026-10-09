@@ -14,23 +14,31 @@
 <script src="assets/theme-init.js"></script>
 <link rel="stylesheet" href="assets/portal.css">
 <link rel="stylesheet" href="assets/vg-theme.css">
+<link rel="stylesheet" href="assets/portal-navigation.css">
 </head>
 <body class="page-progress">
 <div class="portal-shell">
   <header class="portal-topbar">
     <a class="portal-brand" href="home.html"><img src="icon-512.png" alt=""><div><strong>Accounting LMS</strong><span>Member workspace</span></div></a>
     <nav class="portal-nav" aria-label="Điều hướng chính">
-      <a href="home.html">⌂ <span>Trang chủ</span></a>
-      <a href="index.html">✓ <span>Làm bài</span></a>
-      <a href="lessons.html">▤ <span>Tài liệu</span></a>
-      <a href="community.html"># <span>Cộng đồng</span></a>
-      <a class="active" href="progress.html">↗ <span>Tiến độ</span></a>
+      <a href="home.html" aria-label="Trang chủ"><svg class="portal-nav-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></svg><span>Trang chủ</span></a>
+      <a href="index.html" aria-label="Làm bài"><svg class="portal-nav-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></svg><span>Làm bài</span></a>
+      <a href="lessons.html" aria-label="Tài liệu"><svg class="portal-nav-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M12 7C9 5 6 5 3 5v14c3 0 6 0 9 2"/><path d="M12 7c3-2 6-2 9-2v14c-3 0-6 0-9 2"/></svg><span>Tài liệu</span></a>
+      <a href="community.html" aria-label="Cộng đồng"><svg class="portal-nav-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a7 7 0 0 1-7.5 7L8 21v-3a8 8 0 1 1 12-6.5Z"/><path d="M8 11h8M8 14h5"/></svg><span>Cộng đồng</span></a>
+      <a class="active" aria-current="page" href="progress.html" aria-label="Tiến độ"><svg class="portal-nav-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M6 16v-5M12 16V5M18 16v-8"/><path d="m4 9 4-3 4 2 7-5"/></svg><span>Tiến độ</span></a>
     </nav>
     <div class="portal-actions">
       <a class="icon-button" href="community.html" aria-label="Thông báo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span class="notification-badge" id="global-notification-count" hidden>0</span></a>
       <a class="portal-profile-link" href="account.html"><span class="portal-avatar" id="portal-avatar">U</span><span id="portal-user-name">Tài khoản</span></a>
     </div>
   </header>
+  <nav class="portal-mobile-nav" aria-label="Điều hướng di động">
+      <a href="home.html" aria-label="Trang chủ"><svg class="portal-nav-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></svg><span>Trang chủ</span></a>
+      <a href="index.html" aria-label="Làm bài"><svg class="portal-nav-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></svg><span>Làm bài</span></a>
+      <a href="lessons.html" aria-label="Tài liệu"><svg class="portal-nav-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M12 7C9 5 6 5 3 5v14c3 0 6 0 9 2"/><path d="M12 7c3-2 6-2 9-2v14c-3 0-6 0-9 2"/></svg><span>Tài liệu</span></a>
+      <a href="community.html" aria-label="Cộng đồng"><svg class="portal-nav-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a7 7 0 0 1-7.5 7L8 21v-3a8 8 0 1 1 12-6.5Z"/><path d="M8 11h8M8 14h5"/></svg><span>Cộng đồng</span></a>
+      <a class="active" aria-current="page" href="progress.html" aria-label="Tiến độ"><svg class="portal-nav-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M6 16v-5M12 16V5M18 16v-8"/><path d="m4 9 4-3 4 2 7-5"/></svg><span>Tiến độ</span></a>
+    </nav>
 
   <main class="portal-main">
     <div class="portal-page-head">

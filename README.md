@@ -113,3 +113,7 @@ network conditions may prevent the peer-to-peer connection. No audio is recorded
 ## Community 2.0 — v48 (2026-10-10)
 
 Improved Vietnamese typography and multi-device chat layout; grouped, scrollable emoji picker, stickers, in-room message search, message replies/edits, typing indicators and DM read receipts. Member profiles with name, bio and avatar colour, reporting and blocking; drag/drop and clipboard image attachments, notification tray. WebRTC video/audio remain beta and use STUN only, so TURN is required for production reliability. Messages and private files remain protected by Supabase RLS. Database migrations: `community_2_experience_security_v48` and `community_2_media_reports_replies_v48`.
+
+## Mobile navigation v49 (2026-10-10)
+
+Accounting LMS member pages (`home.html`, `community.html`, `progress.html`) share a revised navigation design. Desktop/tablet uses labeled, accessible SVG links; on phones the header keeps branding and profile/notifications while a five-item bottom tab bar provides large touch targets and visible labels. The mobile tab bar sits outside the blur-filtered header to avoid fixed-position clipping on iOS. The Community conversation viewport, drawer, composer and call panel reserve tab/safe-area space. `portal-navigation.css` is cached under the v49 PWA service worker. Browser E2E asserts mobile (320/375/390/430) and tablet (820) navigation labels, hit boxes, and placement.
