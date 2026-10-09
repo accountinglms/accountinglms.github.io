@@ -48,7 +48,9 @@ function renderHeader(){
   const name=currentName();
   setText('#portal-user-name',name);
   setText('#portal-avatar',initials(name));
-  setText('#welcome-title',`Chào ${name}`);
+  const humanName = name.trim().replace(/[_.-]+/g,' ');
+  const looksLikeHandle = /[0-9]/.test(humanName) || humanName.length>28 || humanName.includes('@');
+  setText('#welcome-title',looksLikeHandle?'Chào mừng trở lại':`Xin chào, ${name}`);
 }
 function renderHomeTrend(){
   const root=$('#home-mini-trend');
@@ -64,6 +66,12 @@ function renderHomeTrend(){
   root.innerHTML=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Xu hướng điểm ${data.map(v=>Math.round(v)+'%').join(', ')}"><path d="${path}"></path>${dots}</svg>`;
 }
 
+function updateContinueAction(){
+  const lastProgress=[...progress].sort((a,b)=>Date.parse(b.updated_at||0)-Date.parse(a.updated_at||0))[0];
+  const exerciseId=lastProgress?.exercise_id||attempts[0]?.exercise_id||exercises[0]?.id;
+  const target=exerciseId?`index.html?exercise=${encodeURIComponent(exerciseId)}`:'index.html';
+  document.querySelectorAll('[data-continue-exercise]').forEach(link=>link.href=target);
+}
 function renderMetrics(){
   const avg=averageRecent(attempts);
   const starred=progress.reduce((sum,row)=>sum+(Array.isArray(row.bookmarks)?row.bookmarks.filter(Boolean).length:0),0);
@@ -222,8 +230,8 @@ async function bootstrap(){
       restGet('chapters','select=*&is_active=eq.true&order=sort_order.asc'),
       restGet('lessons','select=id,chapter_id,title,summary,status,sort_order&status=eq.published&order=sort_order.asc'),
       restGet('exercises','select=id,chapter_id,title,question_count,sort_order&is_active=eq.true&order=sort_order.asc'),
-      restGet('exercise_attempts',`select=score,total_questions,accuracy,completed_at,bookmarked_count,context_snapshot&user_id=eq.${encodeURIComponent(session.user.id)}&order=completed_at.desc&limit=100`),
-      restGet('user_progress',`select=exercise_id,bookmarks&user_id=eq.${encodeURIComponent(session.user.id)}`),
+      restGet('exercise_attempts',`select=exercise_id,score,total_questions,accuracy,completed_at,bookmarked_count,context_snapshot&user_id=eq.${encodeURIComponent(session.user.id)}&order=completed_at.desc&limit=100`),
+      restGet('user_progress',`select=exercise_id,bookmarks,updated_at&user_id=eq.${encodeURIComponent(session.user.id)}`),
       restGet('announcements','select=*&status=eq.published&order=published_at.desc.nullslast,created_at.desc&limit=20'),
       restGet('announcement_reads',`select=announcement_id,read_at&user_id=eq.${encodeURIComponent(session.user.id)}`),
       restGet('chat_groups','select=*&order=is_official.desc,updated_at.desc'),
@@ -236,7 +244,7 @@ async function bootstrap(){
   }catch(error){
     console.error(error);
   }
-  renderHeader();renderCatalog();renderAnnouncements();renderChatPreview();renderMetrics();
+  renderHeader();updateContinueAction();renderCatalog();renderAnnouncements();renderChatPreview();renderMetrics();
   await loadFeedback().catch(console.error);
   if(access?.editor){
     $('#admin-home-panel').hidden=false;
