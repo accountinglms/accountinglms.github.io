@@ -95,6 +95,7 @@ try {
   assert(await calc.locator('.calc-nav-pad').isVisible(), 'FX-style navigation pad is missing');
   assert((await calc.locator('.calc-number-pad .calc-white-key').count()) === 24, 'FX-style 6-column number pad is incomplete');
   assert((await calc.locator('.calc-mode-key .calc-shift-label').textContent()) === 'SETUP', 'DEG key lost its secondary label structure');
+  assert((await calc.locator('.calc-modes .calc-mode-tab:not(.calc-mode-internal)').count()) === 12, 'Official 12-mode MENU is incomplete');
 
   const navBox = await calc.locator('.calc-nav-pad').boundingBox();
   const okBox = await calc.locator('.calc-nav-ok').boundingBox();
@@ -199,7 +200,9 @@ try {
   assert(eqText.includes('2') && eqText.includes('3'), `Equation solver failed: ${eqText}`);
 
   // Linear system: 2x + y = 5; x - y = 1 => x=2, y=1
-  await switchMode('system');
+  await switchMode('equation');
+  await calc.locator('[data-open-system]').click();
+  await calc.locator('[data-mode-panel="system"].active').waitFor();
   const sysCoeff = calc.locator('#calc-system-grid input[data-col]');
   const sysConst = calc.locator('#calc-system-grid input[data-constant]');
   await sysCoeff.nth(0).fill('2');
@@ -238,6 +241,76 @@ try {
   const vectorText = await calc.locator('#calc-vector-output').innerText();
   assert(vectorText.includes('[0, 0, 1]'), `Vector cross product failed: ${vectorText}`);
 
+  // Complex: (1+i)(1-i)=2
+  await switchMode('complex');
+  await calc.locator('[data-complex-op="mul"]').click();
+  const complexText=await calc.locator('#calc-complex-output').innerText();
+  assert(complexText.includes('2'), `Complex mode failed: ${complexText}`);
+
+  // Base-N: decimal 10 => HEX A, and 10 AND 12 => 8
+  await switchMode('basen');
+  await calc.locator('#calc-base-run').click();
+  let baseText=await calc.locator('#calc-base-output').innerText();
+  assert(/HEX\s*A/.test(baseText), `Base-N conversion failed: ${baseText}`);
+  await calc.locator('#calc-base-op').selectOption('and');
+  await calc.locator('#calc-base-run').click();
+  baseText=await calc.locator('#calc-base-output').innerText();
+  assert(/DEC\s*8/.test(baseText), `Base-N logical AND failed: ${baseText}`);
+
+  // Distribution: Normal PD x=0 sigma=1 mu=0 ~= 0.39894228
+  await switchMode('distribution');
+  await calc.locator('#calc-dist-run').click();
+  const distText=await calc.locator('#calc-dist-output').innerText();
+  assert(distText.includes('0.398942'), `Distribution mode failed: ${distText}`);
+
+  // Table: x^2 from 1 to 3
+  await switchMode('table');
+  await calc.locator('#calc-table-end').fill('3');
+  await calc.locator('#calc-table-run').click();
+  const tableText=await calc.locator('#calc-table-output').innerText();
+  assert(tableText.includes('9') && tableText.includes('3'), `Table mode failed: ${tableText}`);
+
+  // Inequality: x^2 - 1 >= 0 => (-inf,-1] U [1,inf)
+  await switchMode('inequality');
+  const ineqInputs=calc.locator('#calc-ineq-inputs input');
+  await ineqInputs.nth(0).fill('1');
+  await ineqInputs.nth(1).fill('0');
+  await ineqInputs.nth(2).fill('-1');
+  await calc.locator('#calc-ineq-run').click();
+  const ineqText=await calc.locator('#calc-ineq-output').innerText();
+  assert(ineqText.includes('-1') && ineqText.includes('1'), `Inequality mode failed: ${ineqText}`);
+
+  // Verify: sin(30)=0.5 in DEG
+  await switchMode('verify');
+  await calc.locator('#calc-verify-run').click();
+  const verifyText=await calc.locator('#calc-verify-output').innerText();
+  assert(verifyText.includes('TRUE'), `Verify mode failed: ${verifyText}`);
+
+  // Ratio: 2:3 = 4:X => X=6
+  await switchMode('ratio');
+  await calc.locator('#calc-ratio-run').click();
+  const ratioText=await calc.locator('#calc-ratio-output').innerText();
+  assert(/X\s*6/.test(ratioText), `Ratio mode failed: ${ratioText}`);
+
+  // Extended Calculate: CALC variables, SOLVE, numerical derivative, memory/display
+  await switchMode('calculate');
+  await calc.locator('[data-pro-drawer="calc"]').click();
+  await calc.locator('#calc-calc-run').click();
+  const calcVarText=await calc.locator('#calc-calc-output').innerText();
+  assert(calcVarText.includes('7'), `CALC variable evaluation failed: ${calcVarText}`);
+
+  await calc.locator('[data-pro-drawer="solve"]').click();
+  await calc.locator('#calc-solve-run').click();
+  const solveText=await calc.locator('#calc-solve-output').innerText();
+  assert(solveText.includes('1.4142'), `SOLVE failed: ${solveText}`);
+
+  await calc.locator('[data-pro-drawer="optn"]').click();
+  await calc.locator('#calc-calculus-type').selectOption('derivative');
+  await calc.locator('#calc-calculus-a').fill('3');
+  await calc.locator('#calc-calculus-run').click();
+  const derivativeText=await calc.locator('#calc-calculus-output').innerText();
+  assert(derivativeText.includes('6'), `Numerical derivative failed: ${derivativeText}`);
+
   const before = await calc.boundingBox();
   const handle = calc.locator('[data-calc-drag]');
   const handleBox = await handle.boundingBox();
@@ -254,7 +327,7 @@ try {
   await calc.locator('.calc-close').click({ force: true });
   assert(await calc.getAttribute('hidden') !== null, 'Calculator close button did not hide the panel');
 
-  console.log(`PASS ${browserName}: scientific calculator + equations + systems + statistics + matrix + vector`);
+  console.log(`PASS ${browserName}: full 12-mode fx-580VN X calculator suite`);
   await context.close();
 } finally {
   await browser.close();
