@@ -1373,6 +1373,27 @@
     }
   }, true);
 
+  window.__lmsCalculatorEngine = {
+    evaluate: (source, variables = {}) => calculate(source, variables),
+    formatNumber,
+    factorial,
+    permutation,
+    combination,
+    solvePolynomial: coefficients => solvePolynomial([...coefficients]),
+    formatComplex,
+    setMode,
+    getMode: () => activeMode,
+    getAngleMode: () => angleMode,
+    setAngleMode: mode => {
+      if (!['DEG','RAD','GRA'].includes(mode)) throw new Error('Unsupported angle mode');
+      angleMode = mode;
+      render();
+    },
+    outputRows,
+    outputError,
+    escapeHtml
+  };
+
   renderEquationInputs();
   renderSystemGrid();
   renderMatrices();
