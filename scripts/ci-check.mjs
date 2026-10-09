@@ -4,16 +4,19 @@ import path from 'node:path';
 const root = process.cwd();
 const required = [
   'index.html',
+  'account.html',
   'admin.html',
   'lessons.html',
   'diagnostics.html',
   'manifest.webmanifest',
   'sw.js',
   'assets/learner.css',
+  'assets/account.css',
   'assets/theme-init.js',
   'assets/learner-core.js',
   'assets/cloud-sync.js',
   'assets/common.js',
+  'assets/account.js',
   'assets/admin.js',
   'assets/lessons.js',
   'assets/diagnostics.js',
@@ -28,6 +31,7 @@ for (const file of required) {
 
 const clientFiles = [
   'index.html',
+  'account.html',
   'admin.html',
   'lessons.html',
   'diagnostics.html',
@@ -45,7 +49,7 @@ for (const file of clientFiles) {
 }
 
 
-for (const file of ['index.html','admin.html','lessons.html','diagnostics.html']) {
+for (const file of ['index.html','account.html','admin.html','lessons.html','diagnostics.html']) {
   const text = fs.readFileSync(path.join(root, file), 'utf8');
   if (!text.includes('http-equiv="Content-Security-Policy"')) {
     throw new Error('Missing Content Security Policy meta tag: ' + file);
@@ -85,7 +89,7 @@ if (!edge.includes('get_my_access')) {
 }
 
 const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-for (const file of ['admin.html','lessons.html','diagnostics.html','manifest.webmanifest','assets/learner.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/common.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js']) {
+for (const file of ['account.html','admin.html','lessons.html','diagnostics.html','manifest.webmanifest','assets/learner.css','assets/account.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/common.js','assets/account.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js']) {
   if (!sw.includes(file)) throw new Error('Service worker cache list is missing: ' + file);
 }
 
@@ -107,6 +111,23 @@ if (!cloudSync.includes('localStorage.setItem(AUTH_KEY')) {
 }
 if (!learnerHtml.includes('id="auth-forgot-btn"') || !learnerHtml.includes('id="auth-reset-view"')) {
   throw new Error('Password recovery UI is incomplete.');
+}
+if (!learnerHtml.includes('id="auth-mfa-view"') || !learnerHtml.includes('id="auth-mfa-code"')) {
+  throw new Error('MFA challenge UI is incomplete.');
+}
+if (!cloudSync.includes('/auth/v1/factors/') || !cloudSync.includes('/challenge') || !cloudSync.includes('/verify')) {
+  throw new Error('MFA challenge/verify flow is missing from cloud auth layer.');
+}
+const accountHtml = fs.readFileSync(path.join(root, 'account.html'), 'utf8');
+const accountJs = fs.readFileSync(path.join(root, 'assets/account.js'), 'utf8');
+if (!accountHtml.includes('Account & Security') || !accountHtml.includes('id="totp-setup"')) {
+  throw new Error('Account & Security TOTP UI is incomplete.');
+}
+if (!accountJs.includes('authMfaEnrollTotp') || !accountJs.includes('authMfaVerify') || !accountJs.includes('authMfaUnenroll')) {
+  throw new Error('Account TOTP management flow is incomplete.');
+}
+if (!fs.readFileSync(path.join(root, 'assets/common.js'), 'utf8').includes('mfa_satisfied')) {
+  throw new Error('Shared authorization is not MFA-aware.');
 }
 
 console.log('Security/static integrity checks passed.');
