@@ -157,6 +157,7 @@
           <button data-fn="npr">nPr</button><button data-fn="ncr">nCr</button><button data-fn="root">x√y</button>
           <button data-fn="floor">Floor</button><button data-fn="ceil">Ceil</button><button data-fn="int">Int</button>
           <button data-insert="rand()">Ran#</button><button data-fn="randint">RanInt</button><button data-insert="PreAns">PreAns</button>
+          <button data-insert=":">:</button><button data-fn="min">Min</button><button data-fn="max">Max</button>
         </div>
         <div class="calc-calculus-grid">
           <label class="calc-field"><span>Numerical calculus</span><select id="calc-calculus-type"><option value="derivative">d/dx</option><option value="integral">∫</option><option value="sum">Σ</option><option value="product">Π</option></select></label>
@@ -166,6 +167,15 @@
         </div>
         <button class="calc-solve-btn" id="calc-calculus-run">EXE</button>
         <div class="calc-output" id="calc-calculus-output"></div>
+        <div class="calc-pro-divider"></div>
+        <div class="calc-pro-form-grid calc-four">
+          <label class="calc-field"><span>Utility</span><select id="calc-utility-type"><option value="factor">Prime factor</option><option value="pol">Pol(x,y)</option><option value="rec">Rec(r,θ)</option><option value="dms-from">Decimal → DMS</option><option value="dms-to">DMS → Decimal</option></select></label>
+          <label class="calc-field"><span>A</span><input id="calc-utility-a" class="calc-pro-input" type="number" value="12"></label>
+          <label class="calc-field"><span>B</span><input id="calc-utility-b" class="calc-pro-input" type="number" value="0"></label>
+          <label class="calc-field"><span>C</span><input id="calc-utility-c" class="calc-pro-input" type="number" value="0"></label>
+        </div>
+        <button class="calc-solve-btn" id="calc-utility-run">EXE</button>
+        <div class="calc-output" id="calc-utility-output"></div>
       </section>
 
       <section data-pro-section="calc" hidden>
@@ -263,6 +273,33 @@
     }catch(e){outputError(out,e);}
   });
 
+  // Casio utility functions: factorization, Pol/Rec, DMS
+  panel.querySelector('#calc-utility-run')?.addEventListener('click',()=>{
+    const out=panel.querySelector('#calc-utility-output');
+    try{
+      const type=panel.querySelector('#calc-utility-type').value,A=Number(panel.querySelector('#calc-utility-a').value),B=Number(panel.querySelector('#calc-utility-b').value),C=Number(panel.querySelector('#calc-utility-c').value);
+      if(![A,B,C].every(Number.isFinite))throw new Error('Giá trị không hợp lệ.');
+      if(type==='factor'){
+        if(!Number.isSafeInteger(A)||Math.abs(A)<2||Math.abs(A)>1e12)throw new Error('Prime factor hỗ trợ số nguyên từ 2 đến 10¹².');
+        let n=Math.abs(A),factors=[];for(let p=2;p*p<=n;p+=(p===2?1:2)){let count=0;while(n%p===0){n/=p;count++;}if(count)factors.push([p,count]);}if(n>1)factors.push([n,1]);
+        outputRows(out,[['Factor',factors.map(([p,c])=>c===1?String(p):`${p}^${c}`).join(' × ')]]);
+      }else if(type==='pol'){
+        const r=Math.hypot(A,B);let theta=Math.atan2(B,A),mode=engine.getAngleMode();if(mode==='DEG')theta*=180/Math.PI;else if(mode==='GRA')theta*=200/Math.PI;
+        outputRows(out,[['r',fmt(r)],['θ',fmt(theta)]]);
+      }else if(type==='rec'){
+        let theta=B,mode=engine.getAngleMode();if(mode==='DEG')theta*=Math.PI/180;else if(mode==='GRA')theta*=Math.PI/200;
+        outputRows(out,[['x',fmt(A*Math.cos(theta))],['y',fmt(A*Math.sin(theta))]]);
+      }else if(type==='dms-from'){
+        const sign=A<0?'−':'',v=Math.abs(A),d=Math.floor(v),m=Math.floor((v-d)*60),sec=((v-d)*60-m)*60;
+        outputRows(out,[['DMS',`${sign}${d}° ${m}′ ${fmt(sec)}″`]]);
+      }else{
+        if(Math.abs(B)>=60||Math.abs(C)>=60)throw new Error('Phút và giây phải nhỏ hơn 60.');
+        const sign=A<0?-1:1,value=sign*(Math.abs(A)+Math.abs(B)/60+Math.abs(C)/3600);
+        outputRows(out,[['Decimal',fmt(value)]]);
+      }
+    }catch(e){outputError(out,e);}
+  });
+
   // CALC and SOLVE
   panel.querySelector('#calc-calc-run')?.addEventListener('click',()=>{
     const out=panel.querySelector('#calc-calc-output');
@@ -302,29 +339,49 @@
 
   // Constants
   const constants=[
-    ['c','Speed of light',299792458,'m/s'],['G','Gravitational constant',6.67430e-11,'m³·kg⁻¹·s⁻²'],
-    ['h','Planck constant',6.62607015e-34,'J·s'],['ħ','Reduced Planck constant',1.054571817e-34,'J·s'],
-    ['e','Elementary charge',1.602176634e-19,'C'],['mₑ','Electron mass',9.1093837139e-31,'kg'],
-    ['mₚ','Proton mass',1.67262192595e-27,'kg'],['Nₐ','Avogadro constant',6.02214076e23,'mol⁻¹'],
-    ['k','Boltzmann constant',1.380649e-23,'J/K'],['R','Gas constant',8.31446261815324,'J·mol⁻¹·K⁻¹'],
-    ['g','Standard gravity',9.80665,'m/s²'],['atm','Standard atmosphere',101325,'Pa'],
-    ['ε₀','Vacuum permittivity',8.8541878128e-12,'F/m'],['μ₀','Vacuum permeability',1.25663706212e-6,'N/A²'],
-    ['eV','Electron volt',1.602176634e-19,'J']
+    ['Universal','h','Planck constant',6.626070040e-34],['Universal','ħ','Reduced Planck constant',1.054571800e-34],
+    ['Universal','c₀','Speed of light in vacuum',299792458],['Universal','ε₀','Vacuum permittivity',8.854187817e-12],
+    ['Universal','μ₀','Vacuum permeability',1.2566370614e-6],['Universal','Z₀','Characteristic impedance of vacuum',376.730313461],
+    ['Universal','G','Newtonian gravitational constant',6.67408e-11],['Universal','lP','Planck length',1.616229e-35],['Universal','tP','Planck time',5.39116e-44],
+    ['Electromagnetic','μN','Nuclear magneton',5.050783699e-27],['Electromagnetic','μB','Bohr magneton',9.274009994e-24],
+    ['Electromagnetic','e','Elementary charge',1.6021766208e-19],['Electromagnetic','Φ₀','Magnetic flux quantum',2.067833831e-15],
+    ['Electromagnetic','G₀','Conductance quantum',7.7480917310e-5],['Electromagnetic','KJ','Josephson constant',483597.8525e9],
+    ['Electromagnetic','RK','von Klitzing constant',25812.8074555],
+    ['Atomic & Nuclear','mp','Proton mass',1.672621898e-27],['Atomic & Nuclear','mn','Neutron mass',1.674927471e-27],
+    ['Atomic & Nuclear','me','Electron mass',9.10938356e-31],['Atomic & Nuclear','mμ','Muon mass',1.883531594e-28],
+    ['Atomic & Nuclear','a₀','Bohr radius',0.52917721067e-10],['Atomic & Nuclear','α','Fine-structure constant',7.2973525664e-3],
+    ['Atomic & Nuclear','re','Classical electron radius',2.8179403227e-15],['Atomic & Nuclear','λc','Compton wavelength',2.4263102367e-12],
+    ['Atomic & Nuclear','γp','Proton gyromagnetic ratio',2.675221900e8],['Atomic & Nuclear','λcp','Proton Compton wavelength',1.32140985396e-15],
+    ['Atomic & Nuclear','λcn','Neutron Compton wavelength',1.31959090481e-15],['Atomic & Nuclear','R∞','Rydberg constant',10973731.568508],
+    ['Atomic & Nuclear','μp','Proton magnetic moment',1.4106067873e-26],['Atomic & Nuclear','μe','Electron magnetic moment',-928.4764620e-26],
+    ['Atomic & Nuclear','μn','Neutron magnetic moment',-0.96623650e-26],['Atomic & Nuclear','μμ','Muon magnetic moment',-4.49044826e-26],
+    ['Atomic & Nuclear','mτ','Tau mass',3.16747e-27],
+    ['Physico-Chem','u','Atomic mass constant',1.660539040e-27],['Physico-Chem','F','Faraday constant',96485.33289],
+    ['Physico-Chem','NA','Avogadro constant',6.022140857e23],['Physico-Chem','k','Boltzmann constant',1.38064852e-23],
+    ['Physico-Chem','Vm','Molar volume of ideal gas',22.710947e-3],['Physico-Chem','R','Molar gas constant',8.3144598],
+    ['Physico-Chem','c₁','First radiation constant',3.741771790e-16],['Physico-Chem','c₂','Second radiation constant',1.43877736e-2],
+    ['Physico-Chem','σ','Stefan-Boltzmann constant',5.670367e-8],
+    ['Adopted','g','Standard gravity',9.80665],['Adopted','atm','Standard atmosphere',101325],
+    ['Adopted','RK-90','Conventional von Klitzing constant',25812.807],['Adopted','KJ-90','Conventional Josephson constant',483597.9e9],
+    ['Other','t','Celsius temperature offset',273.15]
   ];
   const constSelect=panel.querySelector('#calc-const-select');
-  constSelect.innerHTML=constants.map((item,i)=>`<option value="${i}">${item[0]} · ${item[1]}</option>`).join('');
+  constSelect.innerHTML=constants.map((item,i)=>`<option value="${i}">${item[0]} · ${item[1]} · ${item[2]}</option>`).join('');
   panel.querySelector('#calc-const-run')?.addEventListener('click',()=>{
     const item=constants[Number(constSelect.value)];
-    outputRows(panel.querySelector('#calc-const-output'),[[item[0],`${item[2]} ${item[3]}`]]);
+    outputRows(panel.querySelector('#calc-const-output'),[[item[1],String(item[3])],[item[0],item[2]]]);
   });
 
   // Unit conversion
   const units={
-    m:['Length',1],km:['Length',1000],cm:['Length',.01],mm:['Length',.001],in:['Length',.0254],ft:['Length',.3048],yd:['Length',.9144],mi:['Length',1609.344],
-    kg:['Mass',1],g:['Mass',.001],lb:['Mass',.45359237],oz:['Mass',.028349523125],
-    Pa:['Pressure',1],kPa:['Pressure',1000],bar:['Pressure',100000],atm:['Pressure',101325],psi:['Pressure',6894.757293168],
+    m:['Length',1],km:['Length',1000],cm:['Length',.01],mm:['Length',.001],in:['Length',.0254],ft:['Length',.3048],yd:['Length',.9144],mi:['Length',1609.344],nmi:['Length',1852],pc:['Length',3.085678e16],
+    m2:['Area',1],acre:['Area',4046.856],
+    L:['Volume',1],mL:['Volume',.001],galUS:['Volume',3.785412],galUK:['Volume',4.54609],
+    kg:['Mass',1],g:['Mass',.001],lb:['Mass',.4535924],oz:['Mass',.02834952],
+    Pa:['Pressure',1],kPa:['Pressure',1000],bar:['Pressure',100000],atm:['Pressure',101325],mmHg:['Pressure',133.3224],kgfcm2:['Pressure',98066.5],psi:['Pressure',6894.757],
     'm/s':['Speed',1],'km/h':['Speed',1/3.6],mph:['Speed',.44704],knot:['Speed',.5144444444],
-    J:['Energy',1],kJ:['Energy',1000],cal:['Energy',4.184],kcal:['Energy',4184],eV:['Energy',1.602176634e-19],kWh:['Energy',3.6e6],
+    J:['Energy',1],kJ:['Energy',1000],cal:['Energy',4.1858],kcal:['Energy',4185.8],eV:['Energy',1.6021766208e-19],kWh:['Energy',3.6e6],kgfm:['Energy',9.80665],
+    W:['Power',1],kW:['Power',1000],hp:['Power',745.7],
     rad:['Angle',1],deg:['Angle',Math.PI/180],grad:['Angle',Math.PI/200]
   };
   const unitOptions=Object.entries(units).map(([u,[group]])=>`<option value="${u}">${u} · ${group}</option>`).join('')+`<option value="C">°C · Temperature</option><option value="F">°F · Temperature</option><option value="K">K · Temperature</option>`;
