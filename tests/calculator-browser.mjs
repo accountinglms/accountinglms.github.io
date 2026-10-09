@@ -95,6 +95,23 @@ try {
   assert(await calc.locator('.calc-nav-pad').isVisible(), 'FX-style navigation pad is missing');
   assert((await calc.locator('.calc-number-pad .calc-white-key').count()) === 24, 'FX-style 6-column number pad is incomplete');
 
+  const navBox = await calc.locator('.calc-nav-pad').boundingBox();
+  const okBox = await calc.locator('.calc-nav-ok').boundingBox();
+  const upBox = await calc.locator('.calc-nav-up').boundingBox();
+  const downBox = await calc.locator('.calc-nav-down').boundingBox();
+  const leftBox = await calc.locator('.calc-nav-left').boundingBox();
+  const rightBox = await calc.locator('.calc-nav-right').boundingBox();
+  assert(navBox && okBox && upBox && downBox && leftBox && rightBox, 'Navigation geometry is not measurable');
+  const navCx = navBox.x + navBox.width / 2;
+  const navCy = navBox.y + navBox.height / 2;
+  const okCx = okBox.x + okBox.width / 2;
+  const okCy = okBox.y + okBox.height / 2;
+  assert(Math.abs(navCx - okCx) <= 1.5 && Math.abs(navCy - okCy) <= 1.5, `OK key is not centered: Δx=${Math.abs(navCx-okCx)} Δy=${Math.abs(navCy-okCy)}`);
+  assert(Math.abs((upBox.x + upBox.width/2) - navCx) <= 1.5, 'Up arrow is not horizontally centered');
+  assert(Math.abs((downBox.x + downBox.width/2) - navCx) <= 1.5, 'Down arrow is not horizontally centered');
+  assert(Math.abs((leftBox.y + leftBox.height/2) - navCy) <= 1.5, 'Left arrow is not vertically centered');
+  assert(Math.abs((rightBox.y + rightBox.height/2) - navCy) <= 1.5, 'Right arrow is not vertically centered');
+
   await action('clear');
   await action('shift');
   await fn('sin');
