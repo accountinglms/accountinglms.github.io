@@ -4,6 +4,8 @@ Production LMS migrated from Floot to GitHub Pages + Supabase.
 
 ## Production
 
+Canonical production URL: https://accountinglms.github.io/
+
 - LMS: https://accountinglms.github.io/
 - Admin: https://accountinglms.github.io/admin.html
 - Lessons: https://accountinglms.github.io/lessons.html
@@ -84,7 +86,7 @@ Every push to `main` triggers `.github/workflows/pages.yml` and publishes the si
 - [x] Content snapshots/backups
 - [x] Hide/show controls for course structure
 - [x] PWA manifest + service worker
-- [ ] Final iPhone/iPad cross-device regression test
-- [ ] Retire Floot only after final regression test
+- [x] iPhone cross-device regression test
+- [ ] Final iPad check if used, then retire Floot only with owner approval
 
 See `docs/operations.md` for operating and recovery procedures.
