@@ -55,6 +55,20 @@ function renderHeader(){
   setText('#portal-avatar',initials(name));
   setText('#welcome-title',`Chào ${name}`);
 }
+function renderHomeTrend(){
+  const root=$('#home-mini-trend');
+  if(!root)return;
+  const data=[...attempts].slice(0,8).reverse().map(a=>Number(a.accuracy ?? (Number(a.total_questions)>0?Number(a.score)*100/Number(a.total_questions):NaN))).filter(Number.isFinite);
+  if(data.length<2){root.innerHTML='';root.hidden=true;return;}
+  root.hidden=false;
+  const w=280,h=64,pad=6;
+  const x=i=>pad+i*(w-pad*2)/(data.length-1);
+  const y=v=>pad+(100-Math.max(0,Math.min(100,v)))*(h-pad*2)/100;
+  const path=data.map((v,i)=>`${i?'L':'M'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  const dots=data.map((v,i)=>`<circle cx="${x(i)}" cy="${y(v)}" r="2.6"></circle>`).join('');
+  root.innerHTML=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Xu hướng điểm ${data.map(v=>Math.round(v)+'%').join(', ')}"><path d="${path}"></path>${dots}</svg>`;
+}
+
 function renderMetrics(){
   const avg=averageRecent(attempts);
   const starred=progress.reduce((sum,row)=>sum+(Array.isArray(row.bookmarks)?row.bookmarks.filter(Boolean).length:0),0);
@@ -65,6 +79,7 @@ function renderMetrics(){
   setText('#metric-notifications',String(unread.total));
   const badge=$('#global-notification-count');
   if(badge){badge.hidden=!unread.total;badge.textContent=unread.total>99?'99+':String(unread.total);}
+  renderHomeTrend();
   if(!attempts.length){
     setText('#home-focus-copy','Hãy làm một bài đầu tiên để hệ thống bắt đầu xây lộ trình từ dữ liệu thật của bạn.');
     setText('#home-readiness','Chưa đủ dữ liệu');
