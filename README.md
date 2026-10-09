@@ -13,7 +13,7 @@ Canonical production URL: https://accountinglms.github.io/
 ## Architecture
 
 - **GitHub** — source control and change history
-- **GitHub Actions + Pages** — automatic frontend deployment from `main`
+- **GitHub Pages** — automatic frontend deployment from the `main` branch
 - **Supabase Auth** — authenticated access
 - **Supabase Postgres** — course catalog, questions, lessons, progress, preferences, audit history and content snapshots
 - **Supabase Storage** — private source files uploaded for AI import
@@ -67,7 +67,7 @@ The function retries temporary Gemini overload responses before returning an err
 
 ## Deployment
 
-Every push to `main` triggers `.github/workflows/pages.yml` and publishes the site to GitHub Pages.
+Every push to `main` is published automatically by GitHub Pages.
 
 ## Migration status
 
