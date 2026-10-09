@@ -228,3 +228,377 @@ html[data-theme="light"] .page-learner .sidebar-tools .calculator-launcher:hover
   color:#182128;
   background:#eef1f3;
 }
+
+
+/* Advanced calculator modes */
+.lms-calculator.is-advanced{
+  width:min(500px,calc(100vw - 20px));
+}
+.calc-modes{
+  display:flex;
+  gap:5px;
+  margin:0 0 10px;
+  padding:2px;
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+.calc-modes::-webkit-scrollbar{display:none}
+.calc-mode-tab{
+  flex:0 0 auto;
+  border:1px solid #465159;
+  background:#2b3238;
+  color:#aeb8bf;
+  border-radius:7px;
+  min-height:34px;
+  padding:7px 10px;
+  font:650 .69rem/1 system-ui,-apple-system,"Segoe UI",sans-serif;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.calc-mode-tab:hover{background:#343d44;color:#f4f6f7}
+.calc-mode-tab.active{
+  background:#dfe7eb;
+  border-color:#dfe7eb;
+  color:#182128;
+}
+.calc-mode-panel{display:none}
+.calc-mode-panel.active{display:block}
+.calc-tool-panel{
+  min-height:250px;
+}
+.calc-tool-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  padding:10px 2px 12px;
+}
+.calc-tool-head>div{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.calc-tool-head strong{
+  font-size:.88rem;
+  color:#f4f6f7;
+}
+.calc-tool-head span{
+  color:#98a4ac;
+  font-size:.65rem;
+}
+.calc-inline-select{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  color:#aab4bb;
+  font-size:.65rem;
+  white-space:nowrap;
+}
+.calc-inline-select select{
+  min-height:32px;
+  padding:5px 26px 5px 8px;
+  border:1px solid #4a555d;
+  border-radius:7px;
+  background:#2b3238;
+  color:#f1f4f6;
+  font:650 .72rem system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+.calc-equation-preview{
+  margin-bottom:10px;
+  padding:10px 12px;
+  border:1px solid #4a555d;
+  border-radius:8px;
+  background:#2b3238;
+  color:#dce2e6;
+  text-align:center;
+  font:700 .83rem/1.35 "SFMono-Regular",Consolas,monospace;
+}
+.calc-input-grid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:7px;
+  margin-bottom:10px;
+}
+.calc-number-field{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.calc-number-field span{
+  text-align:center;
+  color:#9eabb3;
+  font-size:.65rem;
+  font-weight:700;
+}
+.calc-number-field input,
+.calc-system-row input,
+.calc-matrix-grid input,
+.calc-vector-grid input{
+  width:100%;
+  box-sizing:border-box;
+  min-height:38px;
+  border:1px solid #4a555d;
+  border-radius:7px;
+  background:#171c20;
+  color:#f4f6f7;
+  padding:7px 6px;
+  text-align:center;
+  font:650 .78rem/1.1 "SFMono-Regular",Consolas,monospace;
+}
+.calc-number-field input:focus,
+.calc-system-row input:focus,
+.calc-matrix-grid input:focus,
+.calc-vector-grid input:focus,
+.calc-field textarea:focus,
+.calc-inline-select select:focus{
+  outline:2px solid #6fa7ce;
+  outline-offset:1px;
+}
+.calc-solve-btn{
+  width:100%;
+  min-height:40px;
+  border:1px solid #6790b2;
+  border-radius:8px;
+  background:#52789a;
+  color:white;
+  font:700 .76rem system-ui,-apple-system,"Segoe UI",sans-serif;
+  cursor:pointer;
+}
+.calc-solve-btn:hover{background:#5d86a9}
+.calc-output{
+  margin-top:10px;
+}
+.calc-output:empty{display:none}
+.calc-output-error{
+  padding:10px 12px;
+  border:1px solid #7f5558;
+  border-radius:8px;
+  background:#3e2b2d;
+  color:#efc5c7;
+  font-size:.7rem;
+  line-height:1.4;
+}
+.calc-result-list{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:6px;
+}
+.calc-result-list>div{
+  min-width:0;
+  padding:8px 10px;
+  border:1px solid #454f56;
+  border-radius:8px;
+  background:#2a3136;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.calc-result-list span{
+  color:#9ba7ae;
+  font-size:.64rem;
+}
+.calc-result-list strong{
+  min-width:0;
+  color:#f3f6f7;
+  font:700 .73rem/1.25 "SFMono-Regular",Consolas,monospace;
+  text-align:right;
+  overflow-wrap:anywhere;
+}
+
+.calc-system-grid{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  margin-bottom:10px;
+}
+.calc-system-row{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr)) 18px minmax(0,1fr);
+  gap:5px;
+  align-items:end;
+}
+.calc-system-row label{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:3px;
+}
+.calc-system-row label span{
+  color:#9da9b1;
+  font-size:.62rem;
+  font-weight:700;
+}
+.calc-system-row label:nth-of-type(n+4):last-of-type{}
+.calc-equals-sign{
+  align-self:center;
+  justify-self:center;
+  color:#aab4ba;
+  font-weight:700;
+}
+.calc-system-row[data-size="2"]{}
+.calc-system-constant{
+  min-width:0;
+}
+
+.calc-field{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  margin-bottom:9px;
+}
+.calc-field>span{
+  color:#a5b0b7;
+  font-size:.68rem;
+  font-weight:650;
+}
+.calc-field textarea{
+  width:100%;
+  box-sizing:border-box;
+  resize:vertical;
+  min-height:82px;
+  max-height:150px;
+  border:1px solid #4a555d;
+  border-radius:8px;
+  background:#171c20;
+  color:#f4f6f7;
+  padding:9px 10px;
+  font:600 .72rem/1.45 "SFMono-Regular",Consolas,monospace;
+}
+
+.calc-matrix-editors,
+.calc-vector-editors{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-bottom:10px;
+}
+.calc-matrix-box,
+.calc-vector-box{
+  min-width:0;
+  padding:8px;
+  border:1px solid #434d54;
+  border-radius:9px;
+  background:#292f34;
+}
+.calc-matrix-box>strong,
+.calc-vector-box>strong{
+  display:block;
+  margin-bottom:7px;
+  color:#d9e0e4;
+  font-size:.72rem;
+}
+.calc-matrix-grid{
+  display:grid;
+  grid-template-columns:repeat(var(--matrix-size),minmax(0,1fr));
+  gap:5px;
+}
+.calc-matrix-grid input{
+  min-height:34px;
+  padding:5px 3px;
+  font-size:.69rem;
+}
+.calc-operation-grid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:6px;
+}
+.calc-operation-grid button{
+  min-width:0;
+  min-height:36px;
+  padding:6px 4px;
+  border:1px solid #4c575f;
+  border-radius:7px;
+  background:#31393f;
+  color:#e8edef;
+  font:650 .65rem/1.15 system-ui,-apple-system,"Segoe UI",sans-serif;
+  cursor:pointer;
+}
+.calc-operation-grid button:hover{background:#3b454c}
+.calc-operation-grid button:disabled{
+  opacity:.38;
+  cursor:not-allowed;
+}
+.calc-output-title{
+  margin:3px 0 7px;
+  color:#aeb8be;
+  font-size:.67rem;
+  font-weight:700;
+}
+.calc-matrix-result{
+  display:grid;
+  grid-template-columns:repeat(var(--matrix-size),minmax(0,1fr));
+  gap:5px;
+  padding:9px;
+  border:1px solid #465159;
+  border-radius:8px;
+  background:#252c31;
+}
+.calc-matrix-result span{
+  min-width:0;
+  padding:6px 4px;
+  border-radius:5px;
+  background:#171c20;
+  color:#f3f6f7;
+  text-align:center;
+  font:650 .67rem/1.2 "SFMono-Regular",Consolas,monospace;
+  overflow-wrap:anywhere;
+}
+.calc-vector-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:5px;
+}
+.calc-vector-grid label{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.calc-vector-grid span{
+  color:#98a5ad;
+  text-align:center;
+  font-size:.61rem;
+  font-weight:700;
+}
+.calc-vector-grid input{
+  min-height:36px;
+}
+
+@media(max-width:560px){
+  .lms-calculator.is-advanced{
+    width:calc(100vw - 10px);
+  }
+  .calc-modes{
+    margin-bottom:7px;
+  }
+  .calc-mode-tab{
+    min-height:32px;
+    padding:7px 9px;
+    font-size:.65rem;
+  }
+  .calc-tool-head{
+    gap:8px;
+    padding-top:7px;
+  }
+  .calc-input-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  .calc-result-list{
+    grid-template-columns:1fr;
+  }
+  .calc-matrix-editors,
+  .calc-vector-editors{
+    grid-template-columns:1fr;
+  }
+  .calc-operation-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  .calc-system-row{
+    overflow-x:auto;
+    grid-template-columns:repeat(4,56px) 16px 56px;
+    padding-bottom:2px;
+  }
+}
