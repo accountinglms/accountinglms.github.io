@@ -52,3 +52,44 @@ jobs:
           curl --fail --silent http://127.0.0.1:4173/admin.html >/dev/null
           curl --fail --silent http://127.0.0.1:4173/lessons.html >/dev/null
           curl --fail --silent http://127.0.0.1:4173/diagnostics.html >/dev/null
+
+
+  browser-session:
+    name: Session UX (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    needs: validate
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Start local HTTPS LMS
+        run: |
+          openssl req -x509 -newkey rsa:2048 -nodes             -keyout /tmp/icaew-test-key.pem             -out /tmp/icaew-test-cert.pem             -days 1 -subj "/CN=127.0.0.1"
+          python3 tests/https-server.py >/tmp/icaew-browser-https.log 2>&1 &
+          echo $! > /tmp/icaew-browser-http.pid
+          sleep 1
+          curl --insecure --fail --silent https://127.0.0.1:4173/ >/dev/null
+
+      - name: Run session UX browser suite
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/session-browser.mjs
+
+      - name: Stop local LMS
+        if: always()
+        run: |
+          if [ -f /tmp/icaew-browser-http.pid ]; then kill $(cat /tmp/icaew-browser-http.pid) || true; fi
