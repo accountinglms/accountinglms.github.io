@@ -91,6 +91,7 @@
     }
     function shouldOpenHome() {
         const params = new URLSearchParams(location.search);
+        if (params.has('exercise') && !params.has('returnTo')) return false;
         const landing = location.pathname.endsWith('/');
         return Boolean(params.get('returnTo')) || interactiveSignIn || landing;
     }
