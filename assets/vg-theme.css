@@ -1034,3 +1034,242 @@ body.page-home .metric span{font-size:12px}
   body.page-community .reaction{min-height:38px}
   body.page-community .icon-button{min-width:44px;min-height:44px}
 }
+
+
+/* v41 UX refinements: a real public-domain Van Gogh painting, under a legible
+   academic surface. The existing gradients remain as offline fallbacks. */
+body.page-home::before{
+  background:
+    linear-gradient(90deg,
+      var(--vg-ivory) 0%,
+      color-mix(in srgb,var(--vg-ivory) 94%,transparent) 35%,
+      color-mix(in srgb,var(--vg-ivory) 77%,transparent) 70%,
+      color-mix(in srgb,var(--vg-ivory) 73%,transparent) 100%),
+    url("https://commons.wikimedia.org/wiki/Special:FilePath/Starry_Night.webp?width=800")
+      right -12vw top -100px / min(920px,85vw) auto no-repeat,
+    radial-gradient(ellipse at 80% 0%,color-mix(in srgb,var(--vg-cobalt) 20%,var(--vg-ivory)),var(--vg-ivory) 72%);
+}
+body.page-home::after{
+  opacity:.055;
+}
+body.page-home .portal-page-head{
+  position:relative;
+}
+body.page-home .hero-card{
+  background:
+    linear-gradient(95deg,
+      var(--vg-paper) 0%,
+      color-mix(in srgb,var(--vg-paper) 97%,transparent) 48%,
+      color-mix(in srgb,var(--vg-paper) 75%,transparent) 69%,
+      color-mix(in srgb,var(--vg-paper) 25%,transparent) 100%),
+    url("https://commons.wikimedia.org/wiki/Special:FilePath/Starry_Night.webp?width=800")
+      right center / 54% auto no-repeat,
+    linear-gradient(125deg,var(--vg-paper),var(--vg-cobalt));
+}
+body.page-home .hero-card::before{
+  opacity:.19;
+  filter:none;
+}
+body.page-home .hero-card::after{opacity:.22}
+body.page-home .home-art-credit{
+  color:var(--vg-muted);
+  font-size:12px;
+  padding:18px 4px 0;
+  text-align:right;
+  line-height:1.5;
+}
+body.page-home .home-art-credit a{color:var(--vg-cobalt-deep);text-decoration:underline;text-underline-offset:2px}
+html[data-theme="dark"] body.page-home::before{
+  background:
+    linear-gradient(90deg,var(--vg-ivory) 0%,
+      color-mix(in srgb,var(--vg-ivory) 92%,transparent) 35%,
+      color-mix(in srgb,var(--vg-ivory) 80%,transparent) 100%),
+    url("https://commons.wikimedia.org/wiki/Special:FilePath/Starry_Night.webp?width=800")
+      right -12vw top -100px / min(920px,85vw) auto no-repeat,
+    var(--vg-ivory);
+}
+
+/* Auth: consistent color and natural Vietnamese word wrapping regardless of light mode. */
+body.page-learner .auth-shell{
+  width:min(1180px,100%);
+  border-radius:18px;
+  border-color:color-mix(in srgb,var(--vg-gold) 24%,#293b54);
+}
+body.page-learner .auth-showcase{
+  background:
+    linear-gradient(100deg,rgba(7,21,42,.91) 0%,rgba(10,35,64,.83) 55%,rgba(11,30,55,.64) 100%),
+    url("https://commons.wikimedia.org/wiki/Special:FilePath/Starry_Night.webp?width=800")
+      center center / cover no-repeat,
+    #0d2543!important;
+}
+body.page-learner .auth-showcase-copy h1,
+html[data-theme="light"] body.page-learner .auth-showcase-copy h1{
+  color:#fff4db!important;
+  font-family:var(--vg-display)!important;
+  font-weight:600!important;
+  font-size:clamp(2.2rem,3.35vw,3.4rem)!important;
+  line-height:1.14!important;
+  letter-spacing:-.025em!important;
+  word-break:normal!important;
+  overflow-wrap:normal!important;
+  hyphens:none!important;
+  text-wrap:balance;
+}
+body.page-learner .auth-showcase-copy p,
+html[data-theme="light"] body.page-learner .auth-showcase-copy p{
+  color:#e5e4dd!important;
+  line-height:1.68;
+  font-size:15px;
+}
+body.page-learner .auth-showcase-top .auth-product-brand strong,
+html[data-theme="light"] body.page-learner .auth-showcase-top .auth-product-brand strong{
+  color:#fff4db!important;
+}
+body.page-learner .auth-showcase-top .auth-product-brand span{
+  color:#cedaea!important;
+}
+body.page-learner .auth-showcase .auth-kicker{
+  color:#f1c877!important;
+}
+body.page-learner .auth-feature-row span{
+  border-color:rgba(247,218,157,.45)!important;
+  background:rgba(6,24,42,.73)!important;
+  color:#fff0d0!important;
+}
+body.page-learner .auth-showcase-footer{
+  color:#d5e0e9!important;
+}
+body.page-learner .auth-panel{
+  min-width:0;
+}
+body.page-learner .auth-session-note{
+  display:flex;
+  align-items:flex-start;
+  gap:9px;
+  font-size:12px;
+  line-height:1.6;
+  overflow-wrap:break-word;
+  word-break:normal;
+  hyphens:none;
+}
+body.page-learner .auth-session-note span:last-child{min-width:0}
+body.page-learner .auth-retry-session{
+  display:block;
+  width:100%;
+  margin:8px 0 0;
+  border-radius:8px;
+  border:1px solid var(--vg-gold);
+  background:color-mix(in srgb,var(--vg-gold) 10%,var(--vg-paper));
+  color:var(--vg-cobalt-deep);
+  font-weight:700;
+  min-height:42px;
+}
+body.page-learner .auth-retry-session[hidden]{display:none!important}
+body.page-learner .auth-card-heading h2{
+  word-break:normal;overflow-wrap:normal;hyphens:none;
+}
+body.page-learner .auth-product-brand span{white-space:normal;word-break:normal}
+
+/* Learner shell: legible identity and chapter navigation */
+body.page-learner .sidebar-header-title strong{
+  font-size:clamp(16px,1.1rem,19px)!important;
+  line-height:1.2!important;
+  word-break:normal!important;
+  overflow-wrap:normal!important;
+  hyphens:none!important;
+}
+body.page-learner .sidebar-header-title span{
+  font-size:12px!important;
+  line-height:1.45!important;
+  overflow-wrap:normal;
+}
+body.page-learner .subject-title,
+body.page-learner .chapter-header,
+body.page-learner .section-item{
+  word-break:normal!important;
+  overflow-wrap:break-word!important;
+  hyphens:none!important;
+}
+body.page-learner .section-item{line-height:1.5}
+body.page-learner .sidebar-tools a{
+  min-height:37px;
+  font-size:12px!important;
+}
+
+/* Empty Community state without fake activity */
+body.page-community .chat-empty-state{
+  min-height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:32px 18px;
+}
+body.page-community .chat-empty-inner{
+  max-width:375px;
+  text-align:center;
+}
+body.page-community .chat-empty-symbol{
+  display:grid;
+  place-items:center;
+  width:64px;height:64px;
+  margin:0 auto 18px;
+  border:1px solid color-mix(in srgb,var(--vg-gold) 55%,var(--vg-line));
+  border-radius:16px;
+  background:
+    radial-gradient(circle at 70% 20%,color-mix(in srgb,var(--vg-gold) 30%,transparent),transparent 60%),
+    var(--vg-paper-2);
+  color:var(--vg-cobalt-deep);
+  font-family:var(--vg-display);
+  font-size:30px;
+}
+body.page-community .chat-empty-inner h2{
+  margin:0 0 9px;
+  color:var(--vg-cobalt-deep);
+  font-family:var(--vg-display);
+  font-weight:600;
+  font-size:clamp(1.2rem,2vw,1.45rem);
+  letter-spacing:-.02em;
+}
+body.page-community .chat-empty-inner p{
+  margin:0 auto 18px;
+  color:var(--vg-muted);
+  font-size:14px;
+  line-height:1.65;
+}
+body.page-community .message-stream{
+  background:
+    radial-gradient(ellipse at 84% 4%,color-mix(in srgb,var(--vg-gold) 7%,transparent),transparent 56%),
+    linear-gradient(180deg,var(--vg-paper),color-mix(in srgb,var(--vg-paper-2) 45%,var(--vg-paper)));
+}
+@media(max-width:960px){
+  body.page-learner .auth-showcase-copy h1{
+    font-size:clamp(2rem,3.3vw,2.7rem)!important;
+  }
+  body.page-learner .auth-showcase{
+    padding:28px 26px!important;
+  }
+}
+@media(max-width:700px){
+  body.page-home::before{
+    background:
+      linear-gradient(180deg,
+        color-mix(in srgb,var(--vg-ivory) 72%,transparent) 0%,
+        var(--vg-ivory) 54%),
+      url("https://commons.wikimedia.org/wiki/Special:FilePath/Starry_Night.webp?width=800")
+        right top / 100% auto no-repeat,
+      var(--vg-ivory);
+  }
+  body.page-home .hero-card{
+    background:
+      linear-gradient(145deg,
+        color-mix(in srgb,var(--vg-paper) 96%,transparent) 0%,
+        color-mix(in srgb,var(--vg-paper) 88%,transparent) 100%),
+      url("https://commons.wikimedia.org/wiki/Special:FilePath/Starry_Night.webp?width=800")
+        right top / cover no-repeat,
+      var(--vg-paper);
+  }
+  body.page-home .hero-card::before{opacity:.08}
+  body.page-learner .auth-showcase-copy h1{
+    font-size:clamp(1.95rem,5vw,2.45rem)!important;
+  }
+}
