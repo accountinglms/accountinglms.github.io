@@ -36,6 +36,9 @@ const required = [
   'assets/history.js',
   'assets/home.js',
   'assets/community.js',
+  'assets/community-social.css',
+  'assets/community-voice.js',
+  'assets/community-social.js',
   'assets/progress.js',
   'supabase/functions/icaew-ai-import/index.ts',
   'supabase/functions/icaew-ai-route/index.ts',
@@ -382,5 +385,26 @@ if(!['icon-192.png','icon-512.png'].every(src=>brandManifest.icons.some(icon=>ic
 const brandSw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
 if(!brandSw.includes("icaew-lms-github-v46")||!brandSw.includes("'./favicon.ico'"))
   throw new Error('Brand icons absent from updated PWA cache.');
+
+
+const socialJs=fs.readFileSync(path.join(root,'assets/community-social.js'),'utf8');
+const voiceJs=fs.readFileSync(path.join(root,'assets/community-voice.js'),'utf8');
+const chatSocialCss=fs.readFileSync(path.join(root,'assets/community-social.css'),'utf8');
+const upgradedCommunity=fs.readFileSync(path.join(root,'community.html'),'utf8');
+const upgradedCommon=fs.readFileSync(path.join(root,'assets/common.js'),'utf8');
+if(!socialJs.includes("request_friend")||!socialJs.includes("start_direct_chat")||!socialJs.includes("respond_friend"))
+ throw new Error('Friends, invitations and private messages are not connected.');
+if(!communityJs.includes("create_study_group")||!communityJs.includes("getChatFileBlob"))
+ throw new Error('Secure group creation and image preview must remain enabled.');
+if(!upgradedCommunity.includes('id="social-tabs"')||!upgradedCommunity.includes('id="voice-call-btn"')||
+ !upgradedCommunity.includes('assets/community-social.js')||!upgradedCommunity.includes('assets/community-voice.js')||
+ !upgradedCommunity.includes('assets/community-social.css'))
+ throw new Error('Social tabs, direct messages or voice call UI missing.');
+if(!voiceJs.includes("start_voice_call")||!voiceJs.includes("getUserMedia")||!voiceJs.includes("RTCPeerConnection"))
+ throw new Error('Voice call signaling is incomplete.');
+if(!upgradedCommon.includes('export async function getChatFileBlob')||!chatSocialCss.includes('#social-tabs'))
+ throw new Error('Secure private chat media display missing.');
+if(!sw.includes('icaew-lms-github-v47')||!sw.includes("'./assets/community-social.js'"))
+ throw new Error('PWA v47 social upgrade cache is missing.');
 
 console.log('Security/static integrity checks passed.');

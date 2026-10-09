@@ -97,3 +97,15 @@ The approved white-cloud mascot with its **LMS** speech bubble is the canonical 
 Browser favicons (16/32/ICO), Apple touch (180) and PWA icons (192/512) are produced from the same approved artwork.
 All pages declare favicon links; the service-worker cache is versioned v46 to refresh offline assets.
 In-browser tabs, the portal header and installed PWAs use these local icons with no third-party dependency.
+
+## Community social upgrade v47 (2026-10-10)
+
+The Community portal now has three tabs: Groups, Direct messages and Friends.
+Friends are request/accept based; private rooms use Supabase row-level security, with two members only.
+The Supabase SQL migrations `social_friends_and_direct_chat_v47`, `direct_voice_calls_beta_v47`,
+`grant_voice_call_rls_helper_v47` and `safe_voice_start_rpc_v47` are applied to production.
+Group creation is now an authenticated server-side RPC instead of direct browser insertion.
+Private attachments reuse `chat-files` storage and inherit group-based access checks.
+Safe image formats can be previewed inline. Voice calls use WebRTC (beta, STUN-only, no TURN fallback):
+network conditions may prevent the peer-to-peer connection. No audio is recorded/stored by the app.
+

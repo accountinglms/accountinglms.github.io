@@ -1,0 +1,34 @@
+
+/* v47 member social directory and direct messaging */
+#social-tabs{display:flex;gap:3px;padding:7px 8px;border-bottom:1px solid var(--portal-line)}
+#social-tabs button{position:relative;flex:1;padding:8px 3px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--portal-muted);font:700 12px/1.2 inherit;cursor:pointer;white-space:nowrap}
+#social-tabs button.active{background:var(--portal-surface-2);border-color:var(--portal-line);color:var(--portal-ink)}
+#social-pending-count{display:inline-block;margin-left:3px;padding:2px 4px;border-radius:9px;background:#b53b45;color:#fff;font-size:10px}
+#social-direct-list,#social-people-list{overflow:auto;min-height:0;flex:1;padding:7px 8px 16px}
+#social-direct-list[hidden],#social-people-list[hidden],#chat-groups[hidden]{display:none!important}
+.social-empty{padding:18px 11px;color:var(--portal-muted);font-size:12px;line-height:1.5}
+.social-people-search{position:sticky;top:0;background:var(--portal-surface);padding-bottom:8px;z-index:2}
+.social-people-search input{width:100%;padding:10px 9px;border:1px solid var(--portal-line);border-radius:8px;background:var(--portal-bg);color:var(--portal-ink);font:500 12px inherit}
+.social-section-caption{font-size:11px;color:var(--portal-muted);font-weight:700;margin:10px 4px}
+.social-person{display:flex;gap:8px;padding:10px 5px;border-bottom:1px solid var(--portal-line)}
+.social-avatar{width:34px;height:34px;border-radius:50%;background:var(--portal-surface-2);display:grid;place-items:center;flex:0 0 34px;font:800 12px inherit;color:var(--portal-ink)}
+.social-person-main{min-width:0;flex:1}
+.social-person-main strong{display:block;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.social-actions{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:7px}
+.social-action{border:1px solid var(--portal-line);background:var(--portal-bg);color:var(--portal-ink);border-radius:7px;padding:5px 8px;cursor:pointer;font:700 11px inherit}
+.social-action.primary{background:var(--portal-accent);color:#fff}
+.social-action:disabled{opacity:.55;cursor:wait}
+.social-request-state{font-size:11px;color:var(--portal-muted)}
+.chat-image-preview{display:block;max-width:min(350px,90%);max-height:310px;object-fit:contain;margin:7px 0;border:1px solid var(--portal-line);border-radius:10px;cursor:zoom-in}
+.chat-room-actions{display:flex;align-items:center;gap:9px;margin-left:auto}
+.chat-call-btn{border:1px solid var(--portal-line);padding:7px 12px;border-radius:9px;background:var(--portal-surface-2);color:var(--portal-ink);cursor:pointer;font-size:12px;font-weight:700}
+.chat-call-btn[hidden]{display:none}
+#voice-call-panel{position:fixed;bottom:25px;right:25px;z-index:100;width:min(350px,calc(100vw - 28px));background:var(--portal-surface);color:var(--portal-ink);border:1px solid var(--portal-line);border-radius:16px;box-shadow:var(--portal-shadow);padding:16px}
+#voice-call-panel[hidden]{display:none}
+#voice-call-panel strong{display:block;font-size:15px}
+#voice-call-panel p{font-size:12px;color:var(--portal-muted);line-height:1.4}
+.voice-controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.voice-controls button{padding:9px 12px;border:1px solid var(--portal-line);border-radius:8px;background:var(--portal-surface-2);color:var(--portal-ink);cursor:pointer;font-weight:700}
+.voice-controls .voice-answer{background:#167c55;color:#fff}
+.voice-controls .voice-hangup{background:#b12e41;color:#fff}
+@media(max-width:700px){#social-tabs button{padding:10px 3px;font-size:12px}#voice-call-panel{bottom:10px;right:14px}}

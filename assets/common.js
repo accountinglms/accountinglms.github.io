@@ -422,7 +422,7 @@ export async function uploadChatFile(groupId, file) {
   };
 }
 
-export async function downloadChatFile(storagePath, fileName='download') {
+export async function getChatFileBlob(storagePath) {
   const session=await ensureSession();
   const encoded=String(storagePath||'').split('/').map(encodeURIComponent).join('/');
   const res=await fetch(`${SUPABASE_URL}/storage/v1/object/authenticated/chat-files/${encoded}`,{
@@ -432,7 +432,11 @@ export async function downloadChatFile(storagePath, fileName='download') {
     }
   });
   if(!res.ok) throw new Error(await res.text() || 'Không tải được file.');
-  const blob=await res.blob();
+  return res.blob();
+}
+
+export async function downloadChatFile(storagePath, fileName='download') {
+  const blob=await getChatFileBlob(storagePath);
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;

@@ -14,6 +14,7 @@
 <script src="assets/theme-init.js"></script>
 <link rel="stylesheet" href="assets/portal.css">
 <link rel="stylesheet" href="assets/vg-theme.css">
+<link rel="stylesheet" href="assets/community-social.css">
 </head>
 <body class="page-community">
 <div class="portal-shell">
@@ -41,7 +42,10 @@
         <strong>Nhóm trò chuyện</strong>
         <button class="icon-button" id="create-group-btn" type="button" aria-label="Tạo nhóm" title="Tạo nhóm">+</button>
       </div>
+      <div id="social-tabs" class="social-tabs" role="tablist" aria-label="Trò chuyện và bạn bè"></div>
       <div class="chat-groups" id="chat-groups"><div class="empty-compact">Đang tải nhóm…</div></div>
+      <div id="social-direct-list" hidden aria-label="Danh sách tin nhắn riêng"></div>
+      <div id="social-people-list" hidden aria-label="Tìm bạn bè"></div>
     </aside>
 
     <section class="chat-center">
@@ -50,7 +54,10 @@
           <button class="icon-button mobile-chat-menu" id="mobile-chat-menu" type="button" aria-label="Mở danh sách nhóm">☰</button>
           <div style="min-width:0"><h1 id="room-title">Chọn một nhóm</h1><p id="room-subtitle">Tham gia nhóm để gửi tin nhắn và file.</p></div>
         </div>
-        <span class="connection-state" id="connection-state">Đang kết nối…</span>
+        <div class="chat-room-actions">
+          <button class="chat-call-btn" id="voice-call-btn" type="button" hidden title="Gọi thoại 1–1 · beta">☎ Gọi thoại</button>
+          <span class="connection-state" id="connection-state">Đang kết nối…</span>
+        </div>
       </header>
 
       <div class="message-stream" id="message-stream"><div class="empty-compact">Chọn một nhóm để bắt đầu.</div></div>
@@ -110,6 +117,13 @@
   </div>
 </div>
 
+<section id="voice-call-panel" hidden role="dialog" aria-label="Cuộc gọi thoại">
+  <strong id="voice-title">Gọi thoại</strong>
+  <p id="voice-description"></p>
+  <div class="voice-controls" id="voice-controls"></div>
+</section>
 <script type="module" src="assets/community.js"></script>
+<script type="module" src="assets/community-social.js"></script>
+<script type="module" src="assets/community-voice.js"></script>
 </body>
 </html>

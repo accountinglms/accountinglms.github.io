@@ -1,6 +1,6 @@
 import {
   ensureSession,getMyAccess,restGet,restInsert,restDelete,restUpsert,restRpc,
-  uploadChatFile,downloadChatFile,createRealtimeClient
+  uploadChatFile,downloadChatFile,getChatFileBlob,createRealtimeClient
 } from './common.js';
 
 const $=s=>document.querySelector(s);
@@ -16,11 +16,14 @@ let canLoadOlder=false,loadingOlder=false;
 let pendingFile=null;
 let realtime=null;
 let reloadTimer=null;
+const imageCache=new Map();
+const safeImageMime=/^image\/(png|jpeg|webp|gif)$/i;
 
 function profileMap(){return new Map(profiles.map(p=>[p.id,p]));}
 function myMembership(groupId){return memberships.find(m=>m.group_id===groupId&&m.user_id===session.user.id)||null;}
 function currentGroup(){return groups.find(g=>g.id===currentGroupId)||null;}
 function canManage(groupId){
+  if(groups.find(g=>g.id===groupId)?.kind==='direct')return false;
   const m=myMembership(groupId);
   return access?.editor===true || ['owner','admin'].includes(m?.role);
 }
@@ -48,8 +51,9 @@ function renderHeader(){
 function renderGroups(){
   const root=$('#chat-groups');
   const unread=unreadInfo().byGroup;
-  if(!groups.length){root.innerHTML='<div class="empty-compact">Chưa có nhóm nào.</div>';return;}
-  root.innerHTML=groups.map(g=>{
+  const groupRooms=groups.filter(g=>g.kind!=='direct');
+  if(!groupRooms.length){root.innerHTML='<div class="empty-compact">Chưa có nhóm nào.</div>';return;}
+  root.innerHTML=groupRooms.map(g=>{
     const joined=Boolean(myMembership(g.id));
     const last=recentMessages.find(m=>m.group_id===g.id);
     const count=unread.get(g.id)||0;
@@ -84,11 +88,14 @@ function renderMessages(){
   if(!currentGroupId){root.innerHTML='<div class="empty-compact">Chọn một nhóm để bắt đầu.</div>';return;}
   if(!currentMessages.length){
     const group=currentGroup();
+    const isDirect=group?.kind==='direct';
+    const peerId=isDirect?(group.direct_low===session.user.id?group.direct_high:group.direct_low):null;
+    const peerName=profiles.find(p=>p.id===peerId)?.display_name||'thành viên này';
     root.innerHTML=`<section class="chat-empty-state" aria-label="Bắt đầu cuộc trò chuyện">
       <div class="chat-empty-inner">
-        <span class="chat-empty-symbol" aria-hidden="true">#</span>
-        <h2>Chào mừng đến ${esc(group?.name||'nhóm học tập')}</h2>
-        <p>Đây là không gian để trao đổi kiến thức, hỏi bài và chia sẻ tài liệu. Cuộc trò chuyện sẽ xuất hiện ở đây khi có tin nhắn đầu tiên.</p>
+        <span class="chat-empty-symbol" aria-hidden="true">${isDirect?'✉':'#'}</span>
+        <h2>${isDirect?'Bắt đầu trò chuyện với '+esc(peerName):'Chào mừng đến '+esc(group?.name||'nhóm học tập')}</h2>
+        <p>${isDirect?'Đây là cuộc trò chuyện riêng giữa hai người.':'Đây là không gian để trao đổi kiến thức, hỏi bài và chia sẻ tài liệu.'} Cuộc trò chuyện sẽ xuất hiện ở đây khi có tin nhắn đầu tiên.</p>
         ${myMembership(currentGroupId)?'<button class="btn primary" type="button" data-compose-focus>Viết tin nhắn đầu tiên →</button>':'<p>Tham gia nhóm để bắt đầu trao đổi.</p>'}
       </div>
     </section>`;
@@ -104,14 +111,38 @@ function renderMessages(){
       <div class="message-main">
         <div class="message-meta"><strong>${esc(name)}</strong><time>${esc(fmtTime(msg.created_at))}</time>${msg.message_type==='assignment'?'<span class="notice-kind">Bài tập</span>':''}</div>
         <div class="message-body">${deleted?'<em style="color:var(--portal-muted)">Tin nhắn đã xoá</em>':esc(msg.body)}</div>
-        ${!deleted&&msg.attachment_path?`<button class="message-attachment" type="button" data-download="${esc(msg.attachment_path)}" data-name="${esc(msg.attachment_name||'file')}"><span>▣</span><span><strong>${esc(msg.attachment_name||'Tệp đính kèm')}</strong><br>${esc(fmtSize(msg.attachment_size))}</span></button>`:''}
+        ${!deleted&&msg.attachment_path&&safeImageMime.test(msg.attachment_mime||'')?`<img class="chat-image-preview" data-preview-path="${esc(msg.attachment_path)}" data-preview-size="${Number(msg.attachment_size)||0}" alt="Ảnh từ ${esc(name)}" hidden>`:''}
+         ${!deleted&&msg.attachment_path?`<button class="message-attachment" type="button" data-download="${esc(msg.attachment_path)}" data-name="${esc(msg.attachment_name||'file')}"><span>▣</span><span><strong>${esc(msg.attachment_name||'Tệp đính kèm')}</strong><br>${esc(fmtSize(msg.attachment_size))}</span></button>`:''}
         ${!deleted?`<div class="reaction-row">${reactions.map(r=>`<button class="reaction ${r.mine?'mine':''}" data-react="${esc(r.emoji)}" type="button">${esc(r.emoji)} ${r.count}</button>`).join('')}</div>
         <div class="message-actions"><button type="button" data-add-reaction="👍">+ 👍</button><button type="button" data-add-reaction="❤️">+ ❤️</button>${msg.sender_id===session.user.id||canManage(currentGroupId)?'<button type="button" data-delete-message>Xoá</button>':''}</div>`:''}
       </div>
     </article>`;
   }).join('');
+  enhanceImagePreviews(root).catch(console.warn);
   requestAnimationFrame(()=>{if(root.dataset.preserveScroll==='1'){root.dataset.preserveScroll='';return;}root.scrollTop=root.scrollHeight;});
 }
+async function enhanceImagePreviews(root){
+  const items=[...root.querySelectorAll('img[data-preview-path]')];
+  await Promise.all(items.map(async image=>{
+    const path=image.dataset.previewPath;
+    if(Number(image.dataset.previewSize)>8*1024*1024)return;
+    let url=imageCache.get(path);
+    if(!url){
+      try{
+        const blob=await getChatFileBlob(path);
+        if(!safeImageMime.test(blob.type)||blob.size>8*1024*1024)return;
+        url=URL.createObjectURL(blob);
+        if(imageCache.size>45){
+          const [oldPath,oldUrl]=imageCache.entries().next().value;
+          imageCache.delete(oldPath);URL.revokeObjectURL(oldUrl);
+        }
+        imageCache.set(path,url);
+      }catch(error){console.warn('Không thể xem ảnh đính kèm',error);return;}
+    }
+    if(image.isConnected){image.src=url;image.hidden=false;}
+  }));
+}
+
 function setComposerState(){
   const joined=Boolean(myMembership(currentGroupId));
   $('#join-card').hidden=!currentGroupId||joined||!currentGroup()?.is_public;
@@ -151,10 +182,17 @@ async function selectGroup(id){
   const g=currentGroup();
   if(!g)return;
   const url=new URL(location.href);url.searchParams.set('group',id);history.replaceState(null,'',url);
-  $('#room-title').textContent='# '+g.name;
-  $('#room-subtitle').textContent=g.description|| (g.is_public?'Nhóm công khai':'Nhóm riêng');
-  $('#info-title').textContent=g.name;
-  $('#info-description').textContent=g.description||'Không có mô tả.';
+  const direct=g.kind==='direct';
+  const other=direct?(g.direct_low===session.user.id?g.direct_high:g.direct_low):null;
+  const peer=other?profiles.find(p=>p.id===other):null;
+  const roomName=direct?(peer?.display_name||'Thành viên LMS'):g.name;
+  $('#room-title').textContent=direct?roomName:'# '+roomName;
+  $('#room-subtitle').textContent=direct?'Trò chuyện riêng · chỉ hai người tham gia':(g.description|| (g.is_public?'Nhóm công khai':'Nhóm riêng'));
+  $('#info-title').textContent=direct?'Người đang trò chuyện':g.name;
+  $('#info-description').textContent=direct?'Tin nhắn riêng chỉ hiển thị với người tham gia.':(g.description||'Không có mô tả.');
+  $('#message-input').placeholder=direct?'Nhắn tin riêng…':'Nhắn vào nhóm…';
+  $('#message-type').hidden=direct;
+  document.dispatchEvent(new CustomEvent('lms:room',{detail:{groupId:g.id,kind:g.kind,peerId:other}}));
   renderGroups();renderMembers();setComposerState();
   await loadCurrentMessages();
   $('#chat-sidebar').classList.remove('open');
@@ -265,6 +303,8 @@ $('#emoji-popover').innerHTML=emojis.map(x=>`<button type="button" data-emoji="$
 $('#emoji-btn').addEventListener('click',()=>{$('#emoji-popover').hidden=!$('#emoji-popover').hidden;});
 $('#emoji-popover').addEventListener('click',e=>{const b=e.target.closest('[data-emoji]');if(!b)return;$('#message-input').value+=b.dataset.emoji;$('#emoji-popover').hidden=true;$('#message-input').focus();});
 $('#message-stream').addEventListener('click',async e=>{
+  const preview=e.target.closest('.chat-image-preview');
+  if(preview?.src){window.open(preview.src,'_blank','noopener');return;}
   if(e.target.closest('[data-compose-focus]')){
     $('#message-input')?.focus();
     return;
@@ -292,13 +332,13 @@ $('#group-form').addEventListener('submit',async e=>{
   e.preventDefault();
   const form=e.currentTarget;
   try{
-    const rows=await restInsert('chat_groups',{
-      name:$('#group-name').value.trim(),description:$('#group-description').value.trim(),
-      is_public:$('#group-public').checked,is_official:false,created_by:session.user.id
+    const groupId=await restRpc('create_study_group',{
+      p_name:$('#group-name').value.trim(),p_description:$('#group-description').value.trim(),
+      p_public:$('#group-public').checked
     });
     closeModal('group-modal');form.reset();$('#group-public').checked=true;
     await refreshCore({keepCurrent:false});
-    if(rows?.[0]?.id)await selectGroup(rows[0].id);
+    if(groupId)await selectGroup(groupId);
   }catch(error){alert(error.message||'Không tạo được nhóm.');}
 });
 $('#invite-member-btn').addEventListener('click',()=>{renderInviteList();$('#invite-modal').hidden=false;});
@@ -310,5 +350,5 @@ $('#invite-list').addEventListener('click',async e=>{
 $('#mobile-chat-menu').addEventListener('click',()=>$('#chat-sidebar').classList.toggle('open'));
 $('#notification-bell').addEventListener('click',()=>{location.href='home.html';});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentGroupId)markCurrentRead().catch(()=>{});});
-window.addEventListener('beforeunload',()=>realtime?.stop());
+window.addEventListener('beforeunload',()=>{realtime?.stop();for(const url of imageCache.values())URL.revokeObjectURL(url);imageCache.clear();});
 bootstrap().catch(error=>{console.error(error);$('#message-stream').innerHTML='<div class="empty-compact">Không tải được Community.</div>';});
