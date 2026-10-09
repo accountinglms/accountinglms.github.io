@@ -1290,6 +1290,33 @@
     }
 
     function updateResumeButton() {
+        const picker = document.getElementById('learner-start-options');
+        if (picker) {
+            picker.replaceChildren();
+            let count = 0;
+            for (const chapter of courseData) {
+                for (const section of chapter.sections || []) {
+                    if (!section.data?.length || count >= 4) continue;
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'learner-start-option';
+                    const title = document.createElement('strong');
+                    title.textContent = section.title;
+                    const sub = document.createElement('span');
+                    sub.textContent = chapter.title + ' · ' + section.data.length + ' câu';
+                    button.append(title, sub);
+                    button.addEventListener('click', () => loadSection(section.id, section.title, section.data));
+                    picker.appendChild(button);
+                    count++;
+                }
+            }
+            if (!count) {
+                const text = document.createElement('p');
+                text.className = 'learner-start-footnote';
+                text.textContent = 'Chưa có bài tập. Hãy vào Thư viện để xem tài liệu hiện có.';
+                picker.appendChild(text);
+            }
+        }
         if (!resumeLastBtn) return;
         const section = findSectionById(uiPrefs.lastSectionId);
         if (!section) {
