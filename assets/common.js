@@ -186,6 +186,28 @@ export async function authGetUser(session = null) {
   return validated.user || null;
 }
 
+export async function authUpdatePassword(password) {
+  const next=String(password||'');
+  if(next.length<8||next.length>128)throw new Error('Mật khẩu phải dài từ 8 đến 128 ký tự.');
+  const session=await ensureSession();
+  const res=await fetch(`${SUPABASE_URL}/auth/v1/user`,{
+    method:'PUT',
+    headers:{
+      apikey:SUPABASE_KEY,
+      Authorization:`Bearer ${session.access_token}`,
+      'content-type':'application/json'
+    },
+    body:JSON.stringify({password:next})
+  });
+  const text=await res.text();
+  if(!res.ok){
+    let parsed=null;
+    try{parsed=JSON.parse(text);}catch{}
+    throw new Error(parsed?.msg||parsed?.message||parsed?.error_description||'Không cập nhật được mật khẩu.');
+  }
+  return true;
+}
+
 export async function authSignOut(scope = 'local') {
   const allowedScopes = new Set(['local', 'global', 'others']);
   if (!allowedScopes.has(scope)) throw new Error('Phạm vi đăng xuất không hợp lệ.');
