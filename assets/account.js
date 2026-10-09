@@ -47,16 +47,16 @@ function render() {
   $('#profile-email').textContent = authUser?.email || '—';
   $('#identity-email').textContent = authUser?.email || '—';
   $('#display-name').value = profile?.display_name || '';
-  $('#profile-role').textContent = access?.role === 'owner' ? 'Owner' : 'Member';
+  $('#profile-role').textContent = access?.role === 'owner' ? 'Quản trị viên' : 'Thành viên';
 
   const emailVerified = Boolean(authUser?.email_confirmed_at || authUser?.confirmed_at);
-  $('#email-state').textContent = emailVerified ? '✓ Verified' : 'Unverified';
+  $('#email-state').textContent = emailVerified ? 'Đã xác minh' : 'Chưa xác minh';
   $('#email-state').className = emailVerified ? 'verified' : 'pending';
 
   const phone = authUser?.phone || '';
   $('#identity-phone').textContent = phone || 'Chưa cấu hình';
   const phoneVerified = Boolean(authUser?.phone_confirmed_at);
-  $('#phone-state').textContent = phoneVerified ? '✓ Verified' : 'SMS later';
+  $('#phone-state').textContent = phoneVerified ? 'Đã xác minh' : 'Chưa xác minh';
   $('#phone-state').className = phoneVerified ? 'verified' : 'pending';
 
   const factors = verifiedTotpFactors();
@@ -85,7 +85,7 @@ function render() {
     const strong = document.createElement('strong');
     strong.textContent = factor.friendly_name || `Authenticator ${index + 1}`;
     const meta = document.createElement('span');
-    meta.textContent = 'TOTP · Verified · ' + (factor.updated_at ? new Date(factor.updated_at).toLocaleDateString('vi-VN') : '');
+    meta.textContent = 'TOTP · Đã xác minh · ' + (factor.updated_at ? new Date(factor.updated_at).toLocaleDateString('vi-VN') : '');
     main.append(strong, meta);
     const remove = document.createElement('button');
     remove.type = 'button';
