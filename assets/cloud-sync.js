@@ -26,6 +26,7 @@
     const cloudDot = document.getElementById('cloud-dot');
     const logoutBtn = document.getElementById('cloud-logout-btn');
     const passwordBtn = document.getElementById('cloud-password-btn');
+    const adminToolLink = document.getElementById('admin-tool-link');
 
     const localSaveProgress = saveProgress;
     const localSaveUIPrefs = saveUIPrefs;
@@ -54,7 +55,18 @@
     }
     function setAuthBusy(busy) { loginBtn.disabled = busy; signupBtn.disabled = busy; }
     function setCloudLabel(text, online=true) {
-        if (cloudLabel) cloudLabel.textContent = text;
+        let next = String(text || '');
+        if (/đang đồng bộ/i.test(next)) {
+            next = '↻ Đang đồng bộ…';
+        } else if (/offline/i.test(next)) {
+            next = '☁ Offline · sẽ đồng bộ khi có mạng';
+        } else if (/cloud đã đồng bộ|đã đồng bộ/i.test(next)) {
+            const time = new Date().toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit' });
+            next = '☁ Đã đồng bộ ' + time;
+        } else if (/lỗi|không thể/i.test(next)) {
+            next = '⚠ Lỗi đồng bộ';
+        }
+        if (cloudLabel) cloudLabel.textContent = next;
         if (cloudDot) cloudDot.classList.toggle('online', !!online);
     }
     function showGate(show) { gate.classList.toggle('hidden', !show); }
@@ -179,6 +191,16 @@
         });
         return parseResponse(res);
     }
+
+    async function loadDatabaseCatalog() {
+        const [subjects, chapters, exercises, questions] = await Promise.all([
+            restGet('subjects', 'select=*&is_active=eq.true&order=sort_order.asc'),
+            restGet('chapters', 'select=*&is_active=eq.true&order=sort_order.asc'),
+            restGet('exercises', 'select=*&is_active=eq.true&order=sort_order.asc'),
+            restGet('questions', 'select=*&status=eq.published&order=sort_order.asc')
+        ]);
+        return applyDatabaseCatalog({ subjects, chapters, exercises, questions });
+    }
     async function restUpsert(table, payload, conflict) {
         const q = conflict ? `?on_conflict=${encodeURIComponent(conflict)}` : '';
         const res = await authedFetch(`/rest/v1/${table}${q}`, {
@@ -248,8 +270,10 @@
 
     async function logout() {
         cloudReady = false;
+        accessInfo = null;
         await authSignOut();
         accountBox.hidden = true;
+        if (adminToolLink) adminToolLink.hidden = true;
         showGate(true);
         setAuthMessage('Đã đăng xuất. Tiến độ cục bộ trên thiết bị vẫn được giữ.');
     }
@@ -388,16 +412,28 @@
     async function handleSignedIn(session) {
         const email = session?.user?.email?.toLowerCase() || '';
         saveSession(session);
+
+        let access;
         try {
-            await getMyAccess(true);
+            access = await getMyAccess(true);
         } catch (error) {
             await authSignOut();
             showGate(true);
             return setAuthMessage(error.message || 'Tài khoản này không có quyền sử dụng ICAEW LMS.', true);
         }
+
         accountEmail.textContent = email;
         accountBox.hidden = false;
+        if (adminToolLink) adminToolLink.hidden = access?.editor !== true;
         showGate(false);
+
+        try {
+            await loadDatabaseCatalog();
+        } catch (error) {
+            console.warn('Catalog load:', error);
+            setCloudLabel('Không tải được catalog · đang dùng dữ liệu offline', false);
+        }
+
         await hydrateCloud();
     }
 
