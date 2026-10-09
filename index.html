@@ -18,6 +18,7 @@
 <script src="assets/theme-init.js"></script>
 <link rel="stylesheet" href="assets/learner.css">
 <link rel="stylesheet" href="assets/ui-system.css">
+<link rel="stylesheet" href="assets/calculator.css">
 </head>
 <body class="auth-pending page-learner">
 
@@ -236,6 +237,9 @@
         <span class="mobile-topbar-title" id="mobile-section-title">ICAEW LMS</span>
         <span class="mobile-topbar-subtitle" id="mobile-question-progress">Chọn bài tập để bắt đầu</span>
     </div>
+    <button class="mobile-calculator-btn calculator-launcher" type="button" data-calculator-launcher aria-label="Mở máy tính" title="Máy tính">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="7.5" y="5" width="9" height="4" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 12h2m4 0h2M8 15.5h2m4 0h2M8 19h2m4 0h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    </button>
     <button class="mobile-theme-btn" id="mobile-theme-toggle" type="button" aria-label="Đổi giao diện sáng tối" title="Đổi giao diện sáng/tối">☀︎</button>
 </div>
 <div class="sidebar-overlay" id="sidebar-overlay"></div>
@@ -268,6 +272,10 @@
             <a href="account.html">Tài khoản</a>
             <a href="history.html">Lịch sử làm bài</a>
             <a href="lessons.html">Bài học</a>
+            <button class="calculator-launcher" type="button" data-calculator-launcher aria-label="Mở máy tính">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="7.5" y="5" width="9" height="4" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 12h2m4 0h2M8 15.5h2m4 0h2M8 19h2m4 0h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                <span>Máy tính</span>
+            </button>
             <a href="admin.html" id="admin-tool-link" hidden>Quản trị</a>
         </div>
     </div>
@@ -355,6 +363,7 @@
 
 <script src="assets/learner-core.js"></script>
 <script src="assets/cloud-sync.js"></script>
+<script src="assets/calculator.js"></script>
 <script type="module" src="assets/translation.js"></script>
 
 </body>
