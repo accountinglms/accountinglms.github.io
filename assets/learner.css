@@ -1707,3 +1707,58 @@ html[data-theme="light"] .question-tools .translation-status.error { color:#b743
         padding-right:9px;
     }
 }
+
+
+/* ===== Mobile topbar/content overlap hardening =====
+   Keep this block after the adaptive shell rules: V5's generic .main-area padding
+   otherwise overrides the earlier mobile topbar offset. */
+@media (max-width:900px) {
+    .mobile-topbar {
+        box-sizing:border-box;
+        height:calc(var(--mobile-topbar-h) + var(--safe-top));
+        min-height:calc(var(--mobile-topbar-h) + var(--safe-top));
+    }
+
+    .mobile-topbar-copy {
+        min-width:0;
+        overflow:hidden;
+    }
+
+    .mobile-topbar-title,
+    .mobile-topbar-subtitle {
+        max-width:100%;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+    }
+
+    .main-area {
+        padding-top:calc(var(--mobile-topbar-h) + var(--safe-top) + 14px);
+        padding-bottom:calc(24px + var(--safe-bottom));
+    }
+
+    /* The current exercise title already lives in the fixed app bar on phones/tablets. */
+    .section-title-display {
+        display:none;
+    }
+
+    .session-overview {
+        margin-top:0;
+    }
+}
+
+@media (max-width:560px) {
+    .main-area {
+        padding-top:calc(var(--mobile-topbar-h) + var(--safe-top) + 12px);
+    }
+
+    .session-overview {
+        margin-bottom:12px;
+    }
+}
+
+@media (max-width:900px) and (orientation:landscape) and (max-height:600px) {
+    .main-area {
+        padding-top:calc(var(--mobile-topbar-h) + var(--safe-top) + 8px);
+    }
+}
