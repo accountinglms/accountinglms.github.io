@@ -91,6 +91,19 @@ try {
   const arithmeticResult = await calc.locator('.calc-result').textContent();
   assert(arithmeticResult === '5', `Basic calculator arithmetic failed: expression=${arithmeticExpression} result=${arithmeticResult}`);
 
+  assert(await calc.locator('.calc-control-deck').isVisible(), 'FX-style control deck is missing');
+  assert(await calc.locator('.calc-nav-pad').isVisible(), 'FX-style navigation pad is missing');
+  assert((await calc.locator('.calc-number-pad .calc-white-key').count()) === 24, 'FX-style 6-column number pad is incomplete');
+
+  await action('shift');
+  await fn('sin');
+  await pressInsert('0');
+  await pressInsert('.');
+  await pressInsert('5');
+  await pressInsert(')');
+  await action('equals');
+  assert((await calc.locator('.calc-result').textContent()) === '30', 'SHIFT inverse trig failed');
+
   await action('clear');
   await fn('sin');
   await pressInsert('3');
@@ -108,7 +121,9 @@ try {
   assert((await calc.locator('.calc-result').textContent()) === '1/3', 'S⇔D fraction conversion failed');
 
   const switchMode = async name => {
-    await calc.locator(`[data-mode="${name}"]`).click({ force:true });
+    const menu = calc.locator('.calc-modes');
+    if (!(await menu.isVisible())) await action('menu');
+    await calc.locator(`[data-mode="${name}"]`).click();
     await calc.locator(`[data-mode-panel="${name}"].active`).waitFor();
   };
 
