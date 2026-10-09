@@ -1464,3 +1464,66 @@ html[data-theme="light"] .auth-select {
     background:#f8fafc;
     color:#18232d;
 }
+
+
+/* ===== On-demand question translation ===== */
+.question-translation-row {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin:-8px 0 14px;
+}
+.translate-question-btn {
+    min-height:36px;
+    padding:7px 11px;
+    border:1px solid #3f617b;
+    border-radius:9px;
+    background:#13283a;
+    color:#b9e1fb;
+    font-size:.76rem;
+    font-weight:850;
+    cursor:pointer;
+    transition:background .16s ease,border-color .16s ease,transform .16s ease;
+}
+.translate-question-btn:hover:not(:disabled) {
+    background:#18354b;
+    border-color:#5e8aab;
+}
+.translate-question-btn:disabled {
+    opacity:.6;
+    cursor:wait;
+}
+.translate-question-btn[aria-pressed="true"] {
+    background:#20372b;
+    border-color:#4c7b5f;
+    color:#b8e4c5;
+}
+.translation-status {
+    min-height:18px;
+    color:#70899b;
+    font-size:.7rem;
+    line-height:1.4;
+}
+.translation-status.error { color:#e98b8b; }
+html[data-theme="light"] .translate-question-btn {
+    background:#eef6fb;
+    border-color:#b8d5e8;
+    color:#1e648f;
+}
+html[data-theme="light"] .translate-question-btn:hover:not(:disabled) {
+    background:#e3f0f8;
+    border-color:#86b7d5;
+}
+html[data-theme="light"] .translate-question-btn[aria-pressed="true"] {
+    background:#e9f5ec;
+    border-color:#9ac2a6;
+    color:#27613b;
+}
+html[data-theme="light"] .translation-status { color:#657988; }
+html[data-theme="light"] .translation-status.error { color:#b74343; }
+@media(max-width:560px){
+    .question-translation-row { align-items:stretch; }
+    .translate-question-btn { width:100%; min-height:42px; }
+    .translation-status { width:100%; }
+}
