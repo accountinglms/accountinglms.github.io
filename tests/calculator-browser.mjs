@@ -69,7 +69,7 @@ try {
   await installMock(context);
   const page = await context.newPage();
   await page.addInitScript(({key,value}) => localStorage.setItem(key,JSON.stringify(value)), {key:AUTH_KEY,value:session});
-  await page.goto(baseURL + '/', { waitUntil: 'domcontentloaded' });
+  await page.goto(baseURL + '/index.html', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => document.querySelector('#auth-gate')?.classList.contains('hidden') === true);
 
   const launcher = page.locator('.sidebar-tools [data-calculator-launcher]');
