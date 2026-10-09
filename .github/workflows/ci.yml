@@ -25,6 +25,9 @@ jobs:
 
       - name: JavaScript syntax checks
         run: |
+          node --check assets/theme-init.js
+          node --check assets/learner-core.js
+          node --check assets/cloud-sync.js
           node --check assets/common.js
           node --check assets/admin.js
           node --check assets/lessons.js
