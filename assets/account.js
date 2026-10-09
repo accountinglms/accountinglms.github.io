@@ -141,6 +141,15 @@ $('#start-totp').addEventListener('click', async () => {
   const button = $('#start-totp');
   button.disabled = true;
   try {
+    authUser = await authGetUser(session);
+    const staleFactors = unverifiedTotpFactors();
+    if (staleFactors.length) {
+      const ok = confirm('Tài khoản đang có ' + staleFactors.length + ' Authenticator thiết lập dang dở. Xóa bản dang dở trước khi tạo QR mới?');
+      if (!ok) return;
+      for (const factor of staleFactors) await authMfaUnenroll(factor.id);
+      authUser = await authGetUser(session);
+      render();
+    }
     const now = new Date();
     const label = 'Authenticator ' + now.toISOString().replace(/[:.]/g,'-') + '-' + Math.random().toString(36).slice(2,6).toUpperCase();
     pendingFactor = await authMfaEnrollTotp(label);
