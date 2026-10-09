@@ -553,7 +553,7 @@ async function testAvatarUpload(browser){
  await page.locator('#avatar-zoom').fill('1.5');
  await page.click('#avatar-save-crop');
  await page.waitForFunction(()=>document.querySelector('#avatar-edit-dialog')?.hidden===true, null,{timeout:20000});
- assert(state.profiles[0].avatar_path?.startsWith(user.id+'/'),'Avatar must be stored in the owner's storage folder');
+ assert(state.profiles[0].avatar_path?.startsWith(user.id+'/'),'Avatar must be stored in the account storage folder');
  assert(state.avatarFiles.size===1,'Avatar upload must reach private Supabase Storage');
  await page.waitForFunction(()=>document.querySelector('#profile-avatar')?.classList.contains('has-avatar-image'),null,{timeout:10000});
  await page.goto(baseURL+'/home.html',{waitUntil:'domcontentloaded'});
