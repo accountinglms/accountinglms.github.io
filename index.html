@@ -293,6 +293,10 @@
             </div>
             
             <div class="question-text" id="question-text">Loading...</div>
+            <div class="question-translation-row">
+                <button class="translate-question-btn" id="translate-question-btn" type="button">🌐 Dịch sang VI</button>
+                <span class="translation-status" id="translation-status" aria-live="polite"></span>
+            </div>
             <div class="question-helper" id="question-helper"></div>
             <div id="options-container"></div>
             <div class="validation-msg" id="validation-msg" aria-live="polite"></div>
@@ -331,6 +335,7 @@
 
 <script src="assets/learner-core.js"></script>
 <script src="assets/cloud-sync.js"></script>
+<script type="module" src="assets/translation.js"></script>
 
 </body>
 </html>

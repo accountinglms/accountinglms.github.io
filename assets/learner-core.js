@@ -1333,6 +1333,51 @@
         return doc.body.textContent || '';
     }
 
+
+    function getActiveStudyContext() {
+        for (const subject of lmsData) {
+            for (const chapter of subject.chapters || []) {
+                const section = (chapter.sections || []).find(item => item.id === activeSectionId);
+                if (section) return [subject.title, chapter.title, section.title].filter(Boolean).join(' · ');
+            }
+        }
+        return '';
+    }
+
+    window.getQuestionTranslationSource = () => {
+        const q = activeSectionData?.[currentQuestion];
+        if (!q) return null;
+        return {
+            sectionId: activeSectionId,
+            questionIndex: currentQuestion,
+            question: safePlainText(q.q),
+            options: Array.isArray(q.options) ? q.options.map(safePlainText) : [],
+            subject: getActiveStudyContext()
+        };
+    };
+
+    window.applyQuestionTranslationView = (payload) => {
+        const source = window.getQuestionTranslationSource();
+        if (!source || !payload || payload.sectionId !== source.sectionId || payload.questionIndex !== source.questionIndex) return false;
+        questionText.textContent = safePlainText(payload.question_text);
+        const optionNodes = optionsContainer.querySelectorAll('.option-text, .tf-statement');
+        optionNodes.forEach((node, index) => {
+            if (payload.options?.[index] != null) node.textContent = safePlainText(payload.options[index]);
+        });
+        return true;
+    };
+
+    window.restoreQuestionOriginalView = () => {
+        const q = activeSectionData?.[currentQuestion];
+        if (!q) return false;
+        questionText.textContent = safePlainText(q.q);
+        const optionNodes = optionsContainer.querySelectorAll('.option-text, .tf-statement');
+        optionNodes.forEach((node, index) => {
+            if (q.options?.[index] != null) node.textContent = safePlainText(q.options[index]);
+        });
+        return true;
+    };
+
     function loadQuestion() {
         explanationBox.classList.remove('show');
         explanationBox.innerHTML = '';
@@ -1369,6 +1414,9 @@
             updateHelper();
         }
         updateNavUI();
+        window.dispatchEvent(new CustomEvent('lms:question-changed', {
+            detail: { sectionId: activeSectionId, questionIndex: currentQuestion }
+        }));
     }
 
     function createChoiceOption(opt, index, type, isSelected = false) {

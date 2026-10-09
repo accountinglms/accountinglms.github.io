@@ -354,6 +354,24 @@ export async function uploadImportFile(file) {
   return { storagePath };
 }
 
+export async function callQuestionTranslate({question, options, target_language='vi', subject=''}) {
+  const session = await ensureSession();
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/icaew-question-translate`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${session.access_token}`,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({ question, options, target_language, subject })
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { error: text }; }
+  if (!res.ok) throw new Error(data?.error || 'Không dịch được câu hỏi lúc này.');
+  return data;
+}
+
 export async function callAiImport({storagePath, fileName, mimeType, targetType, subjectTitle, chapterTitle, exerciseTitle}) {
   const session = await ensureSession();
   const res = await fetch(`${SUPABASE_URL}/functions/v1/icaew-ai-import`, {

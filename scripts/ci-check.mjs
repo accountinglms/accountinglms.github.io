@@ -15,12 +15,14 @@ const required = [
   'assets/theme-init.js',
   'assets/learner-core.js',
   'assets/cloud-sync.js',
+  'assets/translation.js',
   'assets/common.js',
   'assets/account.js',
   'assets/admin.js',
   'assets/lessons.js',
   'assets/diagnostics.js',
-  'supabase/functions/icaew-ai-import/index.ts'
+  'supabase/functions/icaew-ai-import/index.ts',
+  'supabase/functions/icaew-question-translate/index.ts'
 ];
 
 for (const file of required) {
@@ -61,7 +63,7 @@ const scriptTags = learnerHtml.match(/<script\\b[^>]*>/gi) || [];
 if (scriptTags.some(tag => !/\\bsrc=/.test(tag)) || /<style\\b/i.test(learnerHtml)) {
   throw new Error('index.html must not contain inline script/style blocks after frontend refactor');
 }
-for (const asset of ['assets/learner.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js']) {
+for (const asset of ['assets/learner.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/translation.js']) {
   if (!learnerHtml.includes(asset)) throw new Error('index.html is missing modular learner asset: ' + asset);
 }
 
@@ -89,7 +91,7 @@ if (!edge.includes('get_my_access')) {
 }
 
 const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-for (const file of ['account.html','admin.html','lessons.html','diagnostics.html','manifest.webmanifest','assets/learner.css','assets/account.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/common.js','assets/account.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js']) {
+for (const file of ['account.html','admin.html','lessons.html','diagnostics.html','manifest.webmanifest','assets/learner.css','assets/account.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/translation.js','assets/common.js','assets/account.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js']) {
   if (!sw.includes(file)) throw new Error('Service worker cache list is missing: ' + file);
 }
 
@@ -141,6 +143,21 @@ if (!accountHtml.includes('id="logout-current"') || !accountHtml.includes('id="l
 }
 if (!accountJs.includes("authSignOut('local')") || !accountJs.includes("authSignOut('global')")) {
   throw new Error('Account session controls are not wired to local/global sign-out.');
+}
+
+const translationJs = fs.readFileSync(path.join(root, 'assets/translation.js'), 'utf8');
+const translateEdge = fs.readFileSync(path.join(root, 'supabase/functions/icaew-question-translate/index.ts'), 'utf8');
+if (!learnerHtml.includes('id="translate-question-btn"') || !translationJs.includes('callQuestionTranslate')) {
+  throw new Error('Question translation UI is incomplete.');
+}
+if (!translationJs.includes("button?.addEventListener('click'") || translationJs.includes('showTranslation();\nresetView();')) {
+  throw new Error('Question translation must remain explicitly user-triggered.');
+}
+if (!translateEdge.includes('Do NOT answer the question') || !translateEdge.includes('get_my_access')) {
+  throw new Error('Question translation Edge Function lost anti-hint or authorization safeguards.');
+}
+if (!translateEdge.includes('question_translations')) {
+  throw new Error('Question translation cache is not wired.');
 }
 
 console.log('Security/static integrity checks passed.');
