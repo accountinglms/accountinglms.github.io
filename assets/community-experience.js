@@ -133,7 +133,7 @@ async function init(){
  $('#community-mobile-close')?.addEventListener('click',()=>$('#chat-sidebar').classList.remove('open'));
  $('#community-mobile-info')?.addEventListener('click',()=>$('#community-info').classList.toggle('open'));
  $('#community-info-close')?.addEventListener('click',()=>$('#community-info').classList.remove('open'));
- $('#message-stream')?.addEventListener('scroll',e=>{if(e.target.scrollTop<48)document.dispatchEvent(new CustomEvent('lms:load-older'));},{passive:true});
+ // Older history is loaded explicitly to avoid scroll/re-render race conditions.
  await notifications();
 }
 init().catch(console.warn);

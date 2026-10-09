@@ -76,6 +76,10 @@ async function installMock(context){
     }
 
 
+    if(path==='/rest/v1/rpc/search_chat_messages'){
+      const body=JSON.parse(req.postData()||'{}'),q=String(body.p_query||'').toLowerCase();
+      return json(route,state.messages.filter(m=>m.group_id===body.p_group&&String(m.body||'').toLowerCase().includes(q)).map(m=>({id:m.id,body:m.body,sender_id:m.sender_id,created_at:m.created_at})));
+    }
     if(path==='/rest/v1/rpc/create_study_group'){
       const body=JSON.parse(req.postData()||'{}');
       const row={id:'33333333-3333-4333-8333-333333333333',name:body.p_name,
@@ -183,6 +187,12 @@ async function installMock(context){
       return json(route,state.reads);
     }
     if(table==='chat_messages'){
+      if(method==='PATCH'){
+        const id=Number(url.searchParams.get('id')?.replace('eq.',''));
+        const msg=state.messages.find(m=>m.id===id);
+        if(msg)Object.assign(msg,JSON.parse(req.postData()||'{}'),{edited_at:new Date().toISOString()});
+        return json(route,msg?[msg]:[]);
+      }
       if(method==='POST'){
         const body=JSON.parse(req.postData()||'{}'),row={id:state.messages.length+1,created_at:new Date().toISOString(),deleted_at:null,...body};
         state.messages.push(row);state.mutations.message++;return json(route,[row],201);
@@ -324,16 +334,39 @@ async function testCommunity(browser){
   await page.waitForFunction(()=>document.querySelector('#global-notification-count')?.textContent==='1');
   assert((await page.textContent('#global-notification-count'))==='1','Opening the active chat should clear its unread count while preserving admin notifications');
   assert((await page.textContent('#message-stream')).includes('Ai đang ôn adjustments?'),'Existing group message is missing');
+  await page.click('#emoji-btn');
+  await page.waitForSelector('#emoji-popover:not([hidden]) .emoji-grid');
+  await page.click('[data-emoji-cat="Học tập"]');
+  assert((await page.locator('.emoji-grid button').count())>15,'Scrollable emoji picker is missing its categories');
+  await page.click('[data-emoji-value="📚"]');
+  assert((await page.inputValue('#message-input')).includes('📚'),'Emoji selection must insert into the composer');
+  await page.click('#room-search-btn');
+  await page.fill('#chat-search-input','adjustments');
+  await page.waitForSelector('[data-jump-id="1"]');
+  await page.click('[data-jump-id="1"]');
+  assert(await page.locator('#chat-search-panel').evaluate(el=>el.hidden),'Search should return to the conversation on selection');
 
   await page.fill('#message-input','Mình đang ôn phần này.');
   await page.click('#send-btn');
   await page.waitForFunction(()=>document.querySelector('#message-stream')?.textContent?.includes('Mình đang ôn phần này.'));
   assert(state.mutations.message===1,'Chat text message was not persisted');
+  const ownRow=page.locator('.message-row.own').filter({hasText:'Mình đang ôn phần này.'});
+  await ownRow.locator('[data-edit-message]').click();
+  await page.fill('#message-input','Mình đang ôn phần này và adjustments.');
+  await page.click('#send-btn');
+  await page.waitForFunction(()=>document.querySelector('#message-stream')?.textContent?.includes('và adjustments.'));
+  assert(state.messages.some(m=>m.sender_id===user.id&&m.edited_at),'Editing must persist to the cloud');
 
   const peerMessage=page.locator('[data-message-id="1"]');
   await peerMessage.locator('[data-add-reaction="👍"]').click();
   await page.waitForFunction(()=>document.querySelector('[data-message-id="1"] .reaction')?.textContent?.includes('1'));
   assert(state.mutations.reaction===1,'Message reaction was not persisted');
+  await peerMessage.locator('[data-reply-message]').click();
+  assert(!(await page.locator('#compose-context').evaluate(el=>el.hidden)),'Reply composer banner must be visible');
+  await page.fill('#message-input','Mình đã xem bài của bạn.');
+  await page.click('#send-btn');
+  await page.waitForFunction(()=>document.querySelector('#message-stream')?.textContent?.includes('Mình đã xem bài của bạn.'));
+  assert(state.messages.some(m=>m.reply_to===1),'Message reply must persist the original message id');
 
   await page.setInputFiles('#file-input',{name:'exercise.pdf',mimeType:'application/pdf',buffer:Buffer.from('pdf')});
   await page.fill('#message-input','Bài tập tuần này');
@@ -341,7 +374,7 @@ async function testCommunity(browser){
   await page.click('#send-btn');
   await page.waitForFunction(()=>document.querySelector('#message-stream')?.textContent?.includes('exercise.pdf'));
   assert(state.mutations.file===1,'Chat attachment was not uploaded');
-  assert(state.mutations.message===2,'Attachment message was not persisted');
+  assert(state.mutations.message===3,'Attachment message was not persisted');
 
   await page.click('#create-group-btn');
   await page.fill('#group-name','Exam Week');
