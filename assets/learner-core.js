@@ -1076,7 +1076,7 @@
             subjectHeader.tabIndex = 0;
             subjectHeader.setAttribute('role', 'button');
             subjectHeader.setAttribute('aria-expanded', String(subjectIndex === 0));
-            subjectHeader.innerHTML = `<span class="subject-title"></span><span class="subject-meta">${subject.chapters.length} chapter${subject.chapters.length === 1 ? '' : 's'}</span>`;
+            subjectHeader.innerHTML = `<span class="subject-title"></span><span class="subject-meta">${subject.chapters.length} chương</span>`;
             subjectHeader.querySelector('.subject-title').textContent = subject.title;
             const toggleSubject = () => {
                 subjectDiv.classList.toggle('collapsed');
@@ -1226,7 +1226,7 @@
         resumeLastBtn.style.display = 'inline-flex';
         resumeLastBtn.style.alignItems = 'center';
         resumeLastBtn.style.justifyContent = 'center';
-        resumeLastBtn.textContent = `▶ Tiếp tục: ${section.title}`;
+        resumeLastBtn.textContent = `Tiếp tục: ${section.title}`;
         resumeLastBtn.onclick = () => loadSection(section.id, section.title, section.data);
     }
 
@@ -1595,7 +1595,7 @@
         updateNavUI();
         prevBtn.style.visibility = currentQuestion > 0 ? 'visible' : 'hidden';
         const isLastQuestion = currentQuestion === activeSectionData.length - 1;
-        nextBtn.innerHTML = isLastQuestion ? 'Nộp bài & chấm tất cả ➔' : 'Câu tiếp theo ➔';
+        nextBtn.textContent = isLastQuestion ? 'Nộp bài' : 'Câu tiếp theo';
         nextBtn.style.background = isLastQuestion ? '#ffb300' : '#1976d2';
         nextBtn.style.color = isLastQuestion ? '#000' : '#fff';
         nextBtn.style.visibility = 'visible';
@@ -1603,7 +1603,7 @@
         const question = activeSectionData[currentQuestion];
         const state = progressStore[activeSectionId];
         questionText.textContent = safePlainText(question.q);
-        progressText.innerText = `Question ${currentQuestion + 1} of ${activeSectionData.length}`;
+        progressText.innerText = `Câu ${currentQuestion + 1} / ${activeSectionData.length}`;
 
         if (state.isAnswered[currentQuestion]) {
             renderAnsweredQuestion(question, state.userSelections[currentQuestion]);
@@ -1848,7 +1848,7 @@
 
     function showExplanation(isCorrect, textEng, textVie, exampleEng = '', exampleVie = '', standardReference = '') {
         const resultColor = isCorrect ? '#4caf50' : '#ef5350';
-        const resultText = isCorrect ? '🎉 Chính xác (Correct)!' : '❌ Chưa chính xác.';
+        const resultText = isCorrect ? 'Chính xác' : 'Chưa chính xác';
         explanationBox.style.borderLeftColor = resultColor;
         explanationBox.innerHTML = `
             <div class="explanation-toolbar">
@@ -1864,7 +1864,7 @@
                 <div class="explanation-section-label">Explanation</div>
                 <div class="eng-exp explanation-copy" id="eng-exp"></div>
                 <div class="practical-example-card" id="eng-example-card" hidden>
-                    <div class="practical-example-title">💼 Practical example</div>
+                    <div class="practical-example-title">Practical example</div>
                     <div class="practical-example-copy" id="eng-example"></div>
                 </div>
             </section>
@@ -1873,7 +1873,7 @@
                 <div class="explanation-section-label">Giải thích</div>
                 <div class="vie-exp explanation-copy" id="vie-exp"></div>
                 <div class="practical-example-card" id="vie-example-card" hidden>
-                    <div class="practical-example-title">💼 Ví dụ thực tế</div>
+                    <div class="practical-example-title">Ví dụ thực tế</div>
                     <div class="practical-example-copy" id="vie-example"></div>
                 </div>
             </section>
@@ -2021,9 +2021,9 @@
 
         scoreBoard.innerHTML = `
             <div class="result-card">
-                <div style="font-size:1.5rem;">Hoàn thành Bài Kiểm Tra!</div>
+                <div style="font-size:1.25rem;font-weight:750;">Kết quả bài làm</div>
                 <div class="result-score">${correct} / ${total}</div>
-                <div class="result-sub">${percent}% tổng điểm · Độ chính xác trên câu đã làm: ${accuracy}%</div>
+                <div class="result-sub">${percent}% tổng điểm · Độ chính xác ${accuracy}%</div>
                 <div class="result-grid">
                     <div class="result-metric"><b>${correct}</b><span>Đúng</span></div>
                     <div class="result-metric"><b>${wrong}</b><span>Sai</span></div>
@@ -2035,7 +2035,7 @@
                     ${wrong ? '<button class="submit-btn" style="display:inline-block;width:auto;background:#c62828;" type="button" onclick="startReview(\'wrong\')">Ôn lại câu sai</button>' : ''}
                     ${bookmarks ? '<button class="utility-btn" type="button" onclick="startReview(\'bookmarked\')">Xem câu đánh dấu</button>' : ''}
                     ${unanswered ? '<button class="utility-btn" type="button" onclick="continueUnanswered()">Làm câu chưa làm</button>' : ''}
-                    <a class="utility-btn history-result-link" href="history.html?exercise=${encodeURIComponent(activeSectionId)}">🕘 Lịch sử làm bài</a>
+                    <a class="utility-btn history-result-link" href="history.html?exercise=${encodeURIComponent(activeSectionId)}">Xem lịch sử</a>
                     <button class="utility-btn danger-btn" type="button" onclick="resetSection()">Làm lại phần này</button>
                 </div>
             </div>`;
@@ -2061,7 +2061,7 @@
     }
 
     function resetSection() {
-        if (!confirm('Bắt đầu lượt làm mới? Kết quả hiện tại đã được lưu trong Lịch sử làm bài; đáp án và bookmark của lượt đang hiển thị sẽ được làm mới.')) return;
+        if (!confirm('Bắt đầu lượt làm mới? Kết quả hiện tại đã được lưu trong Lịch sử làm bài. Đáp án và câu đánh dấu của lượt này sẽ được đặt lại.')) return;
         progressStore[activeSectionId] = createEmptySectionState(activeSectionData.length);
         ensureAttemptRun(progressStore[activeSectionId]);
         currentQuestion = 0;
