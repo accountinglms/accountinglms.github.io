@@ -112,6 +112,48 @@ try {
   assert(Math.abs((leftBox.y + leftBox.height/2) - navCy) <= 1.5, 'Left arrow is not vertically centered');
   assert(Math.abs((rightBox.y + rightBox.height/2) - navCy) <= 1.5, 'Right arrow is not vertically centered');
 
+  const faceGeometry = await calc.evaluate(() => {
+    const boxes = selector => Array.from(document.querySelectorAll('#lms-calculator ' + selector)).map(el => {
+      const r = el.getBoundingClientRect();
+      return {x:r.x,y:r.y,width:r.width,height:r.height,cx:r.x+r.width/2,cy:r.y+r.height/2};
+    });
+    const labelPairs = Array.from(document.querySelectorAll('#lms-calculator .calc-sci-key')).map(key => {
+      const k = key.getBoundingClientRect();
+      const main = key.querySelector('b')?.getBoundingClientRect();
+      const shift = key.querySelector('.calc-shift-label')?.getBoundingClientRect();
+      return {
+        keyCx:k.x+k.width/2,
+        mainCx:main ? main.x+main.width/2 : null,
+        shiftCx:shift ? shift.x+shift.width/2 : null
+      };
+    });
+    return {
+      top: boxes('.calc-top-key'),
+      sci: boxes('.calc-sci-key'),
+      numeric: boxes('.calc-white-key'),
+      labelPairs
+    };
+  });
+
+  const assertUniformRows = (boxes, perRow, label) => {
+    for (let i=0;i<boxes.length;i+=perRow) {
+      const row=boxes.slice(i,i+perRow);
+      const cy=row.map(b=>b.cy);
+      const heights=row.map(b=>b.height);
+      assert(Math.max(...cy)-Math.min(...cy)<=1.5, `${label} row ${i/perRow+1} is vertically uneven`);
+      assert(Math.max(...heights)-Math.min(...heights)<=1.5, `${label} row ${i/perRow+1} has inconsistent key heights`);
+    }
+  };
+  assertUniformRows(faceGeometry.sci,6,'Science');
+  assertUniformRows(faceGeometry.numeric,6,'Number');
+  const topHeights=faceGeometry.top.map(b=>b.height);
+  assert(Math.max(...topHeights)-Math.min(...topHeights)<=1.5,'SHIFT/ALPHA/MENU/ON key heights are inconsistent');
+
+  for (const [index,pair] of faceGeometry.labelPairs.entries()) {
+    assert(pair.mainCx != null && Math.abs(pair.keyCx-pair.mainCx)<=1.5, `Science key ${index+1} main label is not centered`);
+    assert(pair.shiftCx != null && Math.abs(pair.keyCx-pair.shiftCx)<=1.5, `Science key ${index+1} SHIFT label is not centered`);
+  }
+
   await action('clear');
   await action('shift');
   await fn('sin');
