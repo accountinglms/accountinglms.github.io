@@ -1590,3 +1590,91 @@ body.page-account .account-legacy-panel .secondary{
     padding:14px;
   }
 }
+
+/* v45 · Semantic Subject Cover Studio: no paid AI or external artwork dependency. */
+body.page-home .subject-cover-art.has-generated-cover{
+  flex:0 0 clamp(96px,12vw,124px);
+  height:78px;
+  border-radius:8px;
+  background:#112e4e;
+  box-shadow:inset 0 0 0 1px rgba(211,177,111,.2);
+}
+body.page-home .subject-cover-art.has-generated-cover::before,
+body.page-home .subject-cover-art.has-generated-cover::after{display:none!important}
+body.page-home .subject-cover-art.has-generated-cover img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center;
+  border-radius:inherit;
+  background:#122a43;
+  image-rendering:auto;
+}
+body.page-home .subject-row summary{
+  min-height:92px;
+}
+body.page-home .subject-summary-copy{
+  flex:1 1 auto;
+  min-width:0;
+}
+body.page-home .subject-summary-copy strong{overflow-wrap:break-word}
+body.page-home .subject-summary-copy small{
+  font-size:12px;
+  line-height:1.3;
+}
+body.page-home .subject-row summary>span:last-child{
+  color:var(--vg-muted);
+  font-size:12px;
+  white-space:nowrap;
+}
+body.page-admin .subject-cover-preview{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  min-width:0;
+  margin-top:9px;
+  padding:8px;
+  background:color-mix(in srgb,var(--vg-paper-2) 54%,var(--vg-paper));
+  border:1px solid var(--vg-line);
+  border-radius:9px;
+}
+body.page-admin .subject-cover-preview[hidden]{display:none!important}
+body.page-admin .subject-cover-preview img{
+  flex:0 0 95px;
+  width:95px;
+  height:59px;
+  object-fit:cover;
+  border-radius:6px;
+  background:#112e4e;
+}
+body.page-admin .subject-cover-preview strong{
+  display:block;
+  margin-bottom:3px;
+  font-size:12px;
+  line-height:1.3;
+  color:var(--vg-cobalt-deep);
+}
+body.page-admin .subject-cover-preview span{
+  display:block;
+  font-size:11px;
+  line-height:1.45;
+  color:var(--vg-muted);
+}
+body.page-admin .subject-cover-preview-quick{
+  margin:5px 0 13px;
+}
+@media(max-width:760px){
+  body.page-home .subject-cover-art.has-generated-cover{
+    flex-basis:88px;
+    height:61px;
+  }
+  body.page-home .subject-row summary{min-height:78px}
+  body.page-home .subject-summary-copy small{font-size:11px}
+}
+@media(max-width:420px){
+  body.page-home .subject-cover-art.has-generated-cover{
+    flex-basis:78px;
+    height:56px;
+  }
+}
