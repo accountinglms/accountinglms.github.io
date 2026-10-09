@@ -171,7 +171,11 @@ function validateQuestion(raw: any, index: number) {
     explanation_vi: safeText(raw.explanation_vi, `questions[${index}].explanation_vi`, 20_000),
     practical_example_en: safeText(raw.practical_example_en, `questions[${index}].practical_example_en`, 20_000),
     practical_example_vi: safeText(raw.practical_example_vi, `questions[${index}].practical_example_vi`, 20_000),
-    standard_reference: safeText(raw.standard_reference, `questions[${index}].standard_reference`, 1_000),
+    standard_reference: safeText(raw.standard_reference, `questions[${index}].standard_reference`, 2_000),
+    verification_status: ["verified","needs_review","conflict","source_only"].includes(raw.verification_status)
+      ? raw.verification_status
+      : "needs_review",
+    verification_note: safeText(raw.verification_note, `questions[${index}].verification_note`, 5_000),
     source_page: sourcePage,
     confidence,
     review_note: safeText(raw.review_note, `questions[${index}].review_note`, 5_000),
@@ -194,6 +198,16 @@ function validateOutput(raw: any, targetType: string) {
       title: safeText(raw.lesson.title, "lesson.title", 300, true),
       summary: safeText(raw.lesson.summary, "lesson.summary", 5_000),
       content_markdown: safeText(raw.lesson.content_markdown, "lesson.content_markdown", 100_000, true),
+      content_markdown_vi: safeText(raw.lesson.content_markdown_vi, "lesson.content_markdown_vi", 100_000),
+      standard_references: Array.isArray(raw.lesson.standard_references)
+        ? raw.lesson.standard_references.slice(0, 50).map((v: unknown, i: number) =>
+            safeText(v, `lesson.standard_references[${i}]`, 2_000, true)!
+          )
+        : [],
+      verification_status: ["verified","needs_review","conflict","source_only"].includes(raw.lesson.verification_status)
+        ? raw.lesson.verification_status
+        : "needs_review",
+      verification_note: safeText(raw.lesson.verification_note, "lesson.verification_note", 5_000),
     };
   }
   if (targetType === "questions" && lesson !== null) lesson = null;
@@ -286,16 +300,22 @@ Deno.serve(async (req: Request) => {
       "single: correct_answer is one zero-based option index.",
       "multiple: correct_answer is an array of zero-based option indexes.",
       "tf: options are statements and correct_answer is a same-length boolean array.",
-      "For each question, produce a concise but technically precise EN and VI explanation using current IFRS/IAS/ICAEW terminology where relevant.",
-      "Also produce one short practical business/workplace example in EN and VI showing what the concept means in a real entity.",
-      "Set standard_reference to a conservative source label such as IAS 16, IFRS S1, Conceptual Framework, or ICAEW/IESBA Code when clearly supported. Never invent paragraph numbers or an authoritative reference when uncertain.",
-      "If an explanation/example/reference is generated rather than explicitly present in the source, state that in review_note.",
+      "Treat the uploaded source as authoritative for the ORIGINAL wording and any EXPLICIT answer key. Never silently replace an explicit source answer with a web-derived answer.",
+      "For accounting, finance, sustainability and professional-ethics content, verify definitions and explanations against CURRENT authoritative guidance when possible.",
+      "When grounding, prefer official domains such as ifrs.org, icaew.com, ethicsboard.org, frc.org.uk and gov.uk. Do not treat blogs, forums or study-answer sites as authoritative.",
+      "For each question, produce a concise but technically precise EN and VI explanation using current standard terminology where relevant.",
+      "Also produce one practical business/workplace example in EN and VI showing what the concept means in a real entity, transaction, control or decision.",
+      "Set standard_reference to the most relevant authoritative standard/framework/topic, such as IAS 16, Conceptual Framework, IFRS S1, IFRS S2, ICAEW Code of Ethics, IESBA Code or UK GAAP. Never invent paragraph numbers.",
+      "verification_status rules: verified = source answer and explanation are supported; source_only = source answer is explicit but current external verification is unavailable; needs_review = answer/explanation is inferred, ambiguous, legacy wording, or insufficiently supported; conflict = current authoritative guidance appears to conflict with the source answer or wording.",
+      "If the source does not contain an answer key, you may infer a likely answer only for a draft; verification_status MUST be needs_review and verification_note must explicitly say the answer was inferred.",
+      "If current guidance differs from legacy syllabus wording, preserve the source answer and explain the difference in verification_note rather than silently rewriting the source.",
+      "If an explanation/example/reference is generated rather than explicitly present in the source, say so in review_note.",
       "Return exactly this top-level JSON shape:",
       "{\"title\":string,\"questions\":array,\"lesson\":object|null,\"warnings\":string[]}",
       "Each question must be:",
-      "{\"question_type\":\"single\"|\"multiple\"|\"tf\",\"prompt\":string,\"options\":string[],\"correct_answer\":number|number[]|boolean[],\"required_selections\":number|null,\"explanation_en\":string|null,\"explanation_vi\":string|null,\"practical_example_en\":string|null,\"practical_example_vi\":string|null,\"standard_reference\":string|null,\"source_page\":number|null,\"confidence\":number,\"review_note\":string|null}",
+      "{\"question_type\":\"single\"|\"multiple\"|\"tf\",\"prompt\":string,\"options\":string[],\"correct_answer\":number|number[]|boolean[],\"required_selections\":number|null,\"explanation_en\":string|null,\"explanation_vi\":string|null,\"practical_example_en\":string|null,\"practical_example_vi\":string|null,\"standard_reference\":string|null,\"verification_status\":\"verified\"|\"needs_review\"|\"conflict\"|\"source_only\",\"verification_note\":string|null,\"source_page\":number|null,\"confidence\":number,\"review_note\":string|null}",
       targetType === "lesson"
-        ? "Primary task: create lesson {title,summary,content_markdown}; also extract explicit questions if present."
+        ? "Primary task: create lesson {title,summary,content_markdown,content_markdown_vi,standard_references,verification_status,verification_note}; preserve source structure in content_markdown and create a faithful Vietnamese rendering in content_markdown_vi. Also extract explicit questions if present."
         : "Primary task: extract explicit questions and answer keys; lesson must be null.",
       "Target subject: " + subjectTitle,
       "Target chapter: " + chapterTitle,
@@ -327,10 +347,11 @@ Deno.serve(async (req: Request) => {
           },
           body: JSON.stringify({
             contents: [{ role: "user", parts }],
+            tools: [{ google_search: {} }],
             generationConfig: {
               responseMimeType: "application/json",
               temperature: 0.1,
-              maxOutputTokens: 12000,
+              maxOutputTokens: 16000,
             },
           }),
         },
