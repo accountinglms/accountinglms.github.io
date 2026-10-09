@@ -120,7 +120,10 @@ async function installMock(context){
 
     if(path.startsWith('/storage/v1/object/profile-avatars/')){
       if(method==='POST'){
-        state.avatarFiles.set(path,req.postDataBuffer());
+        // WebKit does not expose streamed Blob request bytes to Playwright route.postDataBuffer().
+        // Return a genuine WebP sample so signed-in GET/cross-page rendering is exercised.
+        const webpSample=Buffer.from('UklGRjYAAABXRUJQVlA4ICoAAACQAQCdASoQABAAAUAmJZgCdLoAA5gA/vLrf/xDnQ50OX/v+xZy2BYgAAA=','base64');
+        state.avatarFiles.set(path,req.postDataBuffer()||webpSample);
         return json(route,{Key:path},201);
       }
       if(method==='GET'){
@@ -555,20 +558,7 @@ async function testAvatarUpload(browser){
  await page.waitForFunction(()=>document.querySelector('#avatar-edit-dialog')?.hidden===true, null,{timeout:20000});
  assert(state.profiles[0].avatar_path?.startsWith(user.id+'/'),'Avatar must be stored in the account storage folder');
  assert(state.avatarFiles.size===1,'Avatar upload must reach private Supabase Storage');
- try{
-   await page.waitForFunction(()=>document.querySelector('#profile-avatar')?.classList.contains('has-avatar-image'),null,{timeout:10000});
- }catch(error){
-   const debug=await page.evaluate(()=>{
-     const el=document.querySelector('#profile-avatar');
-     return {className:el?.className,token:el?.dataset?.avatarToken,text:el?.textContent,
-       css:el?.style.backgroundImage,hasImage:el?.classList.contains('has-avatar-image'),
-       avatarError:el?.dataset?.avatarError,
-       state:document.querySelector('#avatar-edit-status')?.textContent,
-       online:navigator.onLine};
-   });
-   console.log('WEBKIT AVATAR DEBUG',JSON.stringify(debug),'stored files',state.avatarFiles.size,'file byte sizes',[...state.avatarFiles.values()].map(x=>x.length),'profile',JSON.stringify(state.profiles[0]));
-   throw error;
- }
+ await page.waitForFunction(()=>document.querySelector('#profile-avatar')?.classList.contains('has-avatar-image'),null,{timeout:10000});
  await page.goto(baseURL+'/home.html',{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>document.querySelector('#portal-avatar')?.classList.contains('has-avatar-image'),null,{timeout:10000});
  assert((await page.locator('#portal-avatar').evaluate(el=>getComputedStyle(el).backgroundImage)).startsWith('url('),
