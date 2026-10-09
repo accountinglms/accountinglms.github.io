@@ -75,16 +75,18 @@ jobs:
           npm install --no-save playwright@1.56.1
           npx playwright install --with-deps ${{ matrix.browser }}
 
-      - name: Start local LMS
+      - name: Start local HTTPS LMS
         run: |
-          python3 -m http.server 4173 >/tmp/icaew-browser-http.log 2>&1 &
+          openssl req -x509 -newkey rsa:2048 -nodes             -keyout /tmp/icaew-test-key.pem             -out /tmp/icaew-test-cert.pem             -days 1 -subj "/CN=127.0.0.1"
+          python3 tests/https-server.py >/tmp/icaew-browser-https.log 2>&1 &
           echo $! > /tmp/icaew-browser-http.pid
           sleep 1
-          curl --fail --silent http://127.0.0.1:4173/ >/dev/null
+          curl --insecure --fail --silent https://127.0.0.1:4173/ >/dev/null
 
       - name: Run session UX browser suite
         env:
           BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/session-browser.mjs
 
       - name: Stop local LMS
