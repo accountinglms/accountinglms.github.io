@@ -19,7 +19,7 @@ try {
   const page = await context.newPage();
   await page.goto(baseURL + '/', { waitUntil: 'domcontentloaded' });
 
-  await page.waitForSelector('[data-calculator-launcher]');
+  await page.waitForSelector('[data-calculator-launcher]', { state: 'attached' });
   await page.evaluate(() => document.querySelector('[data-calculator-launcher]')?.click());
   await page.waitForSelector('#lms-calculator:not([hidden])');
 
