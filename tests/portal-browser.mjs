@@ -192,6 +192,10 @@ async function testHome(browser){
   assert((await page.locator('#subject-catalog .chapter-row').count())===2,'Home chapter TOC did not render');
   assert((await page.locator('.subject-cover-art').count())===1,'Van Gogh subject cover did not render');
   assert((await page.locator('#home-mini-trend svg').count())===1,'Home score sparkline did not render');
+  const heroArt=await page.evaluate(()=>getComputedStyle(document.body,'::before').backgroundImage);
+  assert(heroArt.includes('Starry_Night.webp'),'Home is missing the Van Gogh artwork background');
+  const continueHref=await page.locator('[data-continue-exercise]').getAttribute('href');
+  assert(continueHref?.includes('exercise=ex1'),'Home should resume the latest specific exercise, not an empty learner page');
   const heroRadius=await page.locator('.hero-card').evaluate(el=>getComputedStyle(el).borderRadius);
   assert(heroRadius==='10px','Final visual system should use restrained card radii');
 
@@ -274,6 +278,17 @@ async function testChatPagination(browser){
   await context.close();
 }
 
+async function testCommunityEmptyState(browser){
+  const {context,page,state}=await newPortalPage(browser);
+  state.messages=[];
+  await page.goto(baseURL+'/community.html',{waitUntil:'domcontentloaded'});
+  await page.waitForSelector('.chat-empty-state');
+  assert((await page.textContent('.chat-empty-state')).includes('Chào mừng'),'Community empty state should explain the space rather than show a blank screen');
+  await page.click('[data-compose-focus]');
+  assert(await page.locator('#message-input').evaluate(el=>document.activeElement===el),'Community onboarding CTA must focus the composer');
+  await context.close();
+}
+
 async function testProgress(browser){
   const {context,page}=await newPortalPage(browser);
   await page.goto(baseURL+'/progress.html',{waitUntil:'domcontentloaded'});
@@ -323,6 +338,7 @@ const browser=await engine.launch({headless:true});
 try{
   await testHome(browser);
   await testCommunity(browser);
+  await testCommunityEmptyState(browser);
   await testChatPagination(browser);
   await testProgress(browser);
   await testResponsivePortal(browser);
