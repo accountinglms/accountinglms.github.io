@@ -17,7 +17,6 @@ const required = [
   'assets/admin.js',
   'assets/lessons.js',
   'assets/diagnostics.js',
-  'assets/lms-patch.js',
   'supabase/functions/icaew-ai-import/index.ts'
 ];
 
@@ -86,8 +85,18 @@ if (!edge.includes('get_my_access')) {
 }
 
 const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-for (const file of ['admin.html','lessons.html','diagnostics.html','manifest.webmanifest','assets/common.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js','assets/lms-patch.js']) {
+for (const file of ['admin.html','lessons.html','diagnostics.html','manifest.webmanifest','assets/learner.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/common.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js']) {
   if (!sw.includes(file)) throw new Error('Service worker cache list is missing: ' + file);
+}
+
+if (fs.existsSync(path.join(root, 'assets/lms-patch.js')) || learnerHtml.includes('assets/lms-patch.js')) {
+  throw new Error('Legacy patch layer must remain removed after frontend refactor.');
+}
+if (!fs.readFileSync(path.join(root, 'assets/learner-core.js'), 'utf8').includes('function draftComplete')) {
+  throw new Error('Integrated quiz flow is missing from learner core.');
+}
+if (!fs.readFileSync(path.join(root, 'assets/cloud-sync.js'), 'utf8').includes('loadDatabaseCatalog')) {
+  throw new Error('Database catalog loading is missing from cloud data layer.');
 }
 
 console.log('Security/static integrity checks passed.');
