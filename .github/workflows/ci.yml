@@ -99,6 +99,12 @@ jobs:
           TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/explanation-browser.mjs
 
+      - name: Run Admin AI-first layout test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/admin-layout-browser.mjs
+
       - name: Stop local LMS
         if: always()
         run: |
