@@ -8,6 +8,7 @@ import {
   createRealtimeClient
 } from './common.js';
 import {examScore} from './score-model.js';
+import {subjectCoverDataURL,subjectCoverLabel} from './subject-cover.js';
 
 const $=s=>document.querySelector(s);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -116,11 +117,14 @@ function renderCatalog(){
     const lessonCount=chs.reduce((n,c)=>n+lessons.filter(l=>l.chapter_id===c.id).length,0);
     const exerciseCount=chs.reduce((n,c)=>n+exercises.filter(e=>e.chapter_id===c.id).length,0);
     const level=subject.exam_level==='advanced'?'Advanced':subject.exam_level==='professional'?'Professional':'Certificate';
-    const coverVariant=Array.from(String(subject.id)).reduce((sum,ch)=>sum+ch.charCodeAt(0),0)%3;
-    return `<details class="subject-row subject-tone-${coverVariant}">
+    const cover=subjectCoverDataURL(subject,chs);
+    const coverCategory=subjectCoverLabel(subject,chs);
+    return `<details class="subject-row">
       <summary>
-        <span class="subject-cover-art" aria-hidden="true"></span>
-        <span class="subject-summary-copy"><strong>${esc(subject.title)}</strong><small>${esc(level)} · ${chs.length} chương</small></span>
+        <span class="subject-cover-art has-generated-cover">
+          <img src="${cover}" alt="Ảnh minh họa ${esc(coverCategory)}" loading="lazy" decoding="async" width="720" height="440">
+        </span>
+        <span class="subject-summary-copy"><strong>${esc(subject.title)}</strong><small>${esc(level)} · ${chs.length} chương · ${esc(coverCategory)}</small></span>
         <span>${lessonCount} tài liệu · ${exerciseCount} bài tập</span>
       </summary>
       <div class="subject-content">
