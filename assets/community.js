@@ -12,6 +12,7 @@ const fmtSize=n=>{n=Number(n||0);if(n<1024)return n+' B';if(n<1024**2)return (n/
 let session=null,access=null;
 let groups=[],memberships=[],reads=[],profiles=[],recentMessages=[],announcements=[],announcementReads=[];
 let currentGroupId=null,currentMessages=[],currentReactions=[];
+let canLoadOlder=false,loadingOlder=false;
 let pendingFile=null;
 let realtime=null;
 let reloadTimer=null;
@@ -84,7 +85,7 @@ function renderMessages(){
   if(!currentGroupId){root.innerHTML='<div class="empty-compact">Chọn một nhóm để bắt đầu.</div>';return;}
   if(!currentMessages.length){root.innerHTML='<div class="empty-compact">Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện.</div>';return;}
   const pmap=profileMap(),agg=aggregateReactions();
-  root.innerHTML=currentMessages.map(msg=>{
+  root.innerHTML=(canLoadOlder?'<div style="text-align:center;padding:8px"><button class="btn" id="load-older-messages" type="button">Tải tin nhắn cũ hơn</button></div>':'')+currentMessages.map(msg=>{
     const p=pmap.get(msg.sender_id);const name=p?.display_name||(msg.sender_id===session.user.id?'Bạn':'Member');
     const reactions=[...agg.values()].filter(x=>x.message_id===msg.id);
     const deleted=Boolean(msg.deleted_at);
@@ -114,13 +115,25 @@ async function markCurrentRead(){
   if(existing)existing.last_read_at=now;else reads.push({group_id:currentGroupId,user_id:session.user.id,last_read_at:now});
   renderGroups();renderHeader();
 }
-async function loadCurrentMessages(){
+async function loadCurrentMessages({older=false}={}){
   if(!currentGroupId){currentMessages=[];currentReactions=[];renderMessages();return;}
-  currentMessages=await restGet('chat_messages',`select=*&group_id=eq.${encodeURIComponent(currentGroupId)}&order=created_at.asc&limit=300`);
-  const ids=currentMessages.map(m=>m.id);
-  currentReactions=ids.length?await restGet('chat_message_reactions',`select=*&message_id=in.(${ids.join(',')})`):[];
-  renderMessages();
-  if(document.visibilityState==='visible')await markCurrentRead().catch(()=>{});
+  if(older&&(!canLoadOlder||loadingOlder))return;
+  loadingOlder=true;
+  const stream=$('#message-stream');
+  const heightBefore=stream.scrollHeight;
+  const oldest=older?currentMessages[0]?.id:null;
+  try{
+    const query=`select=*&group_id=eq.${encodeURIComponent(currentGroupId)}${oldest?`&id=lt.${encodeURIComponent(oldest)}`:''}&order=id.desc&limit=100`;
+    const rows=await restGet('chat_messages',query);
+    canLoadOlder=rows.length===100;
+    const ordered=[...rows].reverse();
+    currentMessages=older?[...ordered,...currentMessages]:ordered;
+    const ids=currentMessages.map(m=>m.id);
+    currentReactions=ids.length?await restGet('chat_message_reactions',`select=*&message_id=in.(${ids.join(',')})`):[];
+    renderMessages();
+    if(older)requestAnimationFrame(()=>{stream.scrollTop=stream.scrollHeight-heightBefore;});
+    if(!older&&document.visibilityState==='visible')await markCurrentRead().catch(()=>{});
+  }finally{loadingOlder=false;}
 }
 async function selectGroup(id){
   currentGroupId=id;
@@ -238,6 +251,7 @@ $('#emoji-popover').innerHTML=emojis.map(x=>`<button type="button" data-emoji="$
 $('#emoji-btn').addEventListener('click',()=>{$('#emoji-popover').hidden=!$('#emoji-popover').hidden;});
 $('#emoji-popover').addEventListener('click',e=>{const b=e.target.closest('[data-emoji]');if(!b)return;$('#message-input').value+=b.dataset.emoji;$('#emoji-popover').hidden=true;$('#message-input').focus();});
 $('#message-stream').addEventListener('click',async e=>{
+  if(e.target.closest('#load-older-messages')){await loadCurrentMessages({older:true}).catch(err=>alert(err.message));return;}
   const download=e.target.closest('[data-download]');
   if(download){await downloadChatFile(download.dataset.download,download.dataset.name).catch(err=>alert(err.message));return;}
   const row=e.target.closest('[data-message-id]');if(!row)return;
