@@ -1319,3 +1319,79 @@ html[data-theme="light"] .auth-online-tip span { color:#8a7047; }
     .auth-online-tip a { width:100%; }
     .auth-panel-footer { font-size:.62rem; }
 }
+
+
+/* ===== Persistent session + account recovery ===== */
+.auth-view[hidden] { display:none !important; }
+.auth-text-link {
+    border:0;
+    padding:2px 0;
+    background:transparent;
+    color:#74aeea;
+    font:inherit;
+    font-size:.74rem;
+    font-weight:800;
+    cursor:pointer;
+}
+.auth-text-link:hover,
+.auth-text-link:focus-visible { color:#a7d0fb; text-decoration:underline; }
+.auth-session-note {
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
+    margin-top:13px;
+    color:#718596;
+    font-size:.7rem;
+    line-height:1.45;
+}
+.auth-session-note > span:first-child {
+    width:18px;
+    height:18px;
+    flex:0 0 18px;
+    display:grid;
+    place-items:center;
+    border-radius:50%;
+    background:rgba(70,153,96,.12);
+    color:#72c98a;
+    font-size:.66rem;
+    font-weight:900;
+}
+.auth-actions-stack { display:grid; gap:10px; }
+.auth-secondary-btn {
+    width:100%;
+    min-height:46px;
+    border:1px solid #34414d;
+    border-radius:12px;
+    background:#151d25;
+    color:#9eb0bf;
+    font:inherit;
+    font-size:.78rem;
+    font-weight:800;
+    cursor:pointer;
+}
+.auth-secondary-btn:hover,
+.auth-secondary-btn:focus-visible {
+    border-color:#4b6277;
+    background:#19232d;
+    color:#d3dde5;
+}
+.auth-recovery-hint {
+    margin:14px 0 0;
+    color:#5f7180;
+    font-size:.68rem;
+    line-height:1.5;
+}
+html[data-theme="light"] .auth-text-link { color:#2f74b9; }
+html[data-theme="light"] .auth-session-note { color:#6c7d8a; }
+html[data-theme="light"] .auth-secondary-btn {
+    border-color:#d2dce4;
+    background:#f6f9fb;
+    color:#516674;
+}
+html[data-theme="light"] .auth-secondary-btn:hover,
+html[data-theme="light"] .auth-secondary-btn:focus-visible {
+    border-color:#b7c9d8;
+    background:#eef4f8;
+    color:#2f485c;
+}
+html[data-theme="light"] .auth-recovery-hint { color:#71818e; }
