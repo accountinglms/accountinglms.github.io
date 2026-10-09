@@ -34,6 +34,14 @@
     const confirmPasswordInput = document.getElementById('auth-confirm-password');
     const resetSubmitBtn = document.getElementById('auth-reset-submit');
     const resetMessage = document.getElementById('auth-reset-message');
+    const mfaView = document.getElementById('auth-mfa-view');
+    const mfaFactorWrap = document.getElementById('auth-mfa-factor-wrap');
+    const mfaFactorSelect = document.getElementById('auth-mfa-factor');
+    const mfaCodeInput = document.getElementById('auth-mfa-code');
+    const mfaSubmitBtn = document.getElementById('auth-mfa-submit');
+    const mfaCancelBtn = document.getElementById('auth-mfa-cancel');
+    const mfaMessage = document.getElementById('auth-mfa-message');
+    let mfaFactors = [];
     window.addEventListener('error', e => { if (authMessage) { authMessage.textContent = 'Lỗi ứng dụng: ' + (e.message || 'JavaScript không chạy đúng.'); authMessage.style.color = '#ef7b7b'; } });
     window.addEventListener('unhandledrejection', e => { if (authMessage) { const m = e.reason?.message || String(e.reason || 'Lỗi kết nối'); authMessage.textContent = 'Lỗi kết nối: ' + m; authMessage.style.color = '#ef7b7b'; } });
     const accountBox = document.getElementById('cloud-account');
@@ -75,6 +83,7 @@
         if (loginView) loginView.hidden = view !== 'login';
         if (forgotView) forgotView.hidden = view !== 'forgot';
         if (resetView) resetView.hidden = view !== 'reset';
+        if (mfaView) mfaView.hidden = view !== 'mfa';
     }
     function setRecoveryMessage(message, error=false) {
         if (!recoveryMessage) return;
@@ -85,6 +94,11 @@
         if (!resetMessage) return;
         resetMessage.textContent = message || '';
         resetMessage.style.color = error ? '#ef7b7b' : '';
+    }
+    function setMfaMessage(message, error=false) {
+        if (!mfaMessage) return;
+        mfaMessage.textContent = message || '';
+        mfaMessage.style.color = error ? '#ef7b7b' : '';
     }
     function saveLastEmail(email) {
         try {
@@ -203,6 +217,51 @@
             headers:{'apikey':SUPABASE_KEY,'content-type':'application/json'},
             body:JSON.stringify({email,password})
         });
+        return parseResponse(res);
+    }
+
+    async function authGetCurrentUser() {
+        await ensureSession();
+        const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/user`, {
+            headers:{
+                'apikey':SUPABASE_KEY,
+                'Authorization':`Bearer ${cloudSession.access_token}`
+            }
+        });
+        return parseResponse(res);
+    }
+
+    async function authMfaChallenge(factorId) {
+        await ensureSession();
+        const res = await fetchWithTimeout(
+            `${SUPABASE_URL}/auth/v1/factors/${encodeURIComponent(factorId)}/challenge`,
+            {
+                method:'POST',
+                headers:{
+                    'apikey':SUPABASE_KEY,
+                    'Authorization':`Bearer ${cloudSession.access_token}`,
+                    'content-type':'application/json'
+                },
+                body:'{}'
+            }
+        );
+        return parseResponse(res);
+    }
+
+    async function authMfaVerify(factorId, challengeId, code) {
+        await ensureSession();
+        const res = await fetchWithTimeout(
+            `${SUPABASE_URL}/auth/v1/factors/${encodeURIComponent(factorId)}/verify`,
+            {
+                method:'POST',
+                headers:{
+                    'apikey':SUPABASE_KEY,
+                    'Authorization':`Bearer ${cloudSession.access_token}`,
+                    'content-type':'application/json'
+                },
+                body:JSON.stringify({challenge_id:challengeId, code})
+            }
+        );
         return parseResponse(res);
     }
 
@@ -603,17 +662,84 @@
         catch (error) { console.warn('Preference sync error', error); }
     }
 
+    async function beginMfaChallenge() {
+        const user = await authGetCurrentUser();
+        mfaFactors = (user?.factors || []).filter(
+            factor => factor?.factor_type === 'totp' && factor?.status === 'verified'
+        );
+        if (!mfaFactors.length) {
+            throw new Error('Tài khoản yêu cầu MFA nhưng không tìm thấy Authenticator đã xác minh.');
+        }
+
+        if (mfaFactorSelect) {
+            mfaFactorSelect.innerHTML = '';
+            mfaFactors.forEach((factor, index) => {
+                const option = document.createElement('option');
+                option.value = factor.id;
+                option.textContent = factor.friendly_name || `Authenticator ${index + 1}`;
+                mfaFactorSelect.appendChild(option);
+            });
+        }
+        if (mfaFactorWrap) mfaFactorWrap.hidden = mfaFactors.length <= 1;
+        if (mfaCodeInput) mfaCodeInput.value = '';
+        setMfaMessage('');
+        showGate(true);
+        showAuthView('mfa');
+        setTimeout(() => mfaCodeInput?.focus({preventScroll:true}), 0);
+    }
+
+    async function verifyMfaLogin() {
+        const code = String(mfaCodeInput?.value || '').replace(/\s+/g, '');
+        if (!/^\d{6}$/.test(code)) {
+            mfaCodeInput?.focus();
+            return setMfaMessage('Hãy nhập đúng mã gồm 6 chữ số.', true);
+        }
+        const factorId = mfaFactorSelect?.value || mfaFactors[0]?.id;
+        if (!factorId) return setMfaMessage('Không tìm thấy Authenticator để xác minh.', true);
+
+        mfaSubmitBtn.disabled = true;
+        setMfaMessage('Đang xác minh mã…');
+        try {
+            const challenge = await authMfaChallenge(factorId);
+            const verified = await authMfaVerify(factorId, challenge.id, code);
+            const next = normalizeSession(verified);
+            if (!next) throw new Error('Không nhận được phiên aal2 sau khi xác minh.');
+            accessInfo = null;
+            saveSession(next);
+            setMfaMessage('Đã xác minh. Đang mở workspace…');
+            await handleSignedIn(next);
+        } catch (error) {
+            setMfaMessage('Mã không đúng, đã hết hạn hoặc không thể xác minh: ' + error.message, true);
+        } finally {
+            mfaSubmitBtn.disabled = false;
+        }
+    }
+
     async function handleSignedIn(session) {
         const email = session?.user?.email?.toLowerCase() || '';
         saveSession(session);
 
         let access;
         try {
+            accessInfo = null;
             access = await getMyAccess(true);
         } catch (error) {
             await authSignOut();
             showGate(true);
+            showAuthView('login');
             return setAuthMessage(error.message || 'Tài khoản này không có quyền sử dụng ICAEW LMS.', true);
+        }
+
+        if (access?.mfa_required === true && access?.mfa_satisfied !== true) {
+            try {
+                await beginMfaChallenge();
+            } catch (error) {
+                await authSignOut();
+                showGate(true);
+                showAuthView('login');
+                setAuthMessage('Không thể khởi tạo xác thực 2 bước: ' + error.message, true);
+            }
+            return;
         }
 
         accountEmail.textContent = email;
@@ -656,6 +782,22 @@
     resetSubmitBtn?.addEventListener('click', submitRecoveredPassword);
     confirmPasswordInput?.addEventListener('keydown', e => {
         if (e.key === 'Enter') submitRecoveredPassword();
+    });
+    mfaSubmitBtn?.addEventListener('click', verifyMfaLogin);
+    mfaCodeInput?.addEventListener('input', () => {
+        if (mfaCodeInput) mfaCodeInput.value = mfaCodeInput.value.replace(/\D/g, '').slice(0, 6);
+    });
+    mfaCodeInput?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') verifyMfaLogin();
+    });
+    mfaCancelBtn?.addEventListener('click', async () => {
+        await authSignOut();
+        accessInfo = null;
+        mfaFactors = [];
+        if (mfaCodeInput) mfaCodeInput.value = '';
+        showGate(true);
+        showAuthView('login');
+        setAuthMessage('Đã hủy xác thực 2 bước và đăng xuất.');
     });
     passwordToggle?.addEventListener('click', () => {
         const reveal = passwordInput.type === 'password';

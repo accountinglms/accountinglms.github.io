@@ -174,6 +174,40 @@
                     </div>
                     <div class="auth-message" id="auth-reset-message" aria-live="polite"></div>
                 </div>
+
+                <div class="auth-view" id="auth-mfa-view" hidden>
+                    <div class="auth-card-heading">
+                        <span class="auth-eyebrow">TWO-STEP VERIFICATION</span>
+                        <h2>Xác thực Authenticator</h2>
+                        <p>Mở Google Authenticator, Authy, 1Password hoặc ứng dụng TOTP của bạn và nhập mã 6 số.</p>
+                    </div>
+
+                    <div class="auth-field" id="auth-mfa-factor-wrap" hidden>
+                        <label for="auth-mfa-factor">Thiết bị xác thực</label>
+                        <div class="auth-input-wrap">
+                            <span class="auth-input-icon" aria-hidden="true">⌁</span>
+                            <select id="auth-mfa-factor" class="auth-select"></select>
+                        </div>
+                    </div>
+
+                    <div class="auth-field">
+                        <label for="auth-mfa-code">Mã xác minh</label>
+                        <div class="auth-input-wrap">
+                            <span class="auth-input-icon" aria-hidden="true">#</span>
+                            <input id="auth-mfa-code" class="auth-code-input" type="text" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required>
+                        </div>
+                    </div>
+
+                    <div class="auth-actions auth-actions-stack">
+                        <button class="auth-btn primary" id="auth-mfa-submit" type="button">
+                            <span>Xác minh & tiếp tục</span><span aria-hidden="true">→</span>
+                        </button>
+                        <button class="auth-secondary-btn" id="auth-mfa-cancel" type="button">Đăng xuất</button>
+                    </div>
+
+                    <div class="auth-message" id="auth-mfa-message" aria-live="polite"></div>
+                    <p class="auth-recovery-hint">Nếu mất quyền truy cập Authenticator, email reset mật khẩu không tự tắt 2FA. Hãy liên hệ Owner để xử lý tài khoản.</p>
+                </div>
             </div>
 
             <div class="auth-panel-footer">
@@ -220,6 +254,7 @@
             <button class="cloud-mini-btn" id="cloud-logout-btn" type="button">Đăng xuất</button>
         </div>
         <div class="sidebar-tools" id="sidebar-tools">
+            <a href="account.html">👤 Account</a>
             <a href="lessons.html">📘 Lessons</a>
             <a href="admin.html" id="admin-tool-link" hidden>⚙ Admin</a>
         </div>

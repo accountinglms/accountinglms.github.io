@@ -66,12 +66,22 @@ export async function refreshSession(session) {
   return next;
 }
 
-export async function ensureSession() {
+export async function ensureBaseSession() {
   let session = loadSession();
   if (!session) throw new Error('Bạn chưa đăng nhập ICAEW LMS.');
   const now = Math.floor(Date.now()/1000);
   if (Number(session.expires_at || 0) - now < 60) session = await refreshSession(session);
-  await getMyAccess(session);
+  return session;
+}
+
+export async function ensureSession() {
+  const session = await ensureBaseSession();
+  const access = await getMyAccess(session);
+  if (access.mfa_required === true && access.mfa_satisfied !== true) {
+    const error = new Error('Tài khoản này yêu cầu mã xác thực 2 bước.');
+    error.code = 'MFA_REQUIRED';
+    throw error;
+  }
   return session;
 }
 
@@ -80,6 +90,99 @@ export async function ensureEditorSession() {
   const access = await getMyAccess(session);
   if (access.editor !== true) throw new Error('Tài khoản này không có quyền quản trị.');
   return session;
+}
+
+export async function authGetUser(session = null) {
+  const current = session || await ensureBaseSession();
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${current.access_token}`
+    }
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(text || 'Không đọc được thông tin tài khoản.');
+  return text ? JSON.parse(text) : null;
+}
+
+export async function authMfaEnrollTotp(friendlyName = 'Authenticator') {
+  const session = await ensureBaseSession();
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/factors`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${session.access_token}`,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      friendly_name: friendlyName,
+      factor_type: 'totp',
+      issuer: 'Accounting LMS'
+    })
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(text || 'Không khởi tạo được Authenticator.');
+  return text ? JSON.parse(text) : null;
+}
+
+export async function authMfaChallenge(factorId) {
+  const session = await ensureBaseSession();
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/factors/${encodeURIComponent(factorId)}/challenge`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${session.access_token}`,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({})
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(text || 'Không tạo được MFA challenge.');
+  return text ? JSON.parse(text) : null;
+}
+
+export async function authMfaVerify(factorId, challengeId, code) {
+  const session = await ensureBaseSession();
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/factors/${encodeURIComponent(factorId)}/verify`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${session.access_token}`,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({ challenge_id: challengeId, code })
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(text || 'Mã xác thực không đúng hoặc đã hết hạn.');
+  const data = text ? JSON.parse(text) : null;
+  if (data?.access_token && data?.user) {
+    const next = {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token || session.refresh_token,
+      expires_at: data.expires_at || Math.floor(Date.now()/1000) + Number(data.expires_in || 3600),
+      token_type: data.token_type || 'bearer',
+      user: data.user
+    };
+    clearAccessCache();
+    saveSession(next);
+    return next;
+  }
+  return data;
+}
+
+export async function authMfaUnenroll(factorId) {
+  const session = await ensureBaseSession();
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/factors/${encodeURIComponent(factorId)}`, {
+    method: 'DELETE',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${session.access_token}`
+    }
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(text || 'Không thể gỡ Authenticator.');
+  clearAccessCache();
+  return text ? JSON.parse(text) : null;
 }
 
 export async function authedFetch(path, init = {}, retry = true) {

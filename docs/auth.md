@@ -39,3 +39,36 @@ The UI includes a 60-second resend cooldown to match the recovery-email rate lim
 - Recovery callbacks are removed from the browser URL after successful parsing.
 - Unauthorized Supabase users cannot enter the LMS because database-backed access checks still apply.
 - Public responses do not confirm whether an email address exists.
+
+
+## Authenticator / TOTP MFA
+
+The LMS supports verified TOTP factors through Supabase Auth. Compatible apps include Google Authenticator, Authy, 1Password and other apps that support standard `otpauth://` TOTP credentials.
+
+Enrollment flow:
+
+1. authenticated user opens `account.html`;
+2. LMS requests a new TOTP factor from Supabase Auth;
+3. Supabase returns an unverified factor with QR SVG, secret and authenticator URI;
+4. the user scans the QR (or enters the secret manually);
+5. LMS creates a factor challenge and verifies the 6-digit code;
+6. Supabase returns a new `aal2` session and the factor becomes verified.
+
+Login flow after TOTP is enabled:
+
+1. email + password creates an `aal1` session;
+2. the LMS checks database access flags and detects that a verified factor exists;
+3. learner access remains blocked by RLS until TOTP is verified;
+4. user enters the 6-digit Authenticator code;
+5. successful challenge/verify returns an `aal2` session;
+6. LMS content and Admin access are unlocked.
+
+Authorization is MFA-aware at the database layer. `private.is_allowed_user()` and `private.is_editor()` require `aal2` whenever the current user owns at least one verified MFA factor. The browser UI is therefore not the sole security boundary.
+
+Multiple verified TOTP factors are supported so a user can keep a backup Authenticator on another trusted app/device. The login challenge lets the user select a factor when more than one is present.
+
+Email password recovery does not remove verified MFA factors. Losing all Authenticator access requires an owner/support recovery procedure; users should keep a second trusted factor when practical.
+
+## Phone verification
+
+The Account page reserves a phone identity/status area but does not treat an unverified phone number as a security factor. SMS recovery/MFA remains disabled until a supported SMS provider is intentionally configured.
