@@ -4,8 +4,10 @@ import {
   restGet,
   restInsert,
   restPatch,
+  restRpc,
   createRealtimeClient
 } from './common.js';
+import {examScore} from './score-model.js';
 
 const $=s=>document.querySelector(s);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -16,7 +18,7 @@ const initials=value=>String(value||'U').trim().split(/\s+/).filter(Boolean).map
 let session=null;
 let access=null;
 let subjects=[],chapters=[],lessons=[],exercises=[],attempts=[],progress=[],announcements=[],announcementReads=[];
-let groups=[],memberships=[],chatReads=[],messages=[],profiles=[];
+let groups=[],memberships=[],chatReads=[],messages=[],profiles=[],unreadCounts=[];
 let realtime=null;
 
 function setText(id,value){const el=$(id);if(el)el.textContent=value;}
@@ -32,20 +34,13 @@ function safeTargetFor(level){
   return pass+10;
 }
 function averageRecent(rows,count=5){
-  const list=rows.slice(0,count).map(r=>Number(r.accuracy ?? (Number(r.total_questions)>0?Number(r.score)*100/Number(r.total_questions):NaN))).filter(Number.isFinite);
+  const list=rows.slice(0,count).map(examScore).filter(Number.isFinite);
   return list.length?list.reduce((a,b)=>a+b,0)/list.length:null;
 }
 function unreadState(){
   const readAnnouncements=new Set(announcementReads.map(r=>r.announcement_id));
   const unreadAnnouncements=announcements.filter(a=>!readAnnouncements.has(a.id)).length;
-  const readByGroup=new Map(chatReads.map(r=>[r.group_id,Date.parse(r.last_read_at||0)||0]));
-  const joined=new Set(memberships.map(m=>m.group_id));
-  const unreadByGroup=new Map();
-  for(const m of messages){
-    if(!joined.has(m.group_id) || m.sender_id===session.user.id) continue;
-    const readAt=readByGroup.get(m.group_id)||0;
-    if((Date.parse(m.created_at||0)||0)>readAt) unreadByGroup.set(m.group_id,(unreadByGroup.get(m.group_id)||0)+1);
-  }
+  const unreadByGroup=new Map(unreadCounts.map(r=>[r.group_id,Number(r.unread_count)||0]));
   const chatUnread=[...unreadByGroup.values()].reduce((a,b)=>a+b,0);
   return {unreadAnnouncements,chatUnread,total:unreadAnnouncements+chatUnread,unreadByGroup};
 }
@@ -58,7 +53,7 @@ function renderHeader(){
 function renderHomeTrend(){
   const root=$('#home-mini-trend');
   if(!root)return;
-  const data=[...attempts].slice(0,8).reverse().map(a=>Number(a.accuracy ?? (Number(a.total_questions)>0?Number(a.score)*100/Number(a.total_questions):NaN))).filter(Number.isFinite);
+  const data=[...attempts].slice(0,8).reverse().map(examScore).filter(Number.isFinite);
   if(data.length<2){root.innerHTML='';root.hidden=true;return;}
   root.hidden=false;
   const w=280,h=64,pad=6;
@@ -89,13 +84,15 @@ function renderMetrics(){
   const latest=attempts[0];
   const level=subjects.find(s=>s.id===latest.context_snapshot?.subject_id)?.exam_level || 'certificate';
   const pass=passMarkFor(level),safe=safeTargetFor(level);
-  if(avg>=safe){
-    setText('#home-focus-copy',`Điểm gần đây đang ở vùng ổn định (${fmtPct(avg)}). Ưu tiên bài timed practice và duy trì độ chính xác.`);
-    setText('#home-readiness','Đang ở vùng an toàn');
-    setText('#home-readiness-copy',`Mức nội bộ ≥ ${safe}% tạo khoảng đệm trên pass mark chính thức ${pass}%.`);
+  const latest3=attempts.slice(0,3).map(examScore);
+  const stable=latest3.length===3&&latest3.every(v=>v!=null&&v>=safe);
+  if(stable){
+    setText('#home-focus-copy',`Ba lượt luyện tập gần nhất đều ≥ ${safe}%. Hãy kiểm tra lại bằng mock đúng cấu trúc đề.`);
+    setText('#home-readiness','Xu hướng luyện tập tích cực');
+    setText('#home-readiness-copy','Đây chưa phải dự đoán đỗ kỳ thi ICAEW.');
   }else if(avg>=pass){
     setText('#home-focus-copy',`Bạn đang trên pass mark nhưng khoảng đệm còn mỏng. Ôn lại các chương sai nhiều trước khi tăng độ khó.`);
-    setText('#home-readiness','Đạt ngưỡng pass, chưa ổn định');
+    setText('#home-readiness','Điểm luyện tập trên pass, chưa ổn định');
     setText('#home-readiness-copy',`Điểm gần đây ${fmtPct(avg)}; mục tiêu nội bộ nên hướng tới khoảng ${safe}%.`);
   }else{
     setText('#home-focus-copy',`Điểm gần đây ${fmtPct(avg)} còn dưới pass mark. Ưu tiên sửa lỗ hổng theo chương trước khi làm thêm đề dài.`);
@@ -111,7 +108,8 @@ function renderCatalog(){
     const lessonCount=chs.reduce((n,c)=>n+lessons.filter(l=>l.chapter_id===c.id).length,0);
     const exerciseCount=chs.reduce((n,c)=>n+exercises.filter(e=>e.chapter_id===c.id).length,0);
     const level=subject.exam_level==='advanced'?'Advanced':subject.exam_level==='professional'?'Professional':'Certificate';
-    return `<details class="subject-row subject-tone-${index%3}">
+    const coverVariant=Array.from(String(subject.id)).reduce((sum,ch)=>sum+ch.charCodeAt(0),0)%3;
+    return `<details class="subject-row subject-tone-${coverVariant}">
       <summary>
         <span class="subject-cover-art" aria-hidden="true"></span>
         <span class="subject-summary-copy"><strong>${esc(subject.title)}</strong><small>${esc(level)} · ${chs.length} chương</small></span>
@@ -218,7 +216,7 @@ async function bootstrap(){
   try{
     [
       subjects,chapters,lessons,exercises,attempts,progress,announcements,announcementReads,
-      groups,memberships,chatReads,messages,profiles
+      groups,memberships,chatReads,messages,profiles,unreadCounts
     ]=await Promise.all([
       restGet('subjects','select=*&is_active=eq.true&order=sort_order.asc'),
       restGet('chapters','select=*&is_active=eq.true&order=sort_order.asc'),
@@ -232,7 +230,8 @@ async function bootstrap(){
       restGet('chat_group_members',`select=group_id,user_id,role&user_id=eq.${encodeURIComponent(session.user.id)}`),
       restGet('chat_reads',`select=group_id,last_read_at&user_id=eq.${encodeURIComponent(session.user.id)}`),
       restGet('chat_messages','select=id,group_id,sender_id,body,attachment_name,created_at&order=created_at.desc&limit=250'),
-      restGet('profiles','select=id,display_name')
+      restGet('profiles','select=id,display_name'),
+      restRpc('get_portal_unread_counts')
     ]);
   }catch(error){
     console.error(error);
@@ -252,6 +251,7 @@ async function bootstrap(){
     const table=payload?.data?.table || payload?.table;
     if(table==='chat_messages'){
       messages=await restGet('chat_messages','select=id,group_id,sender_id,body,attachment_name,created_at&order=created_at.desc&limit=250').catch(()=>messages);
+      unreadCounts=await restRpc('get_portal_unread_counts').catch(()=>unreadCounts);
       renderChatPreview();renderMetrics();
     }else if(table==='announcements'){
       announcements=await restGet('announcements','select=*&status=eq.published&order=published_at.desc.nullslast,created_at.desc&limit=20').catch(()=>announcements);
