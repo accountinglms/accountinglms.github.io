@@ -212,4 +212,14 @@ if (!adminHtml.includes('class="toolDetails"')) {
   throw new Error('Admin secondary tools must remain collapsible.');
 }
 
+if (!learnerHtml.includes('<body class="auth-pending">') || !learnerHtml.includes('id="auth-boot"')) {
+  throw new Error('Neutral auth boot state is missing from learner shell.');
+}
+if (!learnerHtml.includes('class="auth-gate hidden"')) {
+  throw new Error('Login gate must remain hidden until auth resolution completes.');
+}
+if (!cloudSync.includes('function finishAuthBoot()') || !cloudSync.includes("document.body.classList.remove('auth-pending')")) {
+  throw new Error('Auth boot state is not resolved by the cloud session layer.');
+}
+
 console.log('Security/static integrity checks passed.');

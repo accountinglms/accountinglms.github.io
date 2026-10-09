@@ -15,6 +15,7 @@
     const pendingSections = new Set();
 
     const gate = document.getElementById('auth-gate');
+    const authBoot = document.getElementById('auth-boot');
     const emailInput = document.getElementById('auth-email');
     const passwordInput = document.getElementById('auth-password');
     const loginBtn = document.getElementById('auth-login-btn');
@@ -125,7 +126,14 @@
         if (cloudLabel) cloudLabel.textContent = next;
         if (cloudDot) cloudDot.classList.toggle('online', !!online);
     }
-    function showGate(show) { gate.classList.toggle('hidden', !show); }
+    function finishAuthBoot() {
+        document.body.classList.remove('auth-pending');
+        if (authBoot) authBoot.classList.add('hidden');
+    }
+    function showGate(show) {
+        finishAuthBoot();
+        gate.classList.toggle('hidden', !show);
+    }
     function saveSession(session) {
         cloudSession = session || null;
         try {

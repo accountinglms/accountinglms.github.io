@@ -18,11 +18,21 @@
 <script src="assets/theme-init.js"></script>
 <link rel="stylesheet" href="assets/learner.css">
 </head>
-<body>
+<body class="auth-pending">
 
+<div class="auth-boot" id="auth-boot" role="status" aria-live="polite" aria-label="Đang mở ICAEW LMS">
+    <div class="auth-boot-card">
+        <img src="icon-512.png" alt="">
+        <div>
+            <strong>ICAEW LMS</strong>
+            <span>Đang mở workspace…</span>
+        </div>
+        <i aria-hidden="true"></i>
+    </div>
+</div>
 
 <!-- Authentication -->
-<div class="auth-gate" id="auth-gate" aria-labelledby="auth-title">
+<div class="auth-gate hidden" id="auth-gate" aria-labelledby="auth-title">
     <div class="auth-shell">
         <section class="auth-showcase" aria-label="ICAEW LMS">
             <div class="auth-showcase-glow auth-showcase-glow-one" aria-hidden="true"></div>
