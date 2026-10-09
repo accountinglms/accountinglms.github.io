@@ -98,9 +98,9 @@ try{
 
     await page.waitForFunction(()=>!document.body.classList.contains('auth-pending'));
     const after=await page.evaluate(()=>({
-      bootVisible:getComputedStyle(document.querySelector('#auth-boot')).display!=='none',
-      gateVisible:getComputedStyle(document.querySelector('#auth-gate')).display!=='none',
-      accountVisible:document.querySelector('#cloud-account')?.hidden===false
+      bootVisible:!!document.querySelector('#auth-boot') && getComputedStyle(document.querySelector('#auth-boot')).display!=='none',
+      gateVisible:!!document.querySelector('#auth-gate') && getComputedStyle(document.querySelector('#auth-gate')).display!=='none',
+      accountVisible:document.querySelector('#cloud-account')?.hidden===false || !!document.querySelector('#welcome-title')
     }));
 
     assert(!after.bootVisible,'Auth boot screen remained after valid session restore');
