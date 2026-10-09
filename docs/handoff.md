@@ -36,4 +36,4 @@ Production URL: `https://accountinglms.github.io/`
 - New canonical frontend: `https://accountinglms.github.io/`
 - GitHub Pages deployment for the new organization repository is passing.
 - PWA icons are present and cached by the service worker.
-- Existing password login and refresh flows are origin-independent at the frontend; email confirmation redirects still depend on Supabase Auth URL configuration.
+- Supabase Auth Site URL was switched to `https://accountinglms.github.io/`; Auth reloaded its configuration successfully after the change.
