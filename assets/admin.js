@@ -77,13 +77,13 @@ async function reload(){
 }
 function renderStructure(){
   const s=$('#subject'),c=$('#chapter'),e=$('#exercise'); const oldS=s.value,oldC=c.value,oldE=e.value;
-  s.innerHTML='<option value="">— Chọn Subject —</option>'+subjects.map(x=>`<option value="${esc(x.id)}">${esc(x.title)}${x.is_active?'':' · Ẩn'}</option>`).join('');
+  s.innerHTML='<option value="">— Chọn môn học —</option>'+subjects.map(x=>`<option value="${esc(x.id)}">${esc(x.title)}${x.is_active?'':' · Ẩn'}</option>`).join('');
   s.value=subjects.some(x=>x.id===oldS)?oldS:'';
   const cs=chapters.filter(x=>x.subject_id===s.value);
-  c.innerHTML='<option value="">— Chọn Chapter —</option>'+cs.map(x=>`<option value="${esc(x.id)}">${esc(x.title)}${x.is_active?'':' · Ẩn'}</option>`).join('');
+  c.innerHTML='<option value="">— Chọn chương —</option>'+cs.map(x=>`<option value="${esc(x.id)}">${esc(x.title)}${x.is_active?'':' · Ẩn'}</option>`).join('');
   c.value=cs.some(x=>x.id===oldC)?oldC:'';
   const es=exercises.filter(x=>x.chapter_id===c.value);
-  e.innerHTML='<option value="">— Chọn Exercise —</option>'+es.map(x=>`<option value="${esc(x.id)}">${esc(x.title)} · ${Number(x.question_count||0)} published${x.is_active?'':' · Ẩn'}</option>`).join('');
+  e.innerHTML='<option value="">— Chọn bài tập —</option>'+es.map(x=>`<option value="${esc(x.id)}">${esc(x.title)} · ${Number(x.question_count||0)} câu${x.is_active?'':' · Ẩn'}</option>`).join('');
   e.value=es.some(x=>x.id===oldE)?oldE:'';
   const sv=subjects.find(x=>x.id===s.value),cv=chapters.find(x=>x.id===c.value),ev=exercises.find(x=>x.id===e.value);
   const bs=$('#toggle-subject'),bc=$('#toggle-chapter'),be=$('#toggle-exercise');
@@ -93,7 +93,7 @@ function renderStructure(){
   be.textContent=ev?.is_active?'Ẩn exercise':'Hiện exercise';
   updateImportTargetUI();
 }
-function renderQuestions(){const id=selected('#exercise');const list=$('#question-list');const qs=questions.filter(q=>q.exercise_id===id).sort((a,b)=>a.sort_order-b.sort_order);if(!id){list.className='empty';list.textContent='Chọn Exercise để xem question bank.';return}if(!qs.length){list.className='empty';list.textContent='Exercise này chưa có câu hỏi trong database.';return}list.className='';list.innerHTML=qs.map((q,i)=>`<article class="questionCard"><div class="meta"><span>Q${i+1}</span><span class="badge">${esc(q.question_type)}</span><span class="badge ${q.status==='published'?'published':'draft'}">${esc(q.status)}</span><span class="badge ${q.verification_status==='verified'?'published':'draft'}">${esc(q.verification_status||'unreviewed')}</span>${q.metadata?.legacy_migrated===true?'<span class="badge">legacy→DB</span>':''}</div><p>${esc(q.prompt)}</p><button class="statusBtn" data-qid="${q.id}" data-status="${q.status}">${q.status==='published'?'Chuyển về Draft':'Publish'}</button></article>`).join('')}
+function renderQuestions(){const id=selected('#exercise');const list=$('#question-list');const qs=questions.filter(q=>q.exercise_id===id).sort((a,b)=>a.sort_order-b.sort_order);if(!id){list.className='empty';list.textContent='Chọn bài tập để xem ngân hàng câu hỏi.';return}if(!qs.length){list.className='empty';list.textContent='Bài tập này chưa có câu hỏi.';return}list.className='';list.innerHTML=qs.map((q,i)=>`<article class="questionCard"><div class="meta"><span>Q${i+1}</span><span class="badge">${esc(q.question_type)}</span><span class="badge ${q.status==='published'?'published':'draft'}">${esc(q.status)}</span><span class="badge ${q.verification_status==='verified'?'published':'draft'}">${esc(q.verification_status||'unreviewed')}</span>${q.metadata?.legacy_migrated===true?'<span class="badge">legacy→DB</span>':''}</div><p>${esc(q.prompt)}</p><button class="statusBtn" data-qid="${q.id}" data-status="${q.status}">${q.status==='published'?'Đưa về bản nháp':'Xuất bản'}</button></article>`).join('')}
 function renderActivity(){const el=$('#audit-list');if(!el)return;if(!audits.length){el.innerHTML='<div class="empty">Chưa có thay đổi mới kể từ khi bật lịch sử.</div>';return}el.innerHTML=audits.map(a=>{const n=a.new_data||{},o=a.old_data||{};const label=n.title||n.prompt||o.title||o.prompt||a.record_id||'';const when=a.changed_at?new Date(a.changed_at).toLocaleString('vi-VN'):'';return `<div class="auditItem"><span class="auditAction">${esc(a.action)}</span><span class="auditTable">${esc(a.table_name)}</span><span class="auditLabel" title="${esc(label)}">${esc(label)}</span><span class="auditMeta">${esc(a.changed_email||'system')}<br>${esc(when)}</span></div>`}).join('')}
 function renderSnapshotMeta(){const el=$('#snapshot-meta');if(!el)return;const s=snapshots[0];if(!s){el.innerHTML='<span>Backup gần nhất</span><code>Chưa có</code>';return}const when=s.created_at?new Date(s.created_at).toLocaleString('vi-VN'):'';el.innerHTML=`<span>Backup gần nhất</span><code>${esc(s.label)} · ${esc(when)}</code>`}
 function parseAnswer(type,raw,opts){if(type==='single'){const n=Number(raw.trim());if(!Number.isInteger(n)||n<1||n>opts.length)throw new Error('Single: nhập số thứ tự đáp án đúng, ví dụ 3.');return n-1}if(type==='multiple'){const v=raw.split(',').map(x=>Number(x.trim()));if(!v.length||v.some(n=>!Number.isInteger(n)||n<1||n>opts.length))throw new Error('Multiple: dùng dạng 1,3.');return [...new Set(v.map(n=>n-1))].sort((a,b)=>a-b)}const v=raw.split(',').map(x=>x.trim().toLowerCase()).filter(Boolean).map(x=>['true','t','đúng','dung'].includes(x)?true:['false','f','sai'].includes(x)?false:null);if(v.length!==opts.length||v.includes(null))throw new Error('T/F: dùng dạng true,false,true đủ số nhận định.');return v}
@@ -145,7 +145,7 @@ function renderRouteSuggestion(result){
   const hasNew=Boolean(result?.subject?.create_new||result?.chapter?.create_new||(currentTargetType()==='questions'&&result?.exercise?.create_new));
   const topics=(result?.detected_topics||[]).filter(Boolean);
   box.classList.remove('hidden');
-  box.innerHTML=`<div class="routeSuggestionHead"><div><strong>${mixed?'⚠ File có nhiều nhóm nội dung':'✨ AI gợi ý nơi lưu'}</strong></div><span class="routeConfidence">${confidence}%</span></div>
+  box.innerHTML=`<div class="routeSuggestionHead"><div><strong>${mixed?'Tài liệu có nhiều nhóm nội dung':'Gợi ý nơi lưu'}</strong></div><span class="routeConfidence">${confidence}%</span></div>
     <div class="routePath">${node('Subject',result?.subject)}${node('Chapter',result?.chapter)}${currentTargetType()==='questions'?node('Exercise',result?.exercise):''}</div>
     ${topics.length?`<div class="routeTopics"><b>Nhận diện:</b> ${topics.map(esc).join(' · ')}</div>`:''}
     ${mixed?'<div class="warning">AI phát hiện file có thể chứa nhiều môn/chủ đề. Không tự áp dụng gợi ý; hãy tách file hoặc chọn đích thủ công trước khi xác nhận.</div>':''}
@@ -217,12 +217,12 @@ $('#ai-route').addEventListener('click',async()=>{
   if(btn.disabled)return;
   const label=btn.textContent;
   btn.disabled=true;
-  btn.textContent='✨ Đang phân loại…';
+  btn.textContent='Đang phân loại…';
   try{
     const file=$('#import-file').files?.[0];
     if(!file)throw new Error('Hãy chọn file trước.');
     if(file.size>4*1024*1024)throw new Error('File vượt quá 4 MB.');
-    notice('Đang đọc file và so khớp với Subject / Chapter hiện có…');
+    notice('Đang đọc tài liệu và đối chiếu với cấu trúc khóa học hiện có…');
     const prepared=await ensurePreparedUpload(file);
     const result=await callAiRoute({storagePath:prepared.storagePath,fileName:file.name,mimeType:file.type,targetType:currentTargetType()});
     renderRouteSuggestion(result);
@@ -232,10 +232,10 @@ $('#ai-route').addEventListener('click',async()=>{
   finally{btn.textContent=label;updateGenerateState()}
 });
 
-$('#question-form').addEventListener('submit',async e=>{e.preventDefault();try{const exercise_id=selected('#exercise');if(!exercise_id)throw new Error('Hãy chọn Exercise trước.');const type=selected('#q-type');const options=$('#q-options').value.split('\n').map(v=>v.trim()).filter(Boolean);if(options.length<2)throw new Error('Cần ít nhất 2 lựa chọn.');const answer=parseAnswer(type,$('#q-answer').value,options);const qs=questions.filter(q=>q.exercise_id===exercise_id);const sort_order=qs.length?Math.max(...qs.map(q=>q.sort_order))+1:0;await restInsert('questions',{exercise_id,question_type:type,prompt:$('#q-prompt').value.trim(),options,correct_answer:answer,required_selections:type==='multiple'?answer.length:type==='tf'?options.length:1,explanation_en:$('#q-en').value.trim()||null,explanation_vi:$('#q-vi').value.trim()||null,practical_example_en:$('#q-example-en').value.trim()||null,practical_example_vi:$('#q-example-vi').value.trim()||null,standard_reference:$('#q-standard-ref').value.trim()||null,verification_status:'unreviewed',verification_note:'Câu hỏi tạo thủ công; chưa chạy kiểm định tự động.',status:selected('#q-status'),sort_order,source_page:null,metadata:{manual_created:true}});e.target.reset();$('#q-options').value='A. \nB. \nC. \nD. ';await reload();notice('Đã lưu question.','ok')}catch(err){notice(err.message,'error')}});
+$('#question-form').addEventListener('submit',async e=>{e.preventDefault();try{const exercise_id=selected('#exercise');if(!exercise_id)throw new Error('Hãy chọn Exercise trước.');const type=selected('#q-type');const options=$('#q-options').value.split('\n').map(v=>v.trim()).filter(Boolean);if(options.length<2)throw new Error('Cần ít nhất 2 lựa chọn.');const answer=parseAnswer(type,$('#q-answer').value,options);const qs=questions.filter(q=>q.exercise_id===exercise_id);const sort_order=qs.length?Math.max(...qs.map(q=>q.sort_order))+1:0;await restInsert('questions',{exercise_id,question_type:type,prompt:$('#q-prompt').value.trim(),options,correct_answer:answer,required_selections:type==='multiple'?answer.length:type==='tf'?options.length:1,explanation_en:$('#q-en').value.trim()||null,explanation_vi:$('#q-vi').value.trim()||null,practical_example_en:$('#q-example-en').value.trim()||null,practical_example_vi:$('#q-example-vi').value.trim()||null,standard_reference:$('#q-standard-ref').value.trim()||null,verification_status:'unreviewed',verification_note:'Câu hỏi tạo thủ công; chưa chạy kiểm định tự động.',status:selected('#q-status'),sort_order,source_page:null,metadata:{manual_created:true}});e.target.reset();$('#q-options').value='A. \nB. \nC. \nD. ';await reload();notice('Đã lưu câu hỏi.','ok')}catch(err){notice(err.message,'error')}});
 $('#question-list').addEventListener('click',async e=>{const b=e.target.closest('[data-qid]');if(!b)return;const next=b.dataset.status==='published'?'draft':'published';const label=next==='draft'?'ẩn câu này khỏi người học':'publish câu này cho người học';if(!confirm('Xác nhận '+label+'?'))return;await restPatch('questions','id=eq.'+encodeURIComponent(b.dataset.qid),{status:next});await reload()});
 
-$('#lesson-form').addEventListener('submit',async e=>{e.preventDefault();try{const chapter_id=selected('#chapter');if(!chapter_id)throw new Error('Hãy chọn Chapter trước.');const title=$('#manual-lesson-title').value.trim();const content_markdown=$('#manual-lesson-content').value.trim();if(!title||!content_markdown)throw new Error('Lesson cần Title và Content.');const session=await ensureSession();const ls=lessons.filter(x=>x.chapter_id===chapter_id);const sort_order=ls.length?Math.max(...ls.map(x=>x.sort_order))+1:0;await restInsert('lessons',{chapter_id,title,summary:$('#manual-lesson-summary').value.trim()||null,content_markdown,content_json:{},source_id:null,status:selected('#manual-lesson-status')||'published',sort_order,created_by:session.user.id,updated_by:session.user.id});e.target.reset();$('#manual-lesson-status').value='published';await reload();notice('Đã lưu Lesson. Mở Thư viện lý thuyết để kiểm tra.','ok')}catch(err){notice(err.message,'error')}});
+$('#lesson-form').addEventListener('submit',async e=>{e.preventDefault();try{const chapter_id=selected('#chapter');if(!chapter_id)throw new Error('Hãy chọn Chapter trước.');const title=$('#manual-lesson-title').value.trim();const content_markdown=$('#manual-lesson-content').value.trim();if(!title||!content_markdown)throw new Error('Lesson cần Title và Content.');const session=await ensureSession();const ls=lessons.filter(x=>x.chapter_id===chapter_id);const sort_order=ls.length?Math.max(...ls.map(x=>x.sort_order))+1:0;await restInsert('lessons',{chapter_id,title,summary:$('#manual-lesson-summary').value.trim()||null,content_markdown,content_json:{},source_id:null,status:selected('#manual-lesson-status')||'published',sort_order,created_by:session.user.id,updated_by:session.user.id});e.target.reset();$('#manual-lesson-status').value='published';await reload();notice('Đã lưu bài học. Mở Thư viện bài học để kiểm tra.','ok')}catch(err){notice(err.message,'error')}});
 
 $('#import-file').addEventListener('change',e=>{
   const f=e.target.files?.[0];
@@ -257,7 +257,7 @@ $('#ai-generate').addEventListener('click',async()=>{
   if(btn.disabled)return;
   const label=btn.textContent;
   btn.disabled=true;
-  btn.textContent='✦ Đang xử lý…';
+  btn.textContent='Đang xử lý…';
   try{
     const f=$('#import-file').files?.[0];
     if(!f)throw new Error('Hãy chọn file trước.');
