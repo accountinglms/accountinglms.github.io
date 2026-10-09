@@ -253,9 +253,11 @@ Deno.serve(async (req: Request) => {
       return json(req, { error: "SOURCE_OWNERSHIP_MISMATCH" }, 403);
     }
 
-    const subjectTitle = safeText(input?.subjectTitle || "unspecified", "subjectTitle", 300, true)!;
-    const chapterTitle = safeText(input?.chapterTitle || "unspecified", "chapterTitle", 300, true)!;
-    const exerciseTitle = safeText(input?.exerciseTitle || "unspecified", "exerciseTitle", 300, true)!;
+    const subjectTitle = safeText(input?.subjectTitle, "subjectTitle", 300, true)!;
+    const chapterTitle = safeText(input?.chapterTitle, "chapterTitle", 300, true)!;
+    const exerciseTitle = targetType === "questions"
+      ? safeText(input?.exerciseTitle, "exerciseTitle", 300, true)!
+      : safeText(input?.exerciseTitle || "", "exerciseTitle", 300, false)!;
 
     const objectPath = storagePath.split("/").map(encodeURIComponent).join("/");
     const fileRes = await fetch(

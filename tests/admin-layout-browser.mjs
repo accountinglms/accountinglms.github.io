@@ -120,7 +120,10 @@ for(const viewport of [
         aiVisible:!!importFile,
         targetVisible:!!document.querySelector('#import-target'),
         generateVisible:!!document.querySelector('#ai-generate'),
-        destinationReady:Boolean(subject?.value && chapter?.value && exercise?.value),
+        destinationBlank:!subject?.value && !chapter?.value && !exercise?.value,
+        routeVisible:!!document.querySelector('#ai-route'),
+        confirmVisible:!!document.querySelector('#confirm-destination'),
+        generateDisabled:document.querySelector('#ai-generate')?.disabled===true,
         manualEditorsPresent:Boolean(qEditor && lessonEditor),
         safetyPresent:Boolean(audit),
         overflow:document.documentElement.scrollWidth>window.innerWidth+1
@@ -129,7 +132,9 @@ for(const viewport of [
 
     assert(result.aiVisible && result.targetVisible && result.generateVisible, `${viewport.name}: AI Import controls missing`);
     assert(result.heroTop < result.libraryTop, `${viewport.name}: AI Import is not above Question Library`);
-    assert(result.destinationReady, `${viewport.name}: destination selectors did not load`);
+    assert(result.destinationBlank, `${viewport.name}: AI Import must not silently choose the first destination`);
+    assert(result.routeVisible && result.confirmVisible, `${viewport.name}: AI routing/confirmation controls missing`);
+    assert(result.generateDisabled, `${viewport.name}: Generate Draft must stay disabled before destination confirmation`);
     assert(result.detailsOpen.every(v=>v===false), `${viewport.name}: secondary tools are not collapsed by default`);
     assert(result.manualEditorsPresent, `${viewport.name}: manual editors were removed`);
     assert(result.safetyPresent, `${viewport.name}: Activity & Safety was removed`);

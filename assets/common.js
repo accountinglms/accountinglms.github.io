@@ -523,6 +523,24 @@ export async function callQuestionTranslate({question, options, target_language=
   };
 }
 
+export async function callAiRoute({storagePath, fileName, mimeType, targetType}) {
+  const session = await ensureSession();
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/icaew-ai-route`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${session.access_token}`,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({ storagePath, fileName, mimeType, targetType })
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { error: text }; }
+  if (!res.ok) throw new Error(data?.error || 'AI chưa phân loại được nơi lưu.');
+  return data;
+}
+
 export async function callAiImport({storagePath, fileName, mimeType, targetType, subjectTitle, chapterTitle, exerciseTitle}) {
   const session = await ensureSession();
   const res = await fetch(`${SUPABASE_URL}/functions/v1/icaew-ai-import`, {

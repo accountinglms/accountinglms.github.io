@@ -42,6 +42,7 @@ jobs:
       - name: Edge Function typecheck
         run: |
           deno check supabase/functions/icaew-ai-import/index.ts
+          deno check supabase/functions/icaew-ai-route/index.ts
           deno check supabase/functions/icaew-question-translate/index.ts
           deno check supabase/functions/icaew-translate/index.ts
 
@@ -104,6 +105,12 @@ jobs:
           BROWSER: ${{ matrix.browser }}
           TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/admin-layout-browser.mjs
+
+      - name: Run Admin AI routing test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/admin-routing-browser.mjs
 
       - name: Run auth boot/no-flash test
         env:

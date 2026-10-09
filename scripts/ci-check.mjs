@@ -22,6 +22,7 @@ const required = [
   'assets/lessons.js',
   'assets/diagnostics.js',
   'supabase/functions/icaew-ai-import/index.ts',
+  'supabase/functions/icaew-ai-route/index.ts',
   'supabase/functions/icaew-question-translate/index.ts',
   'supabase/functions/icaew-translate/index.ts'
 ];
@@ -198,6 +199,29 @@ if (!adminJs.includes('practical_example_en') || !adminJs.includes('standard_ref
 }
 if (!edge.includes('practical_example_en') || !edge.includes('standard_reference') || !edge.includes('Never invent paragraph numbers')) {
   throw new Error('AI Import explanation/example/reference safeguards are missing.');
+}
+
+const routeEdge = fs.readFileSync(path.join(root, 'supabase/functions/icaew-ai-route/index.ts'), 'utf8');
+if (!routeEdge.includes('get_my_access') || !routeEdge.includes('MIXED_SUBJECT_CONTENT')) {
+  throw new Error('AI routing function is missing access or mixed-content safeguards.');
+}
+if (!routeEdge.includes('Do not create or modify database records')) {
+  throw new Error('AI routing must remain suggestion-only on the server.');
+}
+if (!commonJs.includes('callAiRoute') || !commonJs.includes('/functions/v1/icaew-ai-route')) {
+  throw new Error('AI routing client is missing.');
+}
+if (!adminHtml.includes('id="ai-route"') || !adminHtml.includes('id="confirm-destination"')) {
+  throw new Error('Admin routing/confirmation controls are missing.');
+}
+if (!adminHtml.includes('id="quick-add-subject"') || !adminHtml.includes('id="quick-add-chapter"') || !adminHtml.includes('id="quick-add-exercise"')) {
+  throw new Error('Inline destination creation controls are missing.');
+}
+if (!adminJs.includes('destinationConfirmed') || !adminJs.includes('applyRouteSuggestion')) {
+  throw new Error('Admin destination confirmation/routing state is missing.');
+}
+if (!edge.includes('safeText(input?.subjectTitle, "subjectTitle", 300, true)') || edge.includes('subjectTitle || "unspecified"')) {
+  throw new Error('AI Import backend must require an explicit destination.');
 }
 
 const aiImportIndex = adminHtml.indexOf('id="import-file"');
