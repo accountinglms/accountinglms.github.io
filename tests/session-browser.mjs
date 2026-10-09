@@ -33,10 +33,20 @@ function session(token='token-aal2', refresh='refresh-aal2') {
   };
 }
 
+function corsHeaders() {
+  return {
+    'access-control-allow-origin': '*',
+    'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+    'access-control-allow-headers': 'authorization,apikey,content-type,prefer,x-upsert',
+    'access-control-expose-headers': '*'
+  };
+}
+
 function json(route, body, status=200) {
   return route.fulfill({
     status,
     contentType: 'application/json',
+    headers: corsHeaders(),
     body: JSON.stringify(body)
   });
 }
@@ -54,6 +64,10 @@ async function installSupabaseMock(context, opts={}) {
     const path = url.pathname;
     const auth = req.headers()['authorization'] || '';
     const token = auth.replace(/^Bearer\s+/i, '');
+
+    if (req.method() === 'OPTIONS') {
+      return route.fulfill({ status: 204, headers: corsHeaders(), body: '' });
+    }
 
     if (path === '/auth/v1/token' && url.searchParams.get('grant_type') === 'password') {
       return json(route, session('token-aal1', 'refresh-aal1'));
@@ -91,7 +105,7 @@ async function installSupabaseMock(context, opts={}) {
 
     if (path === '/auth/v1/logout') {
       state.logoutScopes.push(url.searchParams.get('scope') || 'global');
-      return route.fulfill({ status: 204, body: '' });
+      return route.fulfill({ status: 204, headers: corsHeaders(), body: '' });
     }
 
     if (path === '/rest/v1/rpc/get_my_access') {
