@@ -1,4 +1,5 @@
 import { ensureSession,getMyAccess,restGet } from './common.js';
+import {examScore,weightedScores,assessmentConfidence} from './score-model.js';
 
 const $=s=>document.querySelector(s);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -12,12 +13,7 @@ let activeSubjectId=null;
 
 function passMark(level){return level==='advanced'?50:55;}
 function safeTarget(level){return passMark(level)+10;}
-function attemptAccuracy(a){
-  const explicit=Number(a.accuracy);
-  if(Number.isFinite(explicit))return explicit;
-  const total=Number(a.total_questions||0),score=Number(a.score||0);
-  return total>0?score*100/total:NaN;
-}
+function attemptAccuracy(a){return examScore(a)??NaN;}
 function attemptSubjectId(a){
   if(a.context_snapshot?.subject_id)return a.context_snapshot.subject_id;
   const ex=exercises.find(e=>e.id===a.exercise_id);
@@ -27,13 +23,7 @@ function attemptSubjectId(a){
 function subjectAttempts(subjectId){
   return attempts.filter(a=>attemptSubjectId(a)===subjectId);
 }
-function recentWeighted(rows,n=5){
-  const list=rows.slice(-n).map(attemptAccuracy).filter(Number.isFinite);
-  if(!list.length)return null;
-  let num=0,den=0;
-  list.forEach((v,i)=>{const w=i+1;num+=v*w;den+=w;});
-  return num/den;
-}
+function recentWeighted(rows,n=5){return weightedScores(rows,n);}
 function stdDev(values){
   if(values.length<2)return 0;
   const mean=values.reduce((a,b)=>a+b,0)/values.length;
@@ -59,7 +49,8 @@ function readiness(subject,rows){
   const deviation=stdDev(values);
   const consistency=clamp(100-deviation*2.5,45,100);
   const score=clamp(recent*.72+coverage*100*.18+consistency*.10,0,100);
-  return {score,recent,coverage:coverage*100,consistency,pass,safe:safeTarget(level)};
+  const confidence=assessmentConfidence({attemptCount:rows.length,coverage:coverage*100,pass,scores:values});
+  return {score,recent,coverage:coverage*100,consistency,pass,safe:safeTarget(level),confidence,attemptCount:rows.length};
 }
 function chapterStats(subjectId,rows){
   const latest=latestByExercise(rows);
@@ -79,7 +70,7 @@ function chapterStats(subjectId,rows){
     const repeatWrong=allForChapter.reduce((sum,a)=>sum+Number(a.wrong_count||0),0);
     result.push({
       chapter:ch,
-      accuracy:answered?correct*100/answered:latestRows.map(attemptAccuracy).filter(Number.isFinite).reduce((a,b)=>a+b,0)/latestRows.length,
+      accuracy:latestRows.reduce((sum,a)=>sum+Number(a.score||0),0)*100/Math.max(1,latestRows.reduce((sum,a)=>sum+Number(a.total_questions||0),0)),
       wrong,attempted:latestRows.length,totalExercises:exIds.length,repeatWrong,starred
     });
   }
@@ -166,7 +157,7 @@ function renderAssessment(subject,rows,rd,stats){
   $('#pass-scale').textContent=`Pass ${rd.pass}%`;
   $('#safe-scale').textContent=`Safe ${rd.safe}%`;
   $('#standard-level').textContent=`ICAEW · ${levelLabel}`;
-  $('#standard-copy').textContent=`Pass mark chính thức: ${rd.pass}%. LMS dùng ${rd.safe}% làm safe target để tạo khoảng đệm khi luyện tập; ${rd.safe}% không phải yêu cầu chính thức của ICAEW.`;
+  $('#standard-copy').textContent=`Pass mark tham chiếu: ${rd.pass}%. Safe target ${rd.safe}% là mục tiêu luyện tập nội bộ. Chỉ số readiness không phải điểm thi, không phải xác suất đỗ và chưa xét đủ dạng bài/trọng số đề thực tế.`;
   if(rd.score==null){
     $('#readiness-score').textContent='—';$('#readiness-label').textContent='Chưa đủ dữ liệu';$('#readiness-fill').style.width='0%';
     $('#recent-average').textContent='—';$('#coverage').textContent='0%';
@@ -179,15 +170,16 @@ function renderAssessment(subject,rows,rd,stats){
   $('#recent-average').textContent=pct(rd.recent);
   $('#coverage').textContent=pct(rd.coverage);
   let label,title,copy;
-  if(rd.recent>=rd.safe&&rd.consistency>=75){label='Ổn định';title='Đang ở vùng an toàn';copy=`Điểm gần đây ${pct(rd.recent)} và độ ổn định tốt. Duy trì timed practice, không cần học lại toàn bộ syllabus.`;}
-  else if(rd.recent>=rd.pass){label='Pass zone';title='Đạt ngưỡng, biên an toàn còn mỏng';copy=`Bạn đang trên pass mark ${rd.pass}%, nhưng chưa nên coi là chắc chắn. Hãy đẩy các chapter yếu lên safe target và giữ điểm qua vài lượt liên tiếp.`;}
-  else if(rd.recent>=rd.pass-10){label='Gần pass';title='Có nền tảng, cần chuyển sang luyện có mục tiêu';copy=`Điểm gần đây ${pct(rd.recent)}. Khoảng cách tới pass mark không lớn; ưu tiên lỗi lặp lại thay vì làm thêm nhiều câu ngẫu nhiên.`;}
+  if(rd.confidence?.safe){label='Luyện tập ổn định';title='3 lượt gần nhất trên mục tiêu LMS';copy=`Điểm gần đây ${pct(rd.recent)}. Đây là tín hiệu tích cực của bài luyện, KHÔNG bảo đảm đỗ kỳ thi ICAEW; hãy tiếp tục mock đúng cấu trúc đề.`;}
+  else if(rd.confidence?.passed){label='Trên ngưỡng luyện tập';title='3 lượt gần nhất đạt pass mark';copy=`Điểm luyện tập gần đây ${pct(rd.recent)}; hãy nâng lên safe target ${rd.safe}% và ôn thêm chapter yếu trước khi làm timed mock.`;}
+  else if(!rd.confidence?.enough){label='Đang thu thập dữ liệu';title='Chưa đủ dữ liệu để đánh giá độ ổn định';copy=`Có ${rd.attemptCount} lượt nộp, độ phủ ${pct(rd.coverage)}. Cần tối thiểu 3 lượt và độ phủ 60% để đánh giá sơ bộ; chỉ số LMS không thay thế mock ICAEW.`;}
+  else if(rd.recent>=rd.pass-10){label='Gần pass';title='Cần luyện có mục tiêu';copy=`Điểm luyện tập gần đây ${pct(rd.recent)}. Ưu tiên lỗi lặp lại, sau đó làm timed mock theo syllabus.`;}
   else{label='Cần củng cố';title='Chưa nên chuyển sang full mock';copy=`Điểm gần đây ${pct(rd.recent)}. Hãy xử lý chapter dưới pass mark trước, rồi mới tăng thời lượng đề tổng hợp.`;}
   $('#readiness-label').textContent=label;$('#assessment-title').textContent=title;$('#assessment-copy').textContent=copy;
   const minutes=estimateStudy(stats,rd.pass,rd.safe);
   $('#study-hours').textContent=minutes?`${(minutes/60).toFixed(minutes%60?1:0)}h`:'—';
   $('#study-sessions').textContent=minutes?String(Math.ceil(minutes/55)):'—';
-  $('#time-copy').textContent=minutes?`Ước tính này cộng thời lượng review + targeted practice cho các chapter đang thiếu điểm. Hãy đánh giá lại sau mỗi 2–3 phiên học.`:'Chưa có dữ liệu để ước tính.';
+  $('#time-copy').textContent=minutes?`Ước lượng theo quy tắc 45–120 phút/chương, KHÔNG phải dự báo thời gian đạt pass. Hãy đánh giá lại sau 2–3 phiên học.`:'Chưa có dữ liệu để ước tính.';
 }
 function render(){
   const subject=subjects.find(s=>s.id===activeSubjectId)||subjects[0];
