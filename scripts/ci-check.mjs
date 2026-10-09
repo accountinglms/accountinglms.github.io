@@ -383,7 +383,7 @@ if(brandedIco.length<100||brandedIco.readUInt16LE(0)!==0||brandedIco.readUInt16L
 const brandManifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.webmanifest'),'utf8'));
 if(!['icon-192.png','icon-512.png'].every(src=>brandManifest.icons.some(icon=>icon.src===src)))throw new Error('PWA branding icons missing.');
 const brandSw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
-if(!brandSw.includes("icaew-lms-github-v46")||!brandSw.includes("'./favicon.ico'"))
+if(!brandSw.includes("icaew-lms-github-v47")||!brandSw.includes("'./favicon.ico'"))
   throw new Error('Brand icons absent from updated PWA cache.');
 
 
