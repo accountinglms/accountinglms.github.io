@@ -7,6 +7,7 @@ import {
   authMfaVerify,
   authMfaUnenroll,
   authSignOut,
+  authUpdatePassword,
   restGet,
   restInsert,
   restPatch
@@ -101,6 +102,24 @@ async function loadProfile() {
   profile = Array.isArray(rows) ? rows[0] || null : null;
 }
 
+function readBrowserData(key) {
+  try{
+    const data=JSON.parse(localStorage.getItem(key)||'null');
+    return data&&typeof data==='object'&&!Array.isArray(data)?data:{};
+  }catch{return {};}
+}
+function updateAccountDataInfo() {
+  const userId=session?.user?.id;
+  if(!userId)return;
+  const local=readBrowserData('accountingLMSProgress_v2:user:'+userId);
+  const old=readBrowserData('accountingLMSProgress_v2');
+  const claimedBy=localStorage.getItem('accountingLMSLegacyClaimedBy_v1');
+  const localCount=Object.keys(local).length;
+  $('#account-data-info').textContent=`Bài tập có dữ liệu trên trình duyệt này: ${localCount}. Dữ liệu Cloud được tải và đồng bộ khi bạn mở mục Làm bài.`;
+  $('#legacy-recovery-panel').classList.toggle('hidden',
+    !Object.keys(old).length||Boolean(claimedBy));
+}
+
 async function refreshAccount() {
   session = await ensureBaseSession();
   access = await getMyAccess(session, true);
@@ -113,11 +132,72 @@ async function refreshAccount() {
   authUser = await authGetUser(session);
   await loadProfile();
   render();
+  updateAccountDataInfo();
   $('#account-auth').classList.add('hidden');
   $('#account-app').classList.remove('hidden');
   notice('Account & Security đã sẵn sàng.', 'ok');
   return true;
 }
+
+$('#account-password-form').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const form=event.currentTarget;
+  const password=$('#account-new-password').value;
+  const confirmPassword=$('#account-confirm-password').value;
+  if(password!==confirmPassword)return notice('Hai lần nhập mật khẩu không trùng nhau.','error');
+  if(password.length<8)return notice('Mật khẩu cần tối thiểu 8 ký tự.','error');
+  const button=form.querySelector('[type=submit]');
+  button.disabled=true;
+  try{
+    await authUpdatePassword(password);
+    form.reset();
+    notice('Mật khẩu đã được cập nhật.','ok');
+  }catch(error){
+    notice('Không đổi được mật khẩu: '+error.message,'error');
+  }finally{button.disabled=false;}
+});
+
+$('#account-recover-legacy').addEventListener('click',()=>{
+  if(!session?.user?.id)return;
+  const userId=session.user.id;
+  const legacyKey='accountingLMSProgress_v2';
+  const scopedKey='accountingLMSProgress_v2:user:'+userId;
+  const claimKey='accountingLMSLegacyClaimedBy_v1';
+  const claimedBy=localStorage.getItem(claimKey);
+  if(claimedBy){
+    notice('Dữ liệu cũ đã được liên kết với một tài khoản. Không tự động sao chép sang tài khoản khác.','error');
+    return;
+  }
+  const confirmation=prompt('Chỉ xác nhận nếu dữ liệu cũ trên trình duyệt này thuộc về bạn. Nhập email tài khoản hiện tại:');
+  if(confirmation===null)return;
+  if(confirmation.trim().toLowerCase()!==String(session.user.email||'').toLowerCase()){
+    notice('Email xác nhận không khớp. Không có dữ liệu nào thay đổi.','error');
+    return;
+  }
+  const archive=readBrowserData(legacyKey);
+  const existing=readBrowserData(scopedKey);
+  const next={...existing};
+  let count=0;
+  for(const [key,value] of Object.entries(archive)){
+    if(!value||typeof value!=='object'||Array.isArray(value))continue;
+    const newer=Number(value.updatedAt)||0;
+    const previous=Number(existing[key]?.updatedAt)||0;
+    if(newer<=previous)continue;
+    if(!['isAnswered','bookmarks','draftSelections','answersStatus'].some(k=>Array.isArray(value[k])&&value[k].length))continue;
+    next[key]=value;
+    count++;
+  }
+  if(!count){
+    notice('Không có tiến độ cũ mới hơn dữ liệu của tài khoản hiện tại. Bản lưu cũ được giữ nguyên.','ok');
+    return;
+  }
+  try{
+    localStorage.setItem(scopedKey,JSON.stringify(next));
+    localStorage.setItem(claimKey,userId);
+    updateAccountDataInfo();
+    notice(`Đã đưa ${count} bài tập vào dữ liệu cục bộ của tài khoản. Hãy mở Làm bài khi có mạng để đồng bộ lên Cloud.`,'ok');
+  }catch(error){notice('Không lưu được dữ liệu cũ trên trình duyệt: '+error.message,'error');}
+});
 
 $('#profile-form').addEventListener('submit', async event => {
   event.preventDefault();
