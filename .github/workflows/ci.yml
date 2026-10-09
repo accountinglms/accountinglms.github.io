@@ -28,6 +28,7 @@ jobs:
           node --check assets/theme-init.js
           node --check assets/learner-core.js
           node --check assets/cloud-sync.js
+          node --check assets/calculator.js
           node --check assets/translation.js
           node --check assets/common.js
           node --check assets/account.js
@@ -124,6 +125,12 @@ jobs:
           BROWSER: ${{ matrix.browser }}
           TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/attempt-history-browser.mjs
+
+      - name: Run integrated calculator browser test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/calculator-browser.mjs
 
       - name: Stop local LMS
         if: always()
