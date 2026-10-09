@@ -237,8 +237,113 @@ $('#question-list').addEventListener('click',async e=>{const b=e.target.closest(
 
 $('#lesson-form').addEventListener('submit',async e=>{e.preventDefault();try{const chapter_id=selected('#chapter');if(!chapter_id)throw new Error('Hãy chọn Chapter trước.');const title=$('#manual-lesson-title').value.trim();const content_markdown=$('#manual-lesson-content').value.trim();if(!title||!content_markdown)throw new Error('Lesson cần Title và Content.');const session=await ensureSession();const ls=lessons.filter(x=>x.chapter_id===chapter_id);const sort_order=ls.length?Math.max(...ls.map(x=>x.sort_order))+1:0;await restInsert('lessons',{chapter_id,title,summary:$('#manual-lesson-summary').value.trim()||null,content_markdown,content_json:{},source_id:null,status:selected('#manual-lesson-status')||'published',sort_order,created_by:session.user.id,updated_by:session.user.id});e.target.reset();$('#manual-lesson-status').value='published';await reload();notice('Đã lưu Lesson. Mở Thư viện lý thuyết để kiểm tra.','ok')}catch(err){notice(err.message,'error')}});
 
-$('#import-file').addEventListener('change',e=>{const f=e.target.files?.[0];$('#import-file-name').textContent=f?f.name:'Chọn ảnh, PDF hoặc TXT';$('#import-file-meta').textContent=f?(f.size/1024/1024).toFixed(2)+' MB':'Tối đa 4 MB mỗi file'});
-$('#ai-generate').addEventListener('click',async()=>{const btn=$('#ai-generate');if(btn.disabled)return;const label=btn.textContent;btn.disabled=true;btn.textContent='✦ Đang xử lý…';try{const f=$('#import-file').files?.[0];if(!f)throw new Error('Hãy chọn file trước.');if(f.size>4*1024*1024)throw new Error('File vượt quá 4 MB.');notice('Đang upload và xử lý AI…');const up=await uploadImportFile(f);const session=await ensureSession();const source=(await restInsert('content_sources',{source_type:f.type==='application/pdf'?'pdf':f.type==='text/plain'?'text':'image',file_name:f.name,mime_type:f.type,storage_key:up.storagePath,page_count:null,metadata:{},created_by:session.user.id}))[0];const subject=subjects.find(x=>x.id===selected('#subject'));const chapter=chapters.find(x=>x.id===selected('#chapter'));const exercise=exercises.find(x=>x.id===selected('#exercise'));const ai=await callAiImport({storagePath:up.storagePath,fileName:f.name,mimeType:f.type,targetType:selected('#import-target'),subjectTitle:subject?.title||'',chapterTitle:chapter?.title||'',exerciseTitle:exercise?.title||''});const draft=(await restInsert('import_drafts',{title:ai.title||f.name,source_id:source.id,target_type:selected('#import-target'),payload:{questions:ai.questions||[],lesson:ai.lesson||null,warnings:ai.warnings||[]},status:'draft',model_name:ai.model_name||'configured-provider',created_by:session.user.id,updated_by:session.user.id}))[0];importSourceId=source.id;importDraftId=draft.id;importedQuestions=ai.questions||[];importedLesson=ai.lesson||null;renderReview(ai.warnings||[]);notice('AI đã tạo draft. Hãy review trước khi publish.','ok')}catch(err){notice(err.message,'error')}finally{btn.disabled=false;btn.textContent=label}});
+$('#import-file').addEventListener('change',e=>{
+  const f=e.target.files?.[0];
+  $('#import-file-name').textContent=f?f.name:'Chọn ảnh, PDF hoặc TXT';
+  $('#import-file-meta').textContent=f?(f.size/1024/1024).toFixed(2)+' MB':'Tối đa 4 MB mỗi file';
+  preparedImport=null;
+  importSourceId=null;
+  importDraftId=null;
+  importedQuestions=[];
+  importedLesson=null;
+  clearRouteSuggestion();
+  $('#review-area').classList.add('hidden');
+  $('#import-warning').classList.add('hidden');
+  invalidateDestination(f?'File mới đã chọn. Hãy để AI gợi ý hoặc chọn nơi lưu thủ công.':'');
+  updateGenerateState();
+});
+$('#ai-generate').addEventListener('click',async()=>{
+  const btn=$('#ai-generate');
+  if(btn.disabled)return;
+  const label=btn.textContent;
+  btn.disabled=true;
+  btn.textContent='✦ Đang xử lý…';
+  try{
+    const f=$('#import-file').files?.[0];
+    if(!f)throw new Error('Hãy chọn file trước.');
+    if(f.size>4*1024*1024)throw new Error('File vượt quá 4 MB.');
+    if(!destinationComplete())throw new Error(currentTargetType()==='lesson'?'Hãy chọn Subject và Chapter đích.':'Hãy chọn Subject, Chapter và Exercise đích.');
+    if(!destinationConfirmed||destinationSignature!==currentDestinationSignature())throw new Error('Nơi lưu chưa được xác nhận hoặc vừa thay đổi. Hãy bấm “Xác nhận nơi lưu”.');
+
+    const subject=subjects.find(x=>x.id===selected('#subject'));
+    const chapter=chapters.find(x=>x.id===selected('#chapter'));
+    const exercise=currentTargetType()==='questions'?exercises.find(x=>x.id===selected('#exercise')):null;
+    if(!subject||!chapter||(currentTargetType()==='questions'&&!exercise))throw new Error('Đích lưu không còn hợp lệ. Hãy chọn lại.');
+
+    notice('Đang xử lý AI theo nơi lưu đã xác nhận…');
+    const prepared=await ensurePreparedUpload(f);
+    const session=await ensureSession();
+
+    let sourceId=prepared.sourceId;
+    if(!sourceId){
+      const source=(await restInsert('content_sources',{
+        source_type:f.type==='application/pdf'?'pdf':f.type==='text/plain'?'text':'image',
+        file_name:f.name,
+        mime_type:f.type,
+        storage_key:prepared.storagePath,
+        page_count:null,
+        metadata:{
+          routed:true,
+          destination:{
+            target_type:currentTargetType(),
+            subject_id:subject.id,
+            chapter_id:chapter.id,
+            exercise_id:exercise?.id||null
+          },
+          route_confidence:routeSuggestion?.confidence??null,
+          mixed_subjects:routeSuggestion?.mixed_subjects??false
+        },
+        created_by:session.user.id
+      }))[0];
+      sourceId=source.id;
+      prepared.sourceId=sourceId;
+    }
+
+    const ai=await callAiImport({
+      storagePath:prepared.storagePath,
+      fileName:f.name,
+      mimeType:f.type,
+      targetType:currentTargetType(),
+      subjectTitle:subject.title,
+      chapterTitle:chapter.title,
+      exerciseTitle:exercise?.title||''
+    });
+
+    const destination={
+      target_type:currentTargetType(),
+      subject_id:subject.id,
+      subject_title:subject.title,
+      chapter_id:chapter.id,
+      chapter_title:chapter.title,
+      exercise_id:exercise?.id||null,
+      exercise_title:exercise?.title||null
+    };
+    const draft=(await restInsert('import_drafts',{
+      title:ai.title||f.name,
+      source_id:sourceId,
+      target_type:currentTargetType(),
+      payload:{
+        questions:ai.questions||[],
+        lesson:ai.lesson||null,
+        warnings:ai.warnings||[],
+        destination,
+        routing:routeSuggestion||null
+      },
+      status:'draft',
+      model_name:ai.model_name||'configured-provider',
+      created_by:session.user.id,
+      updated_by:session.user.id
+    }))[0];
+
+    importSourceId=sourceId;
+    importDraftId=draft.id;
+    importedQuestions=ai.questions||[];
+    importedLesson=ai.lesson||null;
+    renderReview(ai.warnings||[]);
+    notice('AI đã tạo draft theo nơi lưu đã xác nhận. Hãy review trước khi publish.','ok');
+  }catch(err){notice(err.message,'error')}
+  finally{btn.textContent=label;updateGenerateState()}
+});
 function renderReview(warnings){const w=$('#import-warning');w.classList.toggle('hidden',!warnings.length);w.textContent=warnings.join(' · ');const area=$('#review-area');area.classList.remove('hidden');let html='';if(importedQuestions.length){const mismatch=warnings.includes('SOURCE_CONTEXT_MISMATCH');html+=`<div class="reviewHead"><div><strong>Question Draft</strong><div style="color:#748a9c;font-size:.75rem">${importedQuestions.length} câu · chưa publish</div></div><button id="publish-imported" class="primary" ${mismatch?'disabled title="Nguồn không khớp môn/chapter/exercise đang chọn"':''}>${mismatch?'Không thể publish · sai ngữ cảnh':'Publish toàn bộ câu đã review'}</button></div>`+importedQuestions.map((q,i)=>`<article class="importCard"><div class="meta"><span>Q${i+1}</span><span class="badge">${esc(q.question_type)}</span><span class="badge ${Number(q.confidence||0)>=.8?'published':'draft'}">${Math.round(Number(q.confidence||0)*100)}% confidence</span><span class="badge ${q.verification_status==='verified'?'published':'draft'}">${esc(q.verification_status||'needs_review')}</span></div><label class="field"><span>Question</span><textarea data-i="${i}" data-k="prompt" rows="3">${esc(q.prompt)}</textarea></label><label class="field"><span>Options</span><textarea data-i="${i}" data-k="options" rows="5">${esc((q.options||[]).join('\n'))}</textarea></label><div class="answer"><span>Đáp án AI</span><code>${esc(JSON.stringify(q.correct_answer))}</code></div><div class="grid2"><label class="field"><span>Explanation EN</span><textarea data-i="${i}" data-k="explanation_en" rows="4">${esc(q.explanation_en||'')}</textarea></label><label class="field"><span>Explanation VI</span><textarea data-i="${i}" data-k="explanation_vi" rows="4">${esc(q.explanation_vi||'')}</textarea></label></div><div class="grid2"><label class="field"><span>Practical Example EN</span><textarea data-i="${i}" data-k="practical_example_en" rows="4">${esc(q.practical_example_en||'')}</textarea></label><label class="field"><span>Ví dụ thực tế VI</span><textarea data-i="${i}" data-k="practical_example_vi" rows="4">${esc(q.practical_example_vi||'')}</textarea></label></div><label class="field"><span>Standard reference</span><input data-i="${i}" data-k="standard_reference" value="${esc(q.standard_reference||'')}"></label>${q.verification_note?`<div class="warning"><strong>Verification:</strong> ${esc(q.verification_note)}</div>`:''}${q.review_note?`<div class="warning"><strong>AI note:</strong> ${esc(q.review_note)}</div>`:''}</article>`).join('')}
 if(importedLesson){html+=`<div class="reviewHead"><div><strong>Lesson Draft</strong></div><button id="publish-lesson" class="primary">Publish Lesson</button></div><label class="field"><span>Title</span><input id="lesson-title" value="${esc(importedLesson.title||'')}"></label><label class="field"><span>Summary</span><textarea id="lesson-summary" rows="3">${esc(importedLesson.summary||'')}</textarea></label><label class="field"><span>Original / source content</span><textarea id="lesson-content" rows="14">${esc(importedLesson.content_markdown||'')}</textarea></label><label class="field"><span>Nội dung VI</span><textarea id="lesson-content-vi" rows="14">${esc(importedLesson.content_markdown_vi||'')}</textarea></label>${importedLesson.verification_note?`<div class="warning"><strong>Verification:</strong> ${esc(importedLesson.verification_note)}</div>`:''}`}area.innerHTML=html}
 $('#review-area').addEventListener('input',e=>{const el=e.target;if(el.dataset?.i==null)return;const i=Number(el.dataset.i),k=el.dataset.k;if(k==='options')importedQuestions[i].options=el.value.split('\n').map(v=>v.trim()).filter(Boolean);else importedQuestions[i][k]=el.value});
