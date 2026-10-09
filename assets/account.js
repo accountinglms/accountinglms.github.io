@@ -137,7 +137,8 @@ $('#start-totp').addEventListener('click', async () => {
   const button = $('#start-totp');
   button.disabled = true;
   try {
-    const label = 'Authenticator ' + new Date().toLocaleDateString('vi-VN');
+    const now = new Date();
+    const label = 'Authenticator ' + now.toISOString().replace(/[:.]/g,'-') + '-' + Math.random().toString(36).slice(2,6).toUpperCase();
     pendingFactor = await authMfaEnrollTotp(label);
     if (!pendingFactor?.id || !pendingFactor?.totp?.qr_code) throw new Error('Supabase không trả về QR setup.');
 
