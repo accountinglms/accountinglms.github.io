@@ -65,6 +65,14 @@ async function installMock(context){
     if(method==='OPTIONS')return route.fulfill({status:204,headers:cors(),body:''});
     if(path==='/auth/v1/user')return json(route,user);
     if(path==='/rest/v1/rpc/get_my_access')return json(route,{allowed:true,editor:true,role:'owner',mfa_required:false,mfa_satisfied:true,aal:'aal2'});
+    if(path==='/rest/v1/rpc/get_portal_unread_counts'){
+      const rows=state.memberships.filter(m=>m.user_id===user.id).map(m=>{
+        const read=state.reads.find(x=>x.group_id===m.group_id&&x.user_id===user.id)?.last_read_at||'1970-01-01T00:00:00Z';
+        const unread=state.messages.filter(msg=>msg.group_id===m.group_id&&msg.sender_id!==user.id&&msg.created_at>read&&!msg.deleted_at).length;
+        return {group_id:m.group_id,unread_count:unread};
+      });
+      return json(route,rows);
+    }
 
     if(path.startsWith('/storage/v1/object/chat-files/')){
       state.mutations.file++;
@@ -250,7 +258,7 @@ async function testProgress(browser){
   assert((await page.locator('#trend-chart .chart-dot').count())===3,'Trend graph should contain three attempts');
   assert((await page.locator('#weak-list .weak-row').count())===2,'Weakness analysis did not cover both chapters');
   assert((await page.locator('#plan-list .plan-step').count())>=2,'Action plan did not render');
-  assert((await page.textContent('#standard-copy')).includes('không phải yêu cầu chính thức'),'Safe target disclaimer is missing');
+  assert((await page.textContent('#standard-copy')).includes('không phải điểm thi'),'Readiness must be distinguished from real exam score');
   const chartStroke=await page.locator('#trend-chart .chart-line').evaluate(el=>getComputedStyle(el).stroke);
   assert(chartStroke && chartStroke!=='none','Progress chart lost its academic-theme data styling');
   await context.close();
