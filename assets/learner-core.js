@@ -690,6 +690,7 @@
 
     function toLegacyQuestion(row) {
         return {
+            questionId: row.id || null,
             q: row.prompt || '',
             type: row.question_type || 'single',
             options: Array.isArray(row.options) ? row.options : [],
@@ -785,6 +786,15 @@
     const STORAGE_KEY = 'accountingLMSProgress_v2'; // keep V2 key so existing progress migrates forward
     const UI_PREF_KEY = 'accountingLMSUiPrefs_v3';
 
+    function makeAttemptRunId() {
+        if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, ch => {
+            const r = Math.random() * 16 | 0;
+            const v = ch === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
     function createEmptySectionState(length) {
         return {
             answersStatus: new Array(length).fill(null),
@@ -793,8 +803,18 @@
             userSelections: new Array(length).fill(null),
             draftSelections: new Array(length).fill(null),
             score: 0,
-            lastQuestion: 0
+            lastQuestion: 0,
+            runId: null,
+            startedAt: null,
+            attemptRecorded: false,
+            attemptRecording: false
         };
+    }
+
+    function ensureAttemptRun(state) {
+        if (!state) return;
+        if (!state.runId) state.runId = makeAttemptRunId();
+        if (!state.startedAt) state.startedAt = Date.now();
     }
 
     function loadJSON(key, fallback = {}) {
@@ -888,6 +908,10 @@
         });
         normalized.lastQuestion = Math.min(Math.max(Number(saved.lastQuestion) || 0, 0), Math.max(length - 1, 0));
         normalized.score = normalized.answersStatus.filter(x => x === 'correct').length;
+        normalized.runId = typeof saved.runId === 'string' && saved.runId ? saved.runId : null;
+        normalized.startedAt = Number(saved.startedAt || 0) || null;
+        normalized.attemptRecorded = saved.attemptRecorded === true;
+        normalized.attemptRecording = false;
         return normalized;
     }
 
@@ -983,6 +1007,43 @@
     }
     navToggleBtn?.addEventListener('click', () => { navGridContainer.dataset.mobileTouched = '1'; });
     mobileMedia.addEventListener?.('change', syncResponsiveShell);
+
+    const attemptSummaryByExercise = new Map();
+
+    window.lmsSetAttemptSummaries = rows => {
+        attemptSummaryByExercise.clear();
+        const ordered = Array.isArray(rows) ? rows.slice().sort(
+            (a,b) => Date.parse(b.completed_at || 0) - Date.parse(a.completed_at || 0)
+        ) : [];
+        ordered.forEach(row => {
+            const id = row?.exercise_id;
+            if (!id) return;
+            let summary = attemptSummaryByExercise.get(id);
+            const pct = Number(row.total_questions) > 0 ? Number(row.score || 0) / Number(row.total_questions) : 0;
+            if (!summary) {
+                summary = { latest: row, best: row, count: 0 };
+                attemptSummaryByExercise.set(id, summary);
+            }
+            summary.count += 1;
+            const bestPct = Number(summary.best?.total_questions) > 0
+                ? Number(summary.best.score || 0) / Number(summary.best.total_questions)
+                : -1;
+            if (pct > bestPct) summary.best = row;
+        });
+        updateAllSidebarScores();
+    };
+
+    window.addEventListener('lms:attempt-summary-updated', event => {
+        const row = event.detail;
+        if (!row?.exercise_id) return;
+        const current = [];
+        attemptSummaryByExercise.forEach(summary => {
+            if (summary?.latest) current.push(summary.latest);
+            if (summary?.best && summary.best.id !== summary.latest?.id) current.push(summary.best);
+        });
+        current.push(row);
+        window.lmsSetAttemptSummaries(current);
+    });
 
     // Sidebar — three-level hierarchy: Subject → Chapter → Exercise
     function initSidebar() {
@@ -1081,16 +1142,32 @@
         if (!item || !state || !total) return;
         const answered = state.isAnswered.filter(Boolean).length;
         const correct = state.answersStatus.filter(x => x === 'correct').length;
+        const currentCompleted = answered === total;
+        const summary = attemptSummaryByExercise.get(secId);
+        const latest = summary?.latest || null;
+        const displayScore = currentCompleted
+            ? { score: correct, total_questions: total }
+            : latest;
         const badge = item.querySelector('.section-score-badge');
-        const completed = answered === total;
-        item.classList.toggle('completed', completed);
-        item.classList.toggle('perfect', completed && correct === total);
-        item.classList.toggle('low-score', completed && (correct / total) < 0.7);
+        const hasResult = Boolean(displayScore && Number(displayScore.total_questions) > 0);
+        const displayPct = hasResult ? Number(displayScore.score || 0) / Number(displayScore.total_questions) : 0;
+
+        item.classList.toggle('completed', hasResult);
+        item.classList.toggle('historical-score', !currentCompleted && Boolean(latest));
+        item.classList.toggle('perfect', hasResult && displayPct === 1);
+        item.classList.toggle('low-score', hasResult && displayPct < 0.7);
+
         if (badge) {
-            badge.textContent = completed ? `${correct}/${total}` : '';
-            badge.title = completed ? `Điểm: ${correct}/${total} (${Math.round(correct / total * 100)}%)` : '';
+            badge.textContent = hasResult ? `${displayScore.score}/${displayScore.total_questions}` : '';
+            if (summary?.latest) {
+                const best = summary.best || summary.latest;
+                badge.title = `Gần nhất: ${summary.latest.score}/${summary.latest.total_questions} · Tốt nhất: ${best.score}/${best.total_questions} · ${summary.count} lượt`;
+            } else {
+                badge.title = currentCompleted ? `Điểm: ${correct}/${total} (${Math.round(correct / total * 100)}%)` : '';
+            }
         }
-        item.setAttribute('aria-label', completed ? `${item.querySelector('.section-label')?.textContent || ''}. Điểm ${correct} trên ${total}.` : (item.querySelector('.section-label')?.textContent || ''));
+        const label = item.querySelector('.section-label')?.textContent || '';
+        item.setAttribute('aria-label', hasResult ? `${label}. Điểm gần nhất ${displayScore.score} trên ${displayScore.total_questions}.` : label);
     }
 
     function updateAllSidebarScores() {
@@ -1338,15 +1415,92 @@
     }
 
 
-    function getActiveStudyContext() {
+    function getActiveStudyContextObject() {
         for (const subject of lmsData) {
             for (const chapter of subject.chapters || []) {
                 const section = (chapter.sections || []).find(item => item.id === activeSectionId);
-                if (section) return [subject.title, chapter.title, section.title].filter(Boolean).join(' · ');
+                if (section) {
+                    return {
+                        subject_id: subject.id,
+                        subject_title: subject.title,
+                        chapter_id: chapter.id,
+                        chapter_title: chapter.title,
+                        exercise_id: section.id,
+                        exercise_title: section.title
+                    };
+                }
             }
         }
-        return '';
+        return {};
     }
+
+    function getActiveStudyContext() {
+        const context = getActiveStudyContextObject();
+        return [context.subject_title, context.chapter_title, context.exercise_title].filter(Boolean).join(' · ');
+    }
+
+    function buildAttemptSnapshot(state) {
+        return (activeSectionData || []).map((question, index) => ({
+            index,
+            question_id: question.questionId || null,
+            type: question.type || 'single',
+            prompt: safePlainText(question.q),
+            options: Array.isArray(question.options) ? question.options.map(safePlainText) : [],
+            correct_answer: cloneSelection(question.answer),
+            required_selections: Number(question.required || 1),
+            selected_answer: cloneSelection(state.userSelections[index]),
+            status: state.answersStatus[index] || 'unanswered',
+            bookmarked: Boolean(state.bookmarks[index]),
+            standard_reference: safePlainText(question.standardReference || '')
+        }));
+    }
+
+    function queueAttemptRecord(state, metrics) {
+        if (!state || state.attemptRecorded || state.attemptRecording || !activeSectionId) return;
+        ensureAttemptRun(state);
+        state.attemptRecording = true;
+        saveProgress();
+        const finishedAt = Date.now();
+        const startedAt = Number(state.startedAt || finishedAt);
+        window.dispatchEvent(new CustomEvent('lms:attempt-submitted', {
+            detail: {
+                exercise_id: activeSectionId,
+                run_id: state.runId,
+                started_at: new Date(startedAt).toISOString(),
+                score: metrics.correct,
+                total_questions: metrics.total,
+                correct_count: metrics.correct,
+                wrong_count: metrics.wrong,
+                unanswered_count: metrics.unanswered,
+                bookmarked_count: metrics.bookmarks,
+                duration_seconds: Math.max(0, Math.round((finishedAt - startedAt) / 1000)),
+                answers_status: state.answersStatus.slice(),
+                selected_answers: state.userSelections.map(cloneSelection),
+                bookmarks: state.bookmarks.slice(),
+                question_snapshot: buildAttemptSnapshot(state),
+                context_snapshot: getActiveStudyContextObject(),
+                submitted_from: /iphone|ipad|ipod/i.test(navigator.userAgent) ? 'ios-web' : 'web'
+            }
+        }));
+    }
+
+    window.addEventListener('lms:attempt-saved', event => {
+        const detail = event.detail || {};
+        const state = progressStore[detail.exercise_id];
+        if (!state || state.runId !== detail.run_id) return;
+        state.attemptRecorded = true;
+        state.attemptRecording = false;
+        saveProgress();
+        updateSidebarScore(detail.exercise_id, sectionLength(detail.exercise_id));
+    });
+
+    window.addEventListener('lms:attempt-save-failed', event => {
+        const detail = event.detail || {};
+        const state = progressStore[detail.exercise_id];
+        if (!state || state.runId !== detail.run_id) return;
+        state.attemptRecording = false;
+        saveProgress();
+    });
 
     window.getQuestionTranslationSource = () => {
         const q = activeSectionData?.[currentQuestion];
@@ -1809,6 +1963,8 @@
 
         const percent = total ? Math.round((correct / total) * 100) : 0;
         const accuracy = answered ? Math.round((correct / answered) * 100) : 0;
+        queueAttemptRecord(state, { total, correct, wrong, unanswered, bookmarks });
+
         const message = percent === 100
             ? 'Tuyệt vời! Bạn nắm rất vững phần này.'
             : percent >= 70
@@ -1831,6 +1987,7 @@
                     ${wrong ? '<button class="submit-btn" style="display:inline-block;width:auto;background:#c62828;" type="button" onclick="startReview(\'wrong\')">Ôn lại câu sai</button>' : ''}
                     ${bookmarks ? '<button class="utility-btn" type="button" onclick="startReview(\'bookmarked\')">Xem câu đánh dấu</button>' : ''}
                     ${unanswered ? '<button class="utility-btn" type="button" onclick="continueUnanswered()">Làm câu chưa làm</button>' : ''}
+                    <a class="utility-btn history-result-link" href="history.html?exercise=${encodeURIComponent(activeSectionId)}">🕘 Lịch sử làm bài</a>
                     <button class="utility-btn danger-btn" type="button" onclick="resetSection()">Làm lại phần này</button>
                 </div>
             </div>`;
@@ -1856,7 +2013,7 @@
     }
 
     function resetSection() {
-        if (!confirm('Làm lại phần này sẽ xóa toàn bộ đáp án, điểm và bookmark của section hiện tại. Tiếp tục?')) return;
+        if (!confirm('Bắt đầu lượt làm mới? Kết quả hiện tại đã được lưu trong Lịch sử làm bài; đáp án và bookmark của lượt đang hiển thị sẽ được làm mới.')) return;
         progressStore[activeSectionId] = createEmptySectionState(activeSectionData.length);
         currentQuestion = 0;
         navFilter = 'all';
