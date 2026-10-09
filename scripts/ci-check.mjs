@@ -106,6 +106,21 @@ const cloudSync = fs.readFileSync(path.join(root, 'assets/cloud-sync.js'), 'utf8
 if (!cloudSync.includes('loadDatabaseCatalog')) {
   throw new Error('Database catalog loading is missing from cloud data layer.');
 }
+
+const learnerCore = fs.readFileSync(path.join(root, 'assets/learner-core.js'), 'utf8');
+if (!learnerCore.includes('practical_example_en') || !learnerCore.includes('practical-example-card') || !learnerCore.includes('standard_reference')) {
+  throw new Error('Audited explanation/practical-example rendering is incomplete.');
+}
+if (!cloudSync.includes('CATALOG_CACHE_KEY')) {
+  throw new Error('Latest database catalog is not cached for offline fallback.');
+}
+const adminJs = fs.readFileSync(path.join(root, 'assets/admin.js'), 'utf8');
+if (!adminJs.includes('verification_status') || !adminJs.includes('practical_example_en')) {
+  throw new Error('Admin import workflow is missing verification/example persistence.');
+}
+if (!edge.includes('google_search') || !edge.includes('verification_status') || !edge.includes('practical_example_en')) {
+  throw new Error('AI import function is missing grounded verification/example generation.');
+}
 if (!cloudSync.includes('/auth/v1/recover')) {
   throw new Error('Password recovery endpoint missing from auth data layer.');
 }
