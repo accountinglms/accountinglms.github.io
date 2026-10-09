@@ -37,6 +37,9 @@ jobs:
           node --check assets/lessons.js
           node --check assets/diagnostics.js
           node --check assets/history.js
+          node --check assets/home.js
+          node --check assets/community.js
+          node --check assets/progress.js
 
       - uses: denoland/setup-deno@v2
         with:
@@ -56,6 +59,9 @@ jobs:
           trap "kill $SERVER_PID" EXIT
           sleep 1
           curl --fail --silent http://127.0.0.1:4173/ >/dev/null
+          curl --fail --silent http://127.0.0.1:4173/home.html >/dev/null
+          curl --fail --silent http://127.0.0.1:4173/community.html >/dev/null
+          curl --fail --silent http://127.0.0.1:4173/progress.html >/dev/null
           curl --fail --silent http://127.0.0.1:4173/account.html >/dev/null
           curl --fail --silent http://127.0.0.1:4173/admin.html >/dev/null
           curl --fail --silent http://127.0.0.1:4173/lessons.html >/dev/null
@@ -132,6 +138,12 @@ jobs:
           BROWSER: ${{ matrix.browser }}
           TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/calculator-browser.mjs
+
+      - name: Run member portal browser test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/portal-browser.mjs
 
       - name: Stop local LMS
         if: always()
