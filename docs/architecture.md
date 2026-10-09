@@ -3,10 +3,10 @@
 ```text
 GitHub
 ├── Repository (source of truth)
-└── GitHub Actions
+└── GitHub Pages
        │
        ▼
-GitHub Pages
+Production site
 ├── index.html        Quiz LMS / PWA
 ├── admin.html        Admin CMS
 └── lessons.html      Theory reader
