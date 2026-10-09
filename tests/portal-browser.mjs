@@ -204,7 +204,8 @@ async function testCommunity(browser){
   const {context,page,state}=await newPortalPage(browser);
   await page.goto(baseURL+'/community.html',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.querySelector('#room-title')?.textContent?.includes('General'));
-  assert((await page.textContent('#global-notification-count'))==='2','Community unread bell badge is incorrect');
+  await page.waitForFunction(()=>document.querySelector('#global-notification-count')?.textContent==='1');
+  assert((await page.textContent('#global-notification-count'))==='1','Opening the active chat should clear its unread count while preserving admin notifications');
   assert((await page.textContent('#message-stream')).includes('Ai đang ôn adjustments?'),'Existing group message is missing');
 
   await page.fill('#message-input','Mình đang ôn phần này.');
