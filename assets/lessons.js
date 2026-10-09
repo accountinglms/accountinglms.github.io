@@ -39,12 +39,12 @@ function renderReaderBody(lesson, translated = null) {
   const body = translated?.content ?? lesson.content_markdown;
 
   reader.innerHTML = `
-    <div class="readerMeta">PUBLISHED LESSON</div>
+    <div class="readerMeta">BÀI HỌC</div>
     <h2 id="lesson-reader-title">${esc(title)}</h2>
     ${summary ? `<p class="summary" id="lesson-reader-summary">${esc(summary)}</p>` : '<p class="summary hidden" id="lesson-reader-summary"></p>'}
     <div class="readerTools">
       <button class="translateLessonBtn" id="lesson-translate-btn" type="button" aria-pressed="${translated ? 'true' : 'false'}">
-        ${translated ? '↩ Xem bản gốc' : (target === 'vi' ? '🌐 Dịch sang VI' : '🌐 Translate to EN')}
+        ${translated ? 'Xem bản gốc' : (target === 'vi' ? 'Dịch sang tiếng Việt' : 'Dịch sang tiếng Anh')}
       </button>
       <span class="translationState" id="lesson-translation-state" aria-live="polite">
         ${translated ? (translated.cached ? 'Bản dịch chuyên ngành · đã lưu' : 'Bản dịch chuyên ngành') : ''}
@@ -68,7 +68,7 @@ function renderReader(id) {
   currentLessonId = id || null;
 
   if (!lesson) {
-    reader.innerHTML = '<div class="empty">Chọn một lesson để bắt đầu đọc.</div>';
+    reader.innerHTML = '<div class="empty">Chọn một bài học để bắt đầu đọc.</div>';
     return;
   }
 
@@ -104,7 +104,7 @@ async function translateCurrentLesson() {
 
   if (button) {
     button.disabled = true;
-    button.textContent = target === 'vi' ? 'Đang dịch…' : 'Translating…';
+    button.textContent = 'Đang dịch…';
   }
   if (state) {
     state.classList.remove('error');
@@ -143,7 +143,7 @@ async function translateCurrentLesson() {
     const currentState = document.querySelector('#lesson-translation-state');
     if (currentButton) {
       currentButton.disabled = false;
-      currentButton.textContent = target === 'vi' ? '🌐 Dịch sang VI' : '🌐 Translate to EN';
+      currentButton.textContent = target === 'vi' ? 'Dịch sang tiếng Việt' : 'Dịch sang tiếng Anh';
     }
     if (currentState) {
       currentState.classList.add('error');
@@ -163,7 +163,7 @@ async function translateCurrentLesson() {
 
     const sidebar = document.querySelector('#sidebar');
     if (!lessons.length) {
-      sidebar.innerHTML = '<div class="empty">Chưa có lesson nào được publish.</div>';
+      sidebar.innerHTML = '<div class="empty">Chưa có bài học nào được xuất bản.</div>';
       return;
     }
 
