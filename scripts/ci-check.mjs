@@ -22,7 +22,8 @@ const required = [
   'assets/lessons.js',
   'assets/diagnostics.js',
   'supabase/functions/icaew-ai-import/index.ts',
-  'supabase/functions/icaew-question-translate/index.ts'
+  'supabase/functions/icaew-question-translate/index.ts',
+  'supabase/functions/icaew-translate/index.ts'
 ];
 
 for (const file of required) {
@@ -146,18 +147,28 @@ if (!accountJs.includes("authSignOut('local')") || !accountJs.includes("authSign
 }
 
 const translationJs = fs.readFileSync(path.join(root, 'assets/translation.js'), 'utf8');
-const translateEdge = fs.readFileSync(path.join(root, 'supabase/functions/icaew-question-translate/index.ts'), 'utf8');
+const lessonsJs = fs.readFileSync(path.join(root, 'assets/lessons.js'), 'utf8');
+const translateEdge = fs.readFileSync(path.join(root, 'supabase/functions/icaew-translate/index.ts'), 'utf8');
 if (!learnerHtml.includes('id="translate-question-btn"') || !translationJs.includes('callQuestionTranslate')) {
   throw new Error('Question translation UI is incomplete.');
 }
 if (!translationJs.includes("button?.addEventListener('click'") || translationJs.includes('showTranslation();\nresetView();')) {
   throw new Error('Question translation must remain explicitly user-triggered.');
 }
-if (!translateEdge.includes('Do NOT answer the question') || !translateEdge.includes('get_my_access')) {
-  throw new Error('Question translation Edge Function lost anti-hint or authorization safeguards.');
+if (!lessonsJs.includes('callUniversalTranslate') || !lessonsJs.includes('lesson-translate-btn')) {
+  throw new Error('Lesson/theory translation is not wired to the universal translation layer.');
 }
-if (!translateEdge.includes('question_translations')) {
-  throw new Error('Question translation cache is not wired.');
+if (!commonJs.includes('callUniversalTranslate') || !commonJs.includes('/functions/v1/icaew-translate')) {
+  throw new Error('Universal translation client is missing.');
+}
+if (!translateEdge.includes('Do NOT answer the question') || !translateEdge.includes('get_my_access')) {
+  throw new Error('Universal translation Edge Function lost anti-hint or authorization safeguards.');
+}
+if (!translateEdge.includes('content_translations') || !translateEdge.includes('contentType === "question"')) {
+  throw new Error('Universal translation cache/type rules are not wired.');
+}
+if (!translateEdge.includes('"question","lesson","theory","document"')) {
+  throw new Error('Universal translation content-type coverage regressed.');
 }
 
 console.log('Security/static integrity checks passed.');
