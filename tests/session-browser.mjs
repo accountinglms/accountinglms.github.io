@@ -196,6 +196,11 @@ function assert(condition, message) {
 }
 
 async function waitForWorkspace(page) {
+  // A newly authenticated member is now routed to Home instead of an empty quiz.
+  if(page.url().includes('/home.html')) {
+    await page.waitForSelector('#welcome-title');
+    return;
+  }
   await page.waitForFunction(() => document.querySelector('#auth-gate')?.classList.contains('hidden') === true);
   await page.waitForSelector('#cloud-account:not([hidden])');
 }
