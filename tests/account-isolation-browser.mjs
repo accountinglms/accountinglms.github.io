@@ -19,7 +19,10 @@ await context.route('https://uangiwgznukuicrfnohq.supabase.co/**',async route=>{
   const req=route.request(),url=new URL(req.url()),path=url.pathname;
   const token=req.headers()['authorization']==='Bearer token-b'?B:A;
   if(req.method()==='OPTIONS')return respond(route,{});
-  if(path==='/auth/v1/user')return respond(route,session(token).user);
+  if(path==='/auth/v1/user'){
+    if(req.method()==='PUT')writes.push({owner:token,path,method:'PUT',body:req.postData()});
+    return respond(route,session(token).user);
+  }
   if(path==='/rest/v1/rpc/get_my_access')return respond(route,{allowed:true,editor:false,role:'member',aal:'aal2',mfa_required:false,mfa_satisfied:true});
   if(path==='/rest/v1/subjects')return respond(route,[{id:'accounting',title:'Accounting',sort_order:0,is_active:true}]);
   if(path==='/rest/v1/chapters')return respond(route,[{id:'chapter_1',subject_id:'accounting',title:'Chapter 1',sort_order:0,is_active:true}]);
@@ -55,6 +58,10 @@ await page.addInitScript(({a,b,state})=>{
 await page.goto(base+'/index.html',{waitUntil:'domcontentloaded'});
 await page.waitForFunction(()=>document.querySelector('#auth-gate')?.classList.contains('hidden')===true);
 await page.waitForSelector('#menu-exercise_1');
+if(!await page.locator('.learner-start-inner').isVisible())throw Error('Practice home is still an empty screen');
+if((await page.locator('.learner-start-option').count())<1)throw Error('Practice entry suggestions are missing');
+if((await page.locator('#cloud-logout-btn').count())!==0)throw Error('Personal logout controls still exist inside learner');
+if((await page.locator('.sidebar-learning-nav').count())!==1)throw Error('Focused learner navigation is missing');
 await page.click('#menu-exercise_1');
 await page.waitForSelector('#bookmark-btn');
 if(!await page.locator('#bookmark-btn').evaluate(el=>el.classList.contains('active')))throw Error('Student A lost own saved star');
@@ -68,6 +75,16 @@ if(await page.locator('#bookmark-btn').evaluate(el=>el.classList.contains('activ
 if(writes.some(w=>w.owner===B&&w.path.includes('record_exercise_attempt')))throw Error('Student B uploaded A queued attempt');
 const aData=await page.evaluate(id=>localStorage.getItem('accountingLMSProgress_v2:user:'+id),A);
 if(!JSON.parse(aData||'{}').exercise_1?.bookmarks?.[0])throw Error('A archive was modified by B login');
+await page.goto(base+'/account.html',{waitUntil:'domcontentloaded'});
+await page.waitForSelector('#account-app:not(.hidden)');
+if(!(await page.locator('#account-password-form').isVisible()))throw Error('Password change is not on Account page');
+if(!(await page.locator('#logout-current').isVisible()))throw Error('Logout control missing from Account page');
+if(!(await page.locator('#account-data-info').isVisible()))throw Error('Personal study data panel missing from Account page');
+await page.fill('#account-new-password','FreshPasswordForTest2026!');
+await page.fill('#account-confirm-password','FreshPasswordForTest2026!');
+await page.click('#account-password-form button[type=submit]');
+await page.waitForFunction(()=>document.querySelector('#notice')?.textContent?.includes('Mật khẩu đã được cập nhật'));
+if(!writes.some(w=>w.owner===B&&w.path==='/auth/v1/user'&&w.method==='PUT'))throw Error('Account password change never reached authenticated Auth API');
 await context.close();
 await browser.close();
-console.log('PASS '+browserName+': browser offline progress and queued attempts remain account-isolated');
+console.log('PASS '+browserName+': focused learner, Account security actions and cross-account offline isolation');
