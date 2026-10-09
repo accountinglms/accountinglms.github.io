@@ -5,7 +5,10 @@
     const AUTH_KEY = 'icaew-lms-auth-v2';
     const LAST_EMAIL_KEY = 'icaew-lms-last-email-v1';
     const RECOVERY_REDIRECT = 'https://accountinglms.github.io/';
-    const ATTEMPT_QUEUE_KEY = 'icaew-lms-attempt-queue-v1';
+    // Every queued attempt belongs to the same authenticated account it was made under.
+    // Previous unscoped queue remains as a non-destructive legacy archive.
+    const ATTEMPT_QUEUE_BASE = 'icaew-lms-attempt-queue-v2:user:';
+    const attemptQueueKey = () => ATTEMPT_QUEUE_BASE + (cloudSession?.user?.id || 'signed-out');
     const ATTEMPT_HISTORY_LAUNCHED_AT = Date.parse('2026-10-09T00:00:00Z');
     const MAX_ATTEMPT_DURATION_SECONDS = 24 * 60 * 60;
     const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
@@ -499,18 +502,19 @@
 
     function loadAttemptQueue() {
         try {
-            const value = JSON.parse(localStorage.getItem(ATTEMPT_QUEUE_KEY) || '[]');
+            const value = JSON.parse(localStorage.getItem(attemptQueueKey()) || '[]');
             return Array.isArray(value) ? value : [];
         } catch (_) { return []; }
     }
 
     function saveAttemptQueue(queue) {
-        try { localStorage.setItem(ATTEMPT_QUEUE_KEY, JSON.stringify(queue || [])); }
+        try { localStorage.setItem(attemptQueueKey(), JSON.stringify(queue || [])); }
         catch (error) { console.warn('Attempt queue save:', error); }
     }
 
     function queueAttempt(payload) {
-        if (!payload?.exercise_id || !payload?.run_id) return;
+        if (!payload?.exercise_id || !payload?.run_id || !cloudSession?.user?.id) return;
+        payload.owner_user_id = cloudSession.user.id;
         const queue = loadAttemptQueue();
         const index = queue.findIndex(item => item.run_id === payload.run_id && item.exercise_id === payload.exercise_id);
         if (index >= 0) queue[index] = payload;
@@ -539,6 +543,11 @@
             if (!queue.length) return;
             const remaining = [];
             for (const payload of queue) {
+                // Refuse to upload attempts created by another user, even after account switching.
+                if (!cloudSession?.user?.id || payload.owner_user_id !== cloudSession.user.id) {
+                    remaining.push(payload);
+                    continue;
+                }
                 try {
                     const rows = await restRpc('record_exercise_attempt', {
                         p_exercise_id: payload.exercise_id,
@@ -649,7 +658,9 @@
     async function logout() {
         cloudReady = false;
         accessInfo = null;
+        pendingSections.clear();
         await authSignOut('local');
+        window.lmsBindOfflineUser?.(null);
         accountBox.hidden = true;
         if (adminToolLink) adminToolLink.hidden = true;
         showGate(true);
@@ -964,6 +975,7 @@
             return;
         }
 
+        window.lmsBindOfflineUser?.(session.user.id);
         accountEmail.textContent = email;
         accountBox.hidden = false;
         if (adminToolLink) adminToolLink.hidden = access?.editor !== true;
@@ -1047,6 +1059,7 @@
                 }
             } catch (error) {
                 saveSession(null);
+                window.lmsBindOfflineUser?.(null);
                 accessInfo = null;
                 cloudReady = false;
                 accountBox.hidden = true;
