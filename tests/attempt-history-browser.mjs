@@ -225,7 +225,7 @@ try{
   await page.click('#options-container .option:nth-child(2)');
   await page.click('#next-btn');
   await page.waitForSelector('#score-board .result-card');
-  await page.waitForFunction(()=>window.localStorage.getItem('icaew-lms-attempt-queue-v1')==='[]');
+  await page.waitForFunction(()=>window.localStorage.getItem('icaew-lms-attempt-queue-v2:user:11111111-1111-4111-8111-111111111111')==='[]');
 
   assert(mock.rpcPayloads.length===2,'Second submission did not append a second attempt');
   assert(mock.rpcPayloads[0].p_run_id!==mock.rpcPayloads[1].p_run_id,'Two attempts reused the same run_id');
