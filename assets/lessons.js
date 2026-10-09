@@ -191,7 +191,14 @@ async function translateCurrentLesson() {
       if (button) renderReader(button.dataset.id);
     });
 
-    renderReader(lessons[0].id);
+    const params = new URLSearchParams(location.search);
+    const requestedLesson = params.get('lesson');
+    const requestedChapter = params.get('chapter');
+    const initialLesson =
+      lessons.find(item => item.id === requestedLesson) ||
+      lessons.find(item => item.chapter_id === requestedChapter) ||
+      lessons[0];
+    renderReader(initialLesson.id);
   } catch (error) {
     document.querySelector('#sidebar').innerHTML = '<div class="empty">Bạn cần đăng nhập ở trang chính trước.</div>';
   }
