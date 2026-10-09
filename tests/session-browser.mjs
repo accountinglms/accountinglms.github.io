@@ -2,7 +2,7 @@ import { chromium, webkit } from 'playwright';
 
 const browserName = process.env.BROWSER || 'chromium';
 const engine = browserName === 'webkit' ? webkit : chromium;
-const baseURL = 'http://127.0.0.1:4173';
+const baseURL = process.env.TEST_BASE_URL || 'https://127.0.0.1:4173';
 const AUTH_KEY = 'icaew-lms-auth-v2';
 
 const user = {
@@ -171,6 +171,7 @@ async function seedSession(page, value) {
 async function testLoginMfaPersistence(browser) {
   const context = await browser.newContext({
     serviceWorkers: 'block',
+    ignoreHTTPSErrors: true,
     viewport: browserName === 'webkit' ? { width: 1512, height: 982 } : { width: 1366, height: 768 }
   });
   const mock = await installSupabaseMock(context);
@@ -214,7 +215,7 @@ async function testLoginMfaPersistence(browser) {
   await waitForWorkspace(page);
   assert(await page.locator('#auth-mfa-view').isHidden(), 'Same browser context prompted MFA again after reopen');
 
-  const isolated = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1366, height: 768 } });
+  const isolated = await browser.newContext({ serviceWorkers: 'block', ignoreHTTPSErrors: true, viewport: { width: 1366, height: 768 } });
   await installSupabaseMock(isolated);
   const isolatedPage = await isolated.newPage();
   await isolatedPage.goto(baseURL + '/', { waitUntil: 'domcontentloaded' });
@@ -226,7 +227,7 @@ async function testLoginMfaPersistence(browser) {
 }
 
 async function testStaleRecovery(browser) {
-  const context = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1366, height: 768 } });
+  const context = await browser.newContext({ serviceWorkers: 'block', ignoreHTTPSErrors: true, viewport: { width: 1366, height: 768 } });
   const mock = await installSupabaseMock(context);
   const page = await context.newPage();
 
@@ -241,7 +242,7 @@ async function testStaleRecovery(browser) {
 }
 
 async function testStaleFailureMessage(browser) {
-  const context = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1366, height: 768 } });
+  const context = await browser.newContext({ serviceWorkers: 'block', ignoreHTTPSErrors: true, viewport: { width: 1366, height: 768 } });
   await installSupabaseMock(context, { failRefreshFor: ['refresh-bad'] });
   const page = await context.newPage();
 
@@ -259,7 +260,7 @@ async function testStaleFailureMessage(browser) {
 }
 
 async function testScopedLogout(browser) {
-  const localContext = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1366, height: 768 } });
+  const localContext = await browser.newContext({ serviceWorkers: 'block', ignoreHTTPSErrors: true, viewport: { width: 1366, height: 768 } });
   const localMock = await installSupabaseMock(localContext);
   const page = await localContext.newPage();
 
@@ -270,7 +271,7 @@ async function testScopedLogout(browser) {
   assert(localMock.logoutScopes.at(-1) === 'local', 'Normal learner logout did not use scope=local');
   await localContext.close();
 
-  const globalContext = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1440, height: 900 } });
+  const globalContext = await browser.newContext({ serviceWorkers: 'block', ignoreHTTPSErrors: true, viewport: { width: 1440, height: 900 } });
   const globalMock = await installSupabaseMock(globalContext);
   const account = await globalContext.newPage();
 
