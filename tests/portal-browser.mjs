@@ -266,9 +266,10 @@ async function testChatPagination(browser){
   }
   await page.goto(baseURL+'/community.html',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.querySelector('#message-stream')?.textContent?.includes('Message 125'));
-  assert(!(await page.textContent('#message-stream')).includes('Message 2'),'Latest messages must load first, not the oldest');
+  assert((await page.locator('.message-body').filter({hasText:/^Message 2$/}).count())===0,
+    'Latest messages must load first, not the oldest');
   await page.click('#load-older-messages');
-  await page.waitForFunction(()=>document.querySelector('#message-stream')?.textContent?.includes('Message 2'));
+  await page.waitForFunction(()=>[...document.querySelectorAll('#message-stream .message-body')].some(el=>el.textContent.trim()==='Message 2'));
   assert((await page.locator('#message-stream .message-row').count())===125,'Cursor pagination did not load complete 125-message history');
   await context.close();
 }
