@@ -1174,6 +1174,14 @@
         courseData.forEach(chapter => chapter.sections.forEach(sec => updateSidebarScore(sec.id, sec.data.length)));
     }
 
+    function localSectionLength(secId) {
+        for (const chapter of courseData) {
+            const section = (chapter.sections || []).find(item => item.id === secId);
+            if (section) return section.data.length;
+        }
+        return 0;
+    }
+
     function updateMobileHeader(mode = 'question') {
         if (!mobileSectionTitle || !mobileQuestionProgress) return;
         if (!activeSectionData || !activeSectionId) {
@@ -1491,7 +1499,7 @@
         state.attemptRecorded = true;
         state.attemptRecording = false;
         saveProgress();
-        updateSidebarScore(detail.exercise_id, sectionLength(detail.exercise_id));
+        updateSidebarScore(detail.exercise_id, localSectionLength(detail.exercise_id));
     });
 
     window.addEventListener('lms:attempt-save-failed', event => {
