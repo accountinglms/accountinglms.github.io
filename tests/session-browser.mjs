@@ -140,10 +140,10 @@ async function installSupabaseMock(context, opts={}) {
       });
     }
 
-    if (opts.withLesson && path === '/rest/v1/subjects') {
+    if ((opts.withLesson || opts.withQuestion) && path === '/rest/v1/subjects') {
       return json(route, [{ id:'accounting_fundamental', title:'Accounting Fundamental', sort_order:0, is_active:true }]);
     }
-    if (opts.withLesson && path === '/rest/v1/chapters') {
+    if ((opts.withLesson || opts.withQuestion) && path === '/rest/v1/chapters') {
       return json(route, [{ id:'chapter_1', subject_id:'accounting_fundamental', title:'Chapter 1', sort_order:0, is_active:true }]);
     }
     if (opts.withLesson && path === '/rest/v1/lessons') {
@@ -156,6 +156,36 @@ async function installSupabaseMock(context, opts={}) {
         status:'published',
         sort_order:0,
         updated_at:'2026-10-09T00:00:00Z'
+      }]);
+    }
+
+    if (opts.withQuestion && path === '/rest/v1/exercises') {
+      return json(route, [{
+        id:'exercise_1',
+        chapter_id:'chapter_1',
+        title:'Practice Questions',
+        sort_order:0,
+        is_active:true,
+        content_mode:'database'
+      }]);
+    }
+    if (opts.withQuestion && path === '/rest/v1/questions') {
+      return json(route, [{
+        id:'question-1',
+        exercise_id:'exercise_1',
+        sort_order:1,
+        question_type:'single',
+        prompt:'Which cost should be capitalised as part of a new machine?',
+        options:['Direct delivery cost','Routine annual servicing'],
+        correct_answer:0,
+        required_selections:1,
+        explanation_en:'Direct delivery is directly attributable to bringing the machine to the location necessary for use.',
+        explanation_vi:'Chi phí vận chuyển trực tiếp được tính vào nguyên giá khi cần thiết để đưa máy đến địa điểm sử dụng.',
+        practical_example_en:'A factory pays £60,000 for a machine and £2,000 to deliver it to the factory. The delivery is included in the machine cost.',
+        practical_example_vi:'Nhà máy mua máy £60.000 và trả £2.000 vận chuyển đến nhà máy. Chi phí vận chuyển được cộng vào nguyên giá máy.',
+        standard_reference:'IAS 16.17 — directly attributable costs',
+        status:'published',
+        metadata:{}
       }]);
     }
 
@@ -516,6 +546,51 @@ async function testMobileTopbarDoesNotCoverQuizStats(browser) {
   }
 }
 
+
+async function testAuditedExplanationExamples(browser) {
+  const context = await browser.newContext({
+    serviceWorkers:'block',
+    ignoreHTTPSErrors:true,
+    viewport:{ width:390, height:844 },
+    isMobile:true,
+    hasTouch:true
+  });
+  await installSupabaseMock(context, { withQuestion:true });
+  const page = await context.newPage();
+
+  await page.goto(baseURL + '/', { waitUntil:'domcontentloaded' });
+  await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {
+    key: AUTH_KEY,
+    value: session('token-aal2','refresh-aal2')
+  });
+  await page.reload({ waitUntil:'domcontentloaded' });
+  await waitForWorkspace(page);
+
+  await page.waitForSelector('#menu-exercise_1');
+  await page.click('#menu-exercise_1');
+  await page.waitForSelector('#options-container .option');
+  await page.click('#options-container .option:nth-child(1)');
+  await page.click('#submit-btn');
+  await page.waitForSelector('#explanation.show');
+
+  const result = await page.evaluate(() => ({
+    engExample: document.querySelector('#eng-example')?.textContent || '',
+    viExample: document.querySelector('#vie-example')?.textContent || '',
+    reference: document.querySelector('#standard-reference-text')?.textContent || '',
+    engHidden: document.querySelector('#eng-example-card')?.hidden,
+    viHidden: document.querySelector('#vie-example-card')?.hidden,
+    overflow: document.documentElement.scrollWidth > window.innerWidth + 1
+  }));
+
+  assert(/factory pays £60,000/i.test(result.engExample), 'English practical example did not render');
+  assert(/Nhà máy mua máy/i.test(result.viExample), 'Vietnamese practical example did not render');
+  assert(/IAS 16\.17/.test(result.reference), 'Standard reference did not render');
+  assert(result.engHidden === false && result.viHidden === false, 'Practical example cards remained hidden');
+  assert(!result.overflow, 'Explanation/example UI caused horizontal overflow on phone');
+
+  await context.close();
+}
+
 const browser = await engine.launch({ headless: true });
 try {
   await testLoginMfaPersistence(browser);
@@ -526,7 +601,8 @@ try {
   await testLessonTranslationIsOnDemand(browser);
   await testCompactQuizToolsOnPhone(browser);
   await testMobileTopbarDoesNotCoverQuizStats(browser);
-  console.log(`PASS ${browserName}: session + UI + universal translation suite`);
+  await testAuditedExplanationExamples(browser);
+  console.log(`PASS ${browserName}: session + UI + explanations + universal translation suite`);
 } finally {
   await browser.close();
 }
