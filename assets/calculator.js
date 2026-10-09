@@ -241,7 +241,12 @@
 
   let expression = '';
   let answer = 0;
+  let previousAnswer = 0;
   let angleMode = 'DEG';
+  let displayMode = 'NORM';
+  let displayDigits = 10;
+  const memoryVars = {A:0,B:0,C:0,D:0,E:0,F:0,x:0,y:0,z:0,M:0};
+  const calculationHistory = [];
   let numericResult = 0;
   let hasResult = false;
   let showingFraction = false;
@@ -266,11 +271,21 @@
   function formatNumber(value, digits = 12) {
     if (!Number.isFinite(value)) throw new Error('Math ERROR');
     if (Object.is(value, -0) || Math.abs(value) < EPS) value = 0;
-    const abs = Math.abs(value);
-    if (abs !== 0 && (abs >= 1e12 || abs < 1e-9)) {
-      return value.toExponential(8).replace(/\.0+(?=e)/, '').replace(/(\.\d*?[1-9])0+(?=e)/, '$1');
+
+    if (displayMode === 'FIX') return value.toFixed(Math.max(0,Math.min(9,displayDigits)));
+    if (displayMode === 'SCI') return value.toExponential(Math.max(0,Math.min(9,displayDigits-1))).replace('e+','e');
+    if (displayMode === 'ENG') {
+      if (value === 0) return '0';
+      const exponent = Math.floor(Math.log10(Math.abs(value))/3)*3;
+      const mantissa = value/Math.pow(10,exponent);
+      return `${Number(mantissa.toPrecision(Math.max(1,displayDigits))).toString()}e${exponent>=0?'+':''}${exponent}`;
     }
-    return Number(value.toPrecision(digits)).toString();
+
+    const abs = Math.abs(value);
+    if (abs !== 0 && (abs >= 1e10 || abs < 1e-9)) {
+      return value.toExponential(Math.max(0,Math.min(9,digits-1))).replace(/\.0+(?=e)/, '').replace(/(\.\d*?[1-9])0+(?=e)/, '$1').replace('e+','e');
+    }
+    return Number(value.toPrecision(Math.max(1,Math.min(12,digits)))).toString();
   }
 
   function displayExpression(value) {
@@ -418,7 +433,7 @@
     constructor(tokens, variables = {}) {
       this.tokens = tokens;
       this.index = 0;
-      this.variables = variables || {};
+      this.variables = {...memoryVars,...(variables || {})};
     }
     peek(type) { return this.tokens[this.index]?.type === type; }
     take(type) {
@@ -574,6 +589,7 @@
         if (id === 'pi') return Math.PI;
         if (id === 'e') return Math.E;
         if (id === 'Ans') return answer;
+        if (id === 'PreAns') return previousAnswer;
         if (Object.prototype.hasOwnProperty.call(this.variables,id)) return Number(this.variables[id]);
         if (!this.peek('(')) throw new Error('Syntax ERROR');
         const args=this.parseArgs();
@@ -615,7 +631,10 @@
       const value = calculate(expression);
       if (!Number.isFinite(value)) throw new Error('Math ERROR');
       numericResult = value;
+      previousAnswer = answer;
       answer = value;
+      calculationHistory.unshift({expression,result:value,at:Date.now()});
+      if (calculationHistory.length > 30) calculationHistory.length = 30;
       hasResult = true;
       showingFraction = false;
       resultEl.classList.remove('is-error');
@@ -639,7 +658,7 @@
 
   function deleteLast() {
     if (!expression) return;
-    const namedTokens = ['sqrt(', 'pow10(', 'asin(', 'acos(', 'atan(', 'sin(', 'cos(', 'tan(', 'log(', 'ln(', 'exp(', 'Ans', 'pi'];
+    const namedTokens = ['sqrt(', 'pow10(', 'asin(', 'acos(', 'atan(', 'sin(', 'cos(', 'tan(', 'log(', 'ln(', 'exp(', 'PreAns', 'Ans', 'pi'];
     const match = namedTokens.find(token => expression.endsWith(token));
     expression = match ? expression.slice(0, -match.length) : expression.slice(0, -1);
     showingFraction = false;
@@ -1389,6 +1408,23 @@
       angleMode = mode;
       render();
     },
+    getDisplay: () => ({mode:displayMode,digits:displayDigits}),
+    setDisplay: (mode,digits=displayDigits) => {
+      if (!['NORM','FIX','SCI','ENG'].includes(mode)) throw new Error('Unsupported display mode');
+      displayMode=mode;
+      displayDigits=Math.max(0,Math.min(10,Number(digits)||0));
+      render();
+    },
+    getAnswer: () => answer,
+    getPreviousAnswer: () => previousAnswer,
+    getHistory: () => calculationHistory.map(item=>({...item})),
+    getMemory: name => memoryVars[name],
+    setMemory: (name,value) => {
+      if (!Object.prototype.hasOwnProperty.call(memoryVars,name) || !Number.isFinite(Number(value))) throw new Error('Invalid memory value');
+      memoryVars[name]=Number(value);
+      return memoryVars[name];
+    },
+    clearMemory: () => Object.keys(memoryVars).forEach(key => {memoryVars[key]=0;}),
     outputRows,
     outputError,
     escapeHtml
