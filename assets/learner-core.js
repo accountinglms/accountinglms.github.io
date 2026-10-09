@@ -2061,9 +2061,19 @@
     }
 
     function resetSection() {
-        if (!confirm('Bắt đầu lượt làm mới? Kết quả hiện tại đã được lưu trong Lịch sử làm bài. Đáp án và câu đánh dấu của lượt này sẽ được đặt lại.')) return;
-        progressStore[activeSectionId] = createEmptySectionState(activeSectionData.length);
+        if (!confirm('Bắt đầu lượt làm mới? Kết quả hiện tại đã được lưu trong Lịch sử làm bài. Đáp án sẽ được đặt lại, còn các câu bạn đã đánh dấu sao vẫn được giữ.')) return;
+
+        const previousState = progressStore[activeSectionId];
+        const preservedBookmarks = Array.isArray(previousState?.bookmarks)
+            ? previousState.bookmarks.slice(0, activeSectionData.length).map(Boolean)
+            : new Array(activeSectionData.length).fill(false);
+        while (preservedBookmarks.length < activeSectionData.length) preservedBookmarks.push(false);
+
+        const freshState = createEmptySectionState(activeSectionData.length);
+        freshState.bookmarks = preservedBookmarks;
+        progressStore[activeSectionId] = freshState;
         ensureAttemptRun(progressStore[activeSectionId]);
+
         currentQuestion = 0;
         navFilter = 'all';
         updateFilterButtons();
