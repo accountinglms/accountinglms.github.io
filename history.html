@@ -8,136 +8,74 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://uangiwgznukuicrfnohq.supabase.co wss://uangiwgznukuicrfnohq.supabase.co; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests">
 <link rel="manifest" href="manifest.webmanifest">
 <script src="assets/theme-init.js"></script>
-<style>
-*{box-sizing:border-box}
-:root{color-scheme:dark}
-html[data-theme="light"]{color-scheme:light}
-body{margin:0;background:#071019;color:#e8eef5;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-html[data-theme="light"] body{background:#f5f7fa;color:#17222c}
-button,select{font:inherit}
-.hidden{display:none!important}
-.page{min-height:100vh;padding:max(18px,env(safe-area-inset-top)) clamp(12px,3vw,36px) max(32px,env(safe-area-inset-bottom));background:radial-gradient(circle at 10% -8%,rgba(37,135,195,.15),transparent 32%),#071019}
-html[data-theme="light"] .page{background:radial-gradient(circle at 10% -8%,rgba(37,135,195,.09),transparent 32%),#f5f7fa}
-.shell{max-width:1320px;margin:0 auto}
-.topbar{display:flex;justify-content:space-between;gap:18px;align-items:flex-end;padding:12px 0 20px;border-bottom:1px solid #203243}
-html[data-theme="light"] .topbar{border-color:#d9e2e9}
-.eyebrow{font:800 .68rem ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.16em;color:#62b8eb;text-transform:uppercase}
-h1{font-size:clamp(2rem,4vw,3.2rem);line-height:1;margin:7px 0 8px;letter-spacing:-.045em}
-.subtitle{margin:0;color:#8093a4;font-size:.86rem;line-height:1.5}
-.topActions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
-.back{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:#dcecf7;background:#10202d;border:1px solid #33536b;border-radius:10px;padding:9px 12px;font-weight:750;font-size:.82rem}
-html[data-theme="light"] .back{background:#fff;color:#24333e;border-color:#c9d7e0}
-.liveBadge{display:inline-flex;align-items:center;gap:7px;border:1px solid #2c5069;background:#0d1c27;border-radius:999px;padding:7px 10px;color:#8ea9ba;font-size:.72rem}
-.liveDot{width:8px;height:8px;border-radius:50%;background:#d0a43d;box-shadow:0 0 0 3px rgba(208,164,61,.12)}
-.liveBadge.online{color:#8ed8b1;border-color:#286149;background:#0c2119}
-.liveBadge.online .liveDot{background:#45c989;box-shadow:0 0 0 3px rgba(69,201,137,.14)}
-.summaryGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}
-.metric{padding:15px;border:1px solid #1d3445;background:#0d1822;border-radius:14px}
-html[data-theme="light"] .metric{background:#fff;border-color:#dbe4ea}
-.metric span{display:block;color:#73889a;font-size:.72rem;margin-bottom:5px}
-.metric strong{font-size:1.35rem;letter-spacing:-.03em}
-.toolbar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:9px;margin:0 0 14px;padding:13px;border:1px solid #1d3445;background:#0c1721;border-radius:14px}
-html[data-theme="light"] .toolbar{background:#fff;border-color:#dbe4ea}
-.field{display:grid;gap:5px}
-.field span{font-size:.68rem;color:#7990a2;font-weight:700}
-.field select{width:100%;background:#09141d;color:#e7eef4;border:1px solid #284155;border-radius:9px;padding:9px 10px;min-width:0}
-html[data-theme="light"] .field select{background:#fff;color:#23313c;border-color:#cbd9e2}
-.refresh{align-self:end;height:39px;border:1px solid #326388;background:#123047;color:#a9ddfa;border-radius:9px;padding:0 12px;font-weight:800;cursor:pointer}
-.sectionTitle{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0 10px}
-.sectionTitle h2{font-size:1rem;margin:0}
-.sectionTitle small{color:#718696}
-.timeline{display:grid;gap:10px}
-.attempt{border:1px solid #1d3445;background:#0d1822;border-radius:15px;overflow:hidden}
-html[data-theme="light"] .attempt{background:#fff;border-color:#dbe4ea}
-.attempt summary{list-style:none;cursor:pointer;padding:14px 15px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center}
-.attempt summary::-webkit-details-marker{display:none}
-.attempt[open] summary{border-bottom:1px solid #1d3445;background:#0f1e2a}
-html[data-theme="light"] .attempt[open] summary{border-color:#dbe4ea;background:#f8fbfd}
-.attemptMain{min-width:0}
-.attemptTopline{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:5px}
-.exerciseName{font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.path{color:#70879a;font-size:.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chip{border:1px solid #34536a;border-radius:999px;padding:3px 6px;font-size:.62rem;color:#8ca9bc;font-weight:800}
-.chip.latest{border-color:#36755b;color:#83d4aa}
-.chip.best{border-color:#826a2f;color:#eacb77}
-.time{color:#74899a;font-size:.7rem}
-.scoreBox{text-align:right}
-.score{font-size:1.35rem;font-weight:900;letter-spacing:-.04em}
-.percent{font-size:.7rem;color:#7f93a3;margin-top:2px}
-.attemptBody{padding:14px 15px}
-.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:13px}
-.mini{padding:9px;border:1px solid #20394b;background:#0a151f;border-radius:10px;text-align:center}
-html[data-theme="light"] .mini{background:#f8fafc;border-color:#dce5eb}
-.mini b{display:block;font-size:.95rem}.mini span{display:block;margin-top:2px;color:#70879a;font-size:.62rem}
-.questions{display:grid;gap:8px}
-.question{padding:11px;border:1px solid #1d3445;border-radius:11px;background:#09141d}
-html[data-theme="light"] .question{background:#fbfcfd;border-color:#dbe4ea}
-.qHead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
-.qText{font-size:.82rem;line-height:1.45;font-weight:720}
-.qStatus{flex:0 0 auto;border-radius:999px;padding:3px 7px;font-size:.62rem;font-weight:850}
-.qStatus.correct{background:#123523;color:#88d8ab;border:1px solid #2d6a4c}
-.qStatus.wrong{background:#37191b;color:#f1a2a8;border:1px solid #74343a}
-.qStatus.unanswered{background:#202831;color:#a5b0ba;border:1px solid #3d4853}
-.answerRows{display:grid;gap:5px;margin-top:8px;font-size:.72rem;line-height:1.45}
-.answerRows div{display:grid;grid-template-columns:88px minmax(0,1fr);gap:7px}
-.answerRows span{color:#74899a}
-.empty{padding:48px 18px;border:1px dashed #2b465a;border-radius:14px;text-align:center;color:#72889a;background:#0a141d}
-html[data-theme="light"] .empty{background:#fff;border-color:#ccd9e2}
-.error{margin-top:18px;padding:14px;border:1px solid #78383d;background:#2b1618;border-radius:12px;color:#ffb0b5}
-@media(max-width:820px){
-  .summaryGrid{grid-template-columns:1fr 1fr}
-  .toolbar{grid-template-columns:1fr 1fr}
-  .refresh{grid-column:1/-1}
-  .metrics{grid-template-columns:repeat(3,1fr)}
-}
-@media(max-width:560px){
-  .page{padding-left:10px;padding-right:10px}
-  .topbar{align-items:flex-start;flex-direction:column}
-  .summaryGrid{grid-template-columns:1fr 1fr}
-  .toolbar{grid-template-columns:1fr}
-  .attempt summary{grid-template-columns:1fr auto;padding:12px}
-  .attemptBody{padding:12px}
-  .metrics{grid-template-columns:1fr 1fr}
-  .answerRows div{grid-template-columns:72px minmax(0,1fr)}
-}
-</style>
+<link rel="stylesheet" href="assets/history.css">
+
 <link rel="stylesheet" href="assets/ui-system.css">
 </head>
 <body class="page-history">
 <main class="page">
   <div class="shell">
     <header class="topbar">
-      <div>
-        <div class="eyebrow">Tiến độ học tập</div>
+      <div class="headerCopy">
+        <div class="eyebrow">Học tập</div>
         <h1>Lịch sử làm bài</h1>
-        <p class="subtitle">Mỗi lần nộp bài được lưu riêng để bạn có thể xem lại kết quả và theo dõi tiến bộ.</p>
+        <p class="subtitle">Xem lại từng lần nộp bài, kết quả và câu trả lời đã chọn để theo dõi tiến bộ theo thời gian.</p>
       </div>
       <div class="topActions">
-        <span id="live-status" class="liveBadge"><i class="liveDot"></i><span>Đang đồng bộ…</span></span>
-        <a class="back" href="./">← Quay lại trang học</a>
+        <span id="live-status" class="liveBadge" role="status" aria-live="polite">
+          <i class="liveDot" aria-hidden="true"></i>
+          <span>Đang đồng bộ…</span>
+        </span>
+        <a class="back" href="./">← Trang học</a>
       </div>
     </header>
 
     <section id="app" class="hidden">
-      <div class="summaryGrid">
-        <div class="metric"><span>Tổng lượt làm</span><strong id="metric-attempts">0</strong></div>
-        <div class="metric"><span>Điểm tốt nhất</span><strong id="metric-best">—</strong></div>
-        <div class="metric"><span>Lần gần nhất</span><strong id="metric-latest">—</strong></div>
-        <div class="metric"><span>Tổng thời gian</span><strong id="metric-time">—</strong></div>
-      </div>
+      <section class="summaryStrip" aria-label="Tổng quan lịch sử làm bài">
+        <div class="metric">
+          <span class="metricLabel">Lượt đã nộp</span>
+          <strong id="metric-attempts">0</strong>
+          <small class="metricNote" id="metric-attempts-note">—</small>
+        </div>
+        <div class="metric">
+          <span class="metricLabel">Điểm tốt nhất</span>
+          <strong id="metric-best">—</strong>
+          <small class="metricNote" id="metric-best-note">—</small>
+        </div>
+        <div class="metric">
+          <span class="metricLabel">Lần gần nhất</span>
+          <strong id="metric-latest">—</strong>
+          <small class="metricNote" id="metric-latest-note">—</small>
+        </div>
+        <div class="metric">
+          <span class="metricLabel">Tổng thời gian</span>
+          <strong id="metric-time">—</strong>
+          <small class="metricNote" id="metric-time-note">—</small>
+        </div>
+      </section>
 
-      <section class="toolbar">
-        <label class="field"><span>Môn học</span><select id="filter-subject"></select></label>
-        <label class="field"><span>Chương</span><select id="filter-chapter"></select></label>
-        <label class="field"><span>Bài tập</span><select id="filter-exercise"></select></label>
-        <button id="refresh-history" class="refresh" type="button">↻ Làm mới</button>
+      <section id="history-filters" class="filtersPanel" aria-label="Bộ lọc lịch sử">
+        <span class="filtersLabel">Bộ lọc</span>
+        <div class="toolbar">
+          <label class="field" id="filter-subject-field"><span>Môn học</span><select id="filter-subject"></select></label>
+          <label class="field" id="filter-chapter-field"><span>Chương</span><select id="filter-chapter"></select></label>
+          <label class="field" id="filter-exercise-field"><span>Bài tập</span><select id="filter-exercise"></select></label>
+        </div>
       </section>
 
       <div class="sectionTitle">
-        <h2>Các lần làm</h2>
-        <small id="result-count">0 lượt</small>
+        <div class="sectionTitleMain">
+          <h2>Các lần làm</h2>
+          <small id="result-count">0 lượt làm</small>
+        </div>
+        <div class="sectionActions">
+          <button id="refresh-history" class="refresh" type="button" aria-label="Làm mới lịch sử">
+            <span aria-hidden="true">↻</span>
+            <span class="refreshLabel">Làm mới</span>
+          </button>
+        </div>
       </div>
-      <section id="timeline" class="timeline"></section>
+      <section id="timeline" class="timeline" aria-live="polite"></section>
     </section>
 
     <div id="history-error" class="error hidden"></div>
