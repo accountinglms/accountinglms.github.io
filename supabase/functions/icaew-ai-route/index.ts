@@ -178,16 +178,22 @@ function validateSuggestion(raw: any, catalog: {
     ? normalizeNode(raw.exercise, "exercise", exerciseIds, true)
     : null;
 
+  if (!subject?.match_id && chapter?.match_id) {
+    throw new Error("existing chapter cannot be attached to a newly suggested subject");
+  }
   if (chapter?.match_id) {
     const row = catalog.chapters.find(x => String(x.id) === chapter.match_id);
-    if (subject?.match_id && row && String(row.subject_id) !== subject.match_id) {
+    if (!row || String(row.subject_id) !== subject?.match_id) {
       throw new Error("chapter does not belong to suggested subject");
     }
   }
 
+  if (!chapter?.match_id && exercise?.match_id) {
+    throw new Error("existing exercise cannot be attached to a newly suggested chapter");
+  }
   if (exercise?.match_id) {
     const row = catalog.exercises.find(x => String(x.id) === exercise.match_id);
-    if (chapter?.match_id && row && String(row.chapter_id) !== chapter.match_id) {
+    if (!row || String(row.chapter_id) !== chapter?.match_id) {
       throw new Error("exercise does not belong to suggested chapter");
     }
   }
