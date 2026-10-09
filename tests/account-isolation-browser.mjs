@@ -52,7 +52,7 @@ await page.addInitScript(({a,b,state})=>{
     }]));
   }
 }, {a:session(A),b:session(B),state:seeded});
-await page.goto(base+'/',{waitUntil:'domcontentloaded'});
+await page.goto(base+'/index.html',{waitUntil:'domcontentloaded'});
 await page.waitForFunction(()=>document.querySelector('#auth-gate')?.classList.contains('hidden')===true);
 await page.waitForSelector('#menu-exercise_1');
 await page.click('#menu-exercise_1');
