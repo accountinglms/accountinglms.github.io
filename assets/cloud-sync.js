@@ -75,6 +75,7 @@
     const cloudLabel = document.getElementById('cloud-sync-label');
     const cloudDot = document.getElementById('cloud-dot');
     const logoutBtn = document.getElementById('cloud-logout-btn');
+    const legacyRecoverBtn = document.getElementById('legacy-recover-btn');
     const passwordBtn = document.getElementById('cloud-password-btn');
     const adminToolLink = document.getElementById('admin-tool-link');
 
@@ -661,6 +662,7 @@
         pendingSections.clear();
         await authSignOut('local');
         window.lmsBindOfflineUser?.(null);
+        refreshLegacyRecoveryButton();
         accountBox.hidden = true;
         if (adminToolLink) adminToolLink.hidden = true;
         showGate(true);
@@ -942,6 +944,43 @@
         }
     }
 
+    function canOfferLegacyRecovery() {
+        if (!cloudSession?.user?.id || !legacyRecoverBtn) return false;
+        try {
+            const claimedBy=localStorage.getItem('accountingLMSLegacyClaimedBy_v1');
+            if (claimedBy && claimedBy !== cloudSession.user.id) return false;
+            const old=JSON.parse(localStorage.getItem('accountingLMSProgress_v2') || '{}');
+            return old && typeof old==='object' && Object.keys(old).length>0
+                && claimedBy !== cloudSession.user.id;
+        } catch { return false; }
+    }
+    function refreshLegacyRecoveryButton() {
+        if (legacyRecoverBtn) legacyRecoverBtn.hidden=!canOfferLegacyRecovery();
+    }
+    legacyRecoverBtn?.addEventListener('click', async () => {
+        if (!cloudSession?.user?.id) return;
+        const email=String(cloudSession.user.email||'').toLowerCase();
+        const ownership=prompt('Chỉ khôi phục nếu dữ liệu cũ trên trình duyệt này thuộc về chính bạn. Nhập email tài khoản hiện tại để xác nhận:', '');
+        if (ownership===null) return;
+        if (ownership.trim().toLowerCase() !== email) {
+            alert('Email xác nhận không khớp. Không có dữ liệu nào được thay đổi.');
+            return;
+        }
+        try {
+            const count=window.lmsRecoverLegacyProgress?.() || 0;
+            if (!count) {
+                alert('Không tìm thấy phần học cũ cần khôi phục hoặc bản cloud đã mới hơn. Dữ liệu lưu trữ cũ vẫn được giữ nguyên.');
+                return;
+            }
+            localStorage.setItem('accountingLMSLegacyClaimedBy_v1', cloudSession.user.id);
+            refreshLegacyRecoveryButton();
+            await hydrateCloud();
+            alert('Đã đưa '+count+' bài tập từ bản cũ vào tiến độ tài khoản này. Tiến độ sẽ đồng bộ khi có mạng; dữ liệu gốc vẫn được giữ làm bản lưu.');
+        } catch (error) {
+            alert('Chưa thể khôi phục: '+(error.message||'Lỗi không xác định'));
+        }
+    });
+
     async function handleSignedIn(session) {
         const email = session?.user?.email?.toLowerCase() || '';
         saveSession(session);
@@ -976,6 +1015,7 @@
         }
 
         window.lmsBindOfflineUser?.(session.user.id);
+        refreshLegacyRecoveryButton();
         accountEmail.textContent = email;
         accountBox.hidden = false;
         if (adminToolLink) adminToolLink.hidden = access?.editor !== true;
