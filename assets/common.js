@@ -1,7 +1,8 @@
 const SUPABASE_URL = 'https://uangiwgznukuicrfnohq.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_FRBwRP7TAmiu02eRF9l49g_tCa4DsGJ';
 const AUTH_KEY = 'icaew-lms-auth-v2';
-const ALLOWED_EMAILS = new Set(['sondoanthai2007@gmail.com','trancongphuong301@gmail.com']);
+let accessCache = { userId: null, checkedAt: 0, value: null };
+const ACCESS_CACHE_MS = 60_000;
 
 export function loadSession() {
   try {
@@ -18,8 +19,31 @@ export function saveSession(session) {
   else localStorage.setItem(AUTH_KEY, JSON.stringify(session));
 }
 
-export function allowed(email) {
-  return ALLOWED_EMAILS.has(String(email || '').trim().toLowerCase());
+function clearAccessCache() {
+  accessCache = { userId: null, checkedAt: 0, value: null };
+}
+
+export async function getMyAccess(session, force = false) {
+  if (!session?.access_token || !session?.user?.id) throw new Error('Bạn chưa đăng nhập ICAEW LMS.');
+  const now = Date.now();
+  if (!force && accessCache.userId === session.user.id && accessCache.value && now - accessCache.checkedAt < ACCESS_CACHE_MS) {
+    return accessCache.value;
+  }
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_my_access`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${session.access_token}`,
+      'content-type': 'application/json'
+    },
+    body: '{}'
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(text || 'Không kiểm tra được quyền truy cập.');
+  const value = text ? JSON.parse(text) : null;
+  if (!value || value.allowed !== true) throw new Error('Tài khoản này không được cấp quyền.');
+  accessCache = { userId: session.user.id, checkedAt: now, value };
+  return value;
 }
 
 export async function refreshSession(session) {
@@ -37,7 +61,7 @@ export async function refreshSession(session) {
     expires_at: data.expires_at || Math.floor(Date.now()/1000) + Number(data.expires_in || 3600),
     user: data.user
   };
-  if (!allowed(next.user?.email)) throw new Error('Email này không được cấp quyền.');
+  clearAccessCache();
   saveSession(next);
   return next;
 }
@@ -45,9 +69,16 @@ export async function refreshSession(session) {
 export async function ensureSession() {
   let session = loadSession();
   if (!session) throw new Error('Bạn chưa đăng nhập ICAEW LMS.');
-  if (!allowed(session.user?.email)) throw new Error('Email này không được cấp quyền.');
   const now = Math.floor(Date.now()/1000);
   if (Number(session.expires_at || 0) - now < 60) session = await refreshSession(session);
+  await getMyAccess(session);
+  return session;
+}
+
+export async function ensureEditorSession() {
+  const session = await ensureSession();
+  const access = await getMyAccess(session);
+  if (access.editor !== true) throw new Error('Tài khoản này không có quyền quản trị.');
   return session;
 }
 
@@ -131,4 +162,4 @@ export async function callAiImport({storagePath, fileName, mimeType, targetType,
   return data;
 }
 
-export { SUPABASE_URL, SUPABASE_KEY, AUTH_KEY, ALLOWED_EMAILS };
+export { SUPABASE_URL, SUPABASE_KEY, AUTH_KEY };
