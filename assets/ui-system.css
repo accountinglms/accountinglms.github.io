@@ -1076,3 +1076,100 @@ body.page-diagnostics a:focus-visible{
   .page-history .score{font-size:1.05rem!important}
   .page-account .content>.card,.page-account .profileCard{padding:16px!important}
 }
+
+
+/* Final polish */
+.page-history .attemptHint{
+  margin-top:5px;
+  color:var(--ui-muted-2);
+  font-size:.61rem;
+  font-weight:650;
+}
+.page-history .attempt[open] .attemptHint{color:var(--ui-accent)}
+.page-history .attempt[open] .attemptHint::before{content:"Đang xem · "}
+
+.page-admin .routeConfidence,
+.page-admin .routeTopics,
+.page-admin .routeNode span,
+.page-admin .auditTable,
+.page-admin .auditMeta{color:var(--ui-muted)!important}
+.page-admin .routeNode strong,
+.page-admin .structureBlock h3,
+.page-admin .auditLabel{color:var(--ui-text-soft)!important}
+.page-admin .routeNode em{color:var(--ui-warning)!important}
+.page-admin .routeTopics b{color:var(--ui-text-soft)!important}
+.page-admin .toolDetails summary::after{color:var(--ui-muted)!important}
+.page-admin .auditItem{
+  background:var(--ui-bg-subtle)!important;
+  border-color:var(--ui-border)!important;
+}
+.page-admin .auditAction{
+  border-color:var(--ui-border)!important;
+  color:var(--ui-muted)!important;
+}
+.page-admin .removeBtn{
+  background:transparent!important;
+  border-color:rgba(215,121,127,.45)!important;
+  color:var(--ui-danger)!important;
+}
+.page-admin .notice.ok{
+  color:var(--ui-success)!important;
+  border-color:rgba(103,185,137,.35)!important;
+}
+.page-admin .notice.error{
+  color:var(--ui-danger)!important;
+  border-color:rgba(215,121,127,.4)!important;
+}
+.page-admin .auth,
+.page-admin .authCard{
+  background:var(--ui-bg)!important;
+  color:var(--ui-text)!important;
+}
+.page-admin .authCard{
+  border-color:var(--ui-border)!important;
+  border-radius:var(--ui-radius)!important;
+  box-shadow:none!important;
+}
+
+.page-lessons .empty,
+.page-diagnostics .empty{color:var(--ui-muted)!important}
+
+.page-diagnostics .auth{
+  background:var(--ui-bg)!important;
+}
+.page-diagnostics .auth .card{
+  color:var(--ui-text)!important;
+}
+
+.page-account .notice.ok{
+  color:var(--ui-success)!important;
+  border-color:rgba(103,185,137,.35)!important;
+}
+.page-account .notice.error{
+  color:var(--ui-danger)!important;
+  border-color:rgba(215,121,127,.4)!important;
+}
+.page-account .authFallback{
+  background:var(--ui-surface)!important;
+  border-color:var(--ui-border)!important;
+  color:var(--ui-text)!important;
+}
+
+html[data-theme="light"] .page-admin .routeSuggestion,
+html[data-theme="light"] .page-admin .routeNode,
+html[data-theme="light"] .page-admin .destination,
+html[data-theme="light"] .page-admin .structureBlock,
+html[data-theme="light"] .page-admin .questionCard,
+html[data-theme="light"] .page-admin .importCard,
+html[data-theme="light"] .page-admin .fileDrop,
+html[data-theme="light"] .page-admin .auditItem,
+html[data-theme="light"] .page-account .identityRow,
+html[data-theme="light"] .page-account .factor,
+html[data-theme="light"] .page-account .securitySummary,
+html[data-theme="light"] .page-account .sessionBox,
+html[data-theme="light"] .page-account .setupBox,
+html[data-theme="light"] .page-history .question,
+html[data-theme="light"] .page-diagnostics .probe,
+html[data-theme="light"] .page-diagnostics .progressItem{
+  color:var(--ui-text-soft)!important;
+}
