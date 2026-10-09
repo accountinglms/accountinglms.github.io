@@ -8,6 +8,7 @@ const required = [
   'admin.html',
   'lessons.html',
   'diagnostics.html',
+  'history.html',
   'manifest.webmanifest',
   'sw.js',
   'assets/learner.css',
@@ -21,6 +22,7 @@ const required = [
   'assets/admin.js',
   'assets/lessons.js',
   'assets/diagnostics.js',
+  'assets/history.js',
   'supabase/functions/icaew-ai-import/index.ts',
   'supabase/functions/icaew-ai-route/index.ts',
   'supabase/functions/icaew-question-translate/index.ts',
@@ -39,6 +41,7 @@ const clientFiles = [
   'admin.html',
   'lessons.html',
   'diagnostics.html',
+  'history.html',
   ...fs.readdirSync(path.join(root, 'assets')).filter(x => x.endsWith('.js')).map(x => 'assets/' + x),
 ];
 
@@ -53,7 +56,7 @@ for (const file of clientFiles) {
 }
 
 
-for (const file of ['index.html','account.html','admin.html','lessons.html','diagnostics.html']) {
+for (const file of ['index.html','account.html','admin.html','lessons.html','diagnostics.html','history.html']) {
   const text = fs.readFileSync(path.join(root, file), 'utf8');
   if (!text.includes('http-equiv="Content-Security-Policy"')) {
     throw new Error('Missing Content Security Policy meta tag: ' + file);
@@ -93,7 +96,7 @@ if (!edge.includes('get_my_access')) {
 }
 
 const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-for (const file of ['account.html','admin.html','lessons.html','diagnostics.html','manifest.webmanifest','assets/learner.css','assets/account.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/translation.js','assets/common.js','assets/account.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js']) {
+for (const file of ['account.html','admin.html','lessons.html','diagnostics.html','history.html','manifest.webmanifest','assets/learner.css','assets/account.css','assets/theme-init.js','assets/learner-core.js','assets/cloud-sync.js','assets/translation.js','assets/common.js','assets/account.js','assets/admin.js','assets/lessons.js','assets/diagnostics.js','assets/history.js']) {
   if (!sw.includes(file)) throw new Error('Service worker cache list is missing: ' + file);
 }
 
@@ -244,6 +247,27 @@ if (!learnerHtml.includes('class="auth-gate hidden"')) {
 }
 if (!cloudSync.includes('function finishAuthBoot()') || !cloudSync.includes("document.body.classList.remove('auth-pending')")) {
   throw new Error('Auth boot state is not resolved by the cloud session layer.');
+}
+
+const historyHtml = fs.readFileSync(path.join(root, 'history.html'), 'utf8');
+const historyJs = fs.readFileSync(path.join(root, 'assets/history.js'), 'utf8');
+if (!learnerHtml.includes('href="history.html"') || !learnerCore.includes('lms:attempt-submitted')) {
+  throw new Error('Learner attempt-history entry point or submit event is missing.');
+}
+if (!cloudSync.includes('record_exercise_attempt') || !cloudSync.includes('ATTEMPT_QUEUE_KEY')) {
+  throw new Error('Attempt history is not persisted through the cloud/offline queue.');
+}
+if (!cloudSync.includes('attempt_run_id') || !cloudSync.includes('attempt_recorded')) {
+  throw new Error('Current attempt identity is not preserved in cloud progress.');
+}
+if (!historyHtml.includes('id="timeline"') || !historyHtml.includes('wss://uangiwgznukuicrfnohq.supabase.co')) {
+  throw new Error('History page is missing timeline UI or Realtime CSP access.');
+}
+if (!historyJs.includes("table:'exercise_attempts'") || !historyJs.includes("event:'INSERT'")) {
+  throw new Error('Attempt History is not subscribed to realtime inserts.');
+}
+if (!historyJs.includes('question_snapshot') || !historyJs.includes('selected_answer')) {
+  throw new Error('Attempt detail snapshot rendering is missing.');
 }
 
 console.log('Security/static integrity checks passed.');
