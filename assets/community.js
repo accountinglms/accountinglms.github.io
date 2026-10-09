@@ -82,7 +82,18 @@ function aggregateReactions(){
 function renderMessages(){
   const root=$('#message-stream');
   if(!currentGroupId){root.innerHTML='<div class="empty-compact">Chọn một nhóm để bắt đầu.</div>';return;}
-  if(!currentMessages.length){root.innerHTML='<div class="empty-compact">Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện.</div>';return;}
+  if(!currentMessages.length){
+    const group=currentGroup();
+    root.innerHTML=`<section class="chat-empty-state" aria-label="Bắt đầu cuộc trò chuyện">
+      <div class="chat-empty-inner">
+        <span class="chat-empty-symbol" aria-hidden="true">#</span>
+        <h2>Chào mừng đến ${esc(group?.name||'nhóm học tập')}</h2>
+        <p>Đây là không gian để trao đổi kiến thức, hỏi bài và chia sẻ tài liệu. Cuộc trò chuyện sẽ xuất hiện ở đây khi có tin nhắn đầu tiên.</p>
+        ${myMembership(currentGroupId)?'<button class="btn primary" type="button" data-compose-focus>Viết tin nhắn đầu tiên →</button>':'<p>Tham gia nhóm để bắt đầu trao đổi.</p>'}
+      </div>
+    </section>`;
+    return;
+  }
   const pmap=profileMap(),agg=aggregateReactions();
   root.innerHTML=(canLoadOlder?'<div style="text-align:center;padding:8px"><button class="btn" id="load-older-messages" type="button">Tải tin nhắn cũ hơn</button></div>':'')+currentMessages.map(msg=>{
     const p=pmap.get(msg.sender_id);const name=p?.display_name||(msg.sender_id===session.user.id?'Bạn':'Member');
@@ -254,6 +265,10 @@ $('#emoji-popover').innerHTML=emojis.map(x=>`<button type="button" data-emoji="$
 $('#emoji-btn').addEventListener('click',()=>{$('#emoji-popover').hidden=!$('#emoji-popover').hidden;});
 $('#emoji-popover').addEventListener('click',e=>{const b=e.target.closest('[data-emoji]');if(!b)return;$('#message-input').value+=b.dataset.emoji;$('#emoji-popover').hidden=true;$('#message-input').focus();});
 $('#message-stream').addEventListener('click',async e=>{
+  if(e.target.closest('[data-compose-focus]')){
+    $('#message-input')?.focus();
+    return;
+  }
   if(e.target.closest('#load-older-messages')){await loadCurrentMessages({older:true}).catch(err=>alert(err.message));return;}
   const download=e.target.closest('[data-download]');
   if(download){await downloadChatFile(download.dataset.download,download.dataset.name).catch(err=>alert(err.message));return;}
