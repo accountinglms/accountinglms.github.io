@@ -700,6 +700,44 @@
     html[data-theme="light"] .nav-title { color:#667686; }
     html[data-theme="light"] .nav-btn { background:#e5ebf0; color:#26323d; }
     html[data-theme="light"] .nav-btn:hover { background:#d7e1e9; }
+
+    /* Preserve question-status colors in light mode.
+       These selectors intentionally outrank the generic light .nav-btn rule above. */
+    html[data-theme="light"] .nav-btn.unanswered {
+        background:#e5ebf0;
+        color:#26323d;
+        border-color:transparent;
+    }
+    html[data-theme="light"] .nav-btn.answered-pending {
+        background:#d8ecfb;
+        color:#155f8e;
+        border-color:#3f8fc5;
+        box-shadow:inset 0 0 0 1px rgba(63,143,197,.18);
+    }
+    html[data-theme="light"] .nav-btn.correct {
+        background:#2e7d32;
+        color:#ffffff;
+        border-color:#256a29;
+    }
+    html[data-theme="light"] .nav-btn.wrong {
+        background:#c62828;
+        color:#ffffff;
+        border-color:#a51f1f;
+    }
+    html[data-theme="light"] .nav-btn.current {
+        border-color:#1976d2;
+        box-shadow:0 0 0 3px rgba(25,118,210,.16), 0 0 10px rgba(25,118,210,.22);
+    }
+    html[data-theme="light"] .nav-btn.bookmarked .bookmark-indicator {
+        color:#d28a00;
+        text-shadow:0 1px 0 rgba(255,255,255,.75);
+    }
+
+    html[data-theme="light"] .legend-current { background:#1976d2; }
+    html[data-theme="light"] .legend-correct { background:#2e7d32; }
+    html[data-theme="light"] .legend-wrong { background:#c62828; }
+    html[data-theme="light"] .legend-pending { background:#3f8fc5; }
+    html[data-theme="light"] .legend-bookmark { background:#d28a00; }
     html[data-theme="light"] .filter-btn, html[data-theme="light"] .utility-btn { background:#f5f7f9; border-color:#ccd7df; color:#40505e; }
     html[data-theme="light"] .filter-btn.active { background:#dfeef8; border-color:#5593bc; color:#1d658f; }
     html[data-theme="light"] .score-board { color:#1f2937; }

@@ -291,13 +291,62 @@ async function testScopedLogout(browser) {
   await globalContext.close();
 }
 
+
+async function testLightThemeQuestionStatusColors(browser) {
+  const context = await browser.newContext({ serviceWorkers: 'block', ignoreHTTPSErrors: true, viewport: { width: 1366, height: 768 } });
+  const page = await context.newPage();
+  await page.goto(baseURL + '/', { waitUntil: 'domcontentloaded' });
+
+  const colors = await page.evaluate(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    const host = document.createElement('div');
+    host.innerHTML = `
+      <button id="state-unanswered" class="nav-btn unanswered">1</button>
+      <button id="state-pending" class="nav-btn answered-pending">2</button>
+      <button id="state-correct" class="nav-btn correct">3</button>
+      <button id="state-wrong" class="nav-btn wrong">4</button>
+      <button id="state-current" class="nav-btn current">5</button>
+    `;
+    document.body.appendChild(host);
+
+    const read = id => {
+      const style = getComputedStyle(document.getElementById(id));
+      return {
+        background: style.backgroundColor,
+        color: style.color,
+        border: style.borderTopColor
+      };
+    };
+
+    return {
+      unanswered: read('state-unanswered'),
+      pending: read('state-pending'),
+      correct: read('state-correct'),
+      wrong: read('state-wrong'),
+      current: read('state-current')
+    };
+  });
+
+  assert(colors.correct.background === 'rgb(46, 125, 50)', 'Light theme correct state lost green background');
+  assert(colors.correct.color === 'rgb(255, 255, 255)', 'Light theme correct state lost white text');
+  assert(colors.wrong.background === 'rgb(198, 40, 40)', 'Light theme wrong state lost red background');
+  assert(colors.wrong.color === 'rgb(255, 255, 255)', 'Light theme wrong state lost white text');
+  assert(colors.pending.background === 'rgb(216, 236, 251)', 'Light theme saved/pending state lost blue background');
+  assert(colors.pending.border === 'rgb(63, 143, 197)', 'Light theme saved/pending state lost blue border');
+  assert(colors.current.border === 'rgb(25, 118, 210)', 'Light theme current question lost blue focus border');
+  assert(colors.unanswered.background === 'rgb(229, 235, 240)', 'Light theme unanswered state changed unexpectedly');
+
+  await context.close();
+}
+
 const browser = await engine.launch({ headless: true });
 try {
   await testLoginMfaPersistence(browser);
   await testStaleRecovery(browser);
   await testStaleFailureMessage(browser);
   await testScopedLogout(browser);
-  console.log(`PASS ${browserName}: session UX cross-browser suite`);
+  await testLightThemeQuestionStatusColors(browser);
+  console.log(`PASS ${browserName}: session + light-theme status suite`);
 } finally {
   await browser.close();
 }
