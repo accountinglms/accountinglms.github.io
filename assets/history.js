@@ -24,7 +24,8 @@ function fmtTime(value) {
   try {
     return new Intl.DateTimeFormat('vi-VN', {
       dateStyle:'medium',
-      timeStyle:'short'
+      timeStyle:'short',
+      timeZone:'Asia/Ho_Chi_Minh'
     }).format(new Date(value));
   } catch { return text(value); }
 }
