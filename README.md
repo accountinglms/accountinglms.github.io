@@ -73,7 +73,7 @@ Every push to `main` is published automatically by GitHub Pages.
 
 - [x] GitHub repository created
 - [x] GitHub Pages enabled
-- [ ] Supabase Auth Site URL final switch to `https://accountinglms.github.io/`
+- [x] Supabase Auth Site URL switched to `https://accountinglms.github.io/`
 - [x] Core V7.5 quiz migrated
 - [x] 52 legacy questions migrated to Supabase
 - [x] Database-driven course loading
