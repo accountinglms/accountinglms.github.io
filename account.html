@@ -64,18 +64,18 @@
 
         <div id="factor-list" class="factorList"></div>
 
-        <button id="start-totp" class="primary" type="button">+ Thêm Authenticator</button>
+        <button id="start-totp" class="primary" type="button">Thêm ứng dụng xác thực</button>
 
         <div id="totp-setup" class="setupBox hidden">
           <div class="setupHead">
-            <div><span class="eyebrow">Thiết lập Authenticator</span><h3>Quét mã QR</h3></div>
+            <div><span class="eyebrow">Thiết lập ứng dụng xác thực</span><h3>Quét mã QR</h3></div>
             <button id="cancel-totp" class="textBtn" type="button">Hủy</button>
           </div>
-          <p>Mở ứng dụng Authenticator và quét QR bên dưới. Bạn cũng có thể nhập secret thủ công.</p>
+          <p>Mở ứng dụng xác thực và quét mã QR bên dưới. Nếu cần, bạn có thể nhập khóa thiết lập thủ công.</p>
           <div class="qrWrap"><img id="totp-qr" alt="QR code thiết lập Authenticator"></div>
-          <label class="secretLabel"><span>Secret thủ công</span><div class="secretRow"><code id="totp-secret">—</code><button id="copy-secret" type="button">Copy</button></div></label>
+          <label class="secretLabel"><span>Khóa thiết lập thủ công</span><div class="secretRow"><code id="totp-secret">—</code><button id="copy-secret" type="button">Sao chép</button></div></label>
           <label class="codeLabel"><span>Mã 6 số để xác minh</span><input id="totp-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000"></label>
-          <button id="verify-totp" class="primary" type="button">Xác minh & bật 2FA</button>
+          <button id="verify-totp" class="primary" type="button">Xác minh và bật bảo mật hai bước</button>
           <div id="totp-message" class="inlineMessage"></div>
         </div>
       </section>
@@ -86,7 +86,7 @@
           <h2>Khôi phục tài khoản</h2>
           <div class="securityRow"><div><strong>Khôi phục bằng email</strong><span>Gửi liên kết đặt lại mật khẩu tới email đã xác minh.</span></div><b class="verified">Đang dùng</b></div>
           <div class="securityRow"><div><strong>Khôi phục bằng SMS</strong><span>Chưa khả dụng trên hệ thống hiện tại.</span></div><b class="pending">Chưa bật</b></div>
-          <p class="warningText">Reset mật khẩu qua email không tự tắt TOTP. Nếu mất Authenticator, hãy dùng Authenticator dự phòng hoặc liên hệ Owner để xử lý factor.</p>
+          <p class="warningText">Đặt lại mật khẩu qua email không tự tắt ứng dụng xác thực. Nếu mất quyền truy cập ứng dụng xác thực, hãy dùng phương án dự phòng hoặc liên hệ quản trị viên.</p>
         </div>
 
         <div class="securityBlock">
