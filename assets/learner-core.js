@@ -785,6 +785,8 @@
 
     const STORAGE_KEY = 'accountingLMSProgress_v2'; // keep V2 key so existing progress migrates forward
     const UI_PREF_KEY = 'accountingLMSUiPrefs_v3';
+    const ATTEMPT_HISTORY_LAUNCHED_AT = Date.parse('2026-10-09T00:00:00Z');
+    const MAX_ATTEMPT_DURATION_SECONDS = 24 * 60 * 60;
 
     function makeAttemptRunId() {
         if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
@@ -811,10 +813,23 @@
         };
     }
 
+    function validAttemptStartedAt(value, now = Date.now()) {
+        const timestamp = Number(value);
+        return Number.isFinite(timestamp)
+            && timestamp >= ATTEMPT_HISTORY_LAUNCHED_AT
+            && timestamp <= now + 5 * 60 * 1000;
+    }
+
     function ensureAttemptRun(state) {
         if (!state) return;
         if (!state.runId) state.runId = makeAttemptRunId();
-        if (!state.startedAt) state.startedAt = Date.now();
+        if (!validAttemptStartedAt(state.startedAt)) state.startedAt = Date.now();
+    }
+
+    function attemptDurationSeconds(startedAt, finishedAt) {
+        if (!validAttemptStartedAt(startedAt, finishedAt)) return null;
+        const seconds = Math.max(0, Math.round((finishedAt - Number(startedAt)) / 1000));
+        return seconds <= MAX_ATTEMPT_DURATION_SECONDS ? seconds : null;
     }
 
     function loadJSON(key, fallback = {}) {
@@ -909,7 +924,7 @@
         normalized.lastQuestion = Math.min(Math.max(Number(saved.lastQuestion) || 0, 0), Math.max(length - 1, 0));
         normalized.score = normalized.answersStatus.filter(x => x === 'correct').length;
         normalized.runId = typeof saved.runId === 'string' && saved.runId ? saved.runId : null;
-        normalized.startedAt = Number(saved.startedAt || 0) || null;
+        normalized.startedAt = validAttemptStartedAt(saved.startedAt) ? Number(saved.startedAt) : null;
         normalized.attemptRecorded = saved.attemptRecorded === true;
         normalized.attemptRecording = false;
         return normalized;
@@ -1240,6 +1255,8 @@
         sectionTitleDisplay.innerText = secTitle;
         activeSectionId = secId;
         activeSectionData = dataArray;
+        ensureAttemptRun(progressStore[secId]);
+        saveProgress();
         currentQuestion = progressStore[secId]?.lastQuestion || 0;
         navFilter = 'all';
         updateFilterButtons();
@@ -1469,7 +1486,8 @@
         state.attemptRecording = true;
         saveProgress();
         const finishedAt = Date.now();
-        const startedAt = Number(state.startedAt || finishedAt);
+        const startedAt = validAttemptStartedAt(state.startedAt, finishedAt) ? Number(state.startedAt) : finishedAt;
+        const durationSeconds = attemptDurationSeconds(startedAt, finishedAt);
         const provisional = {
             id: 'local:' + state.runId,
             exercise_id: activeSectionId,
@@ -1503,7 +1521,7 @@
                 wrong_count: metrics.wrong,
                 unanswered_count: metrics.unanswered,
                 bookmarked_count: metrics.bookmarks,
-                duration_seconds: Math.max(0, Math.round((finishedAt - startedAt) / 1000)),
+                duration_seconds: durationSeconds,
                 answers_status: state.answersStatus.slice(),
                 selected_answers: state.userSelections.map(cloneSelection),
                 bookmarks: state.bookmarks.slice(),
