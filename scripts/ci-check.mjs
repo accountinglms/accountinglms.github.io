@@ -459,7 +459,7 @@ for(const page of ['community.html','account.html']){
 for(const page of ['home.html','progress.html'])
  if(!fs.readFileSync(path.join(root,page),'utf8').includes('assets/avatar.css'))
    throw new Error('Avatar styles missing in '+page);
-if(!avatarCore.includes('profile-avatars')||!avatarCore.includes('avatar_path')||!avatarCore.includes('private'))
+if(!avatarCore.includes('profile-avatars')||!avatarCore.includes('avatar_path')||!avatarCore.includes('authedFetch'))
  throw new Error('Authenticated avatar storage is not implemented.');
 if(!avatarEditor.includes('canvas.toBlob')||!avatarEditor.includes('avatar-zoom')||!avatarEditor.includes('uploadAvatar'))
  throw new Error('Client-side photo crop/compress is incomplete.');
