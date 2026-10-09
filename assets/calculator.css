@@ -602,3 +602,361 @@ html[data-theme="light"] .page-learner .sidebar-tools .calculator-launcher:hover
     padding-bottom:2px;
   }
 }
+
+
+/* FX-580VN X inspired physical face */
+.lms-calculator{
+  width:min(366px,calc(100vw - 18px));
+  border-radius:18px;
+  filter:drop-shadow(0 20px 36px rgba(0,0,0,.34));
+}
+.calc-shell{
+  position:relative;
+  overflow:hidden;
+  padding:11px 11px 10px;
+  border:1px solid #697077;
+  border-radius:18px;
+  background:
+    linear-gradient(180deg,#888e94 0 9px,#2a2d31 9px 72px,#151719 72px 100%);
+  color:#f4f6f7;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.35),
+    inset 0 -1px 0 rgba(0,0,0,.65);
+}
+.calc-shell::before{
+  content:"";
+  position:absolute;
+  top:0;
+  left:14px;
+  right:14px;
+  height:10px;
+  border-radius:0 0 12px 12px;
+  background:linear-gradient(180deg,#b7bdc2,#757c82);
+  opacity:.9;
+}
+.calc-header{
+  position:relative;
+  z-index:1;
+  min-height:54px;
+  padding:8px 5px 8px;
+  border-bottom:0;
+}
+.calc-brand{
+  gap:2px;
+  flex-direction:column;
+  align-items:flex-start;
+}
+.calc-brand .calc-classwiz{
+  font-size:.56rem;
+  font-weight:800;
+  letter-spacing:.22em;
+  color:#f0f2f3;
+  text-transform:uppercase;
+}
+.calc-brand strong{
+  font-size:.98rem;
+  font-weight:500;
+  font-style:italic;
+  letter-spacing:-.02em;
+  color:#f4f5f6;
+}
+.calc-header-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.calc-solar-strip{
+  width:74px;
+  height:22px;
+  border:1px solid #121416;
+  border-radius:3px;
+  background:
+    repeating-linear-gradient(90deg,#252b2f 0 17px,#3b4449 17px 18px);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+}
+.calc-close{
+  width:29px;
+  height:29px;
+  border:1px solid #60676d;
+  border-radius:50%;
+  background:#2f3337;
+  color:#e7e9ea;
+  font-size:1.15rem;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+}
+.calc-close:hover{background:#3c4247}
+
+.calc-screen{
+  min-height:102px;
+  margin:0 5px 12px;
+  padding:8px 10px 9px;
+  border:6px solid #4a4f53;
+  border-radius:3px;
+  background:
+    linear-gradient(180deg,#d6e0d0,#c4d1c0);
+  color:#172018;
+  box-shadow:
+    0 0 0 1px #111,
+    inset 0 1px 7px rgba(36,48,38,.25);
+}
+.calc-screen-top{
+  font-size:.54rem;
+  color:#273228;
+  opacity:.82;
+}
+.calc-screen-flags{
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+.calc-shift-flag,
+.calc-alpha-flag{
+  display:none;
+  min-width:12px;
+  font-size:.5rem;
+  font-weight:900;
+}
+.calc-shift-flag.visible{display:inline;color:#765f00}
+.calc-alpha-flag.visible{display:inline;color:#8b3240}
+.calc-expression{
+  min-height:29px;
+  margin-top:6px;
+  font-size:.84rem;
+}
+.calc-result{
+  min-height:34px;
+  font-size:1.2rem;
+}
+
+.calc-modes{
+  display:none;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:5px;
+  margin:0 5px 10px;
+  padding:7px;
+  border:1px solid #42484d;
+  border-radius:8px;
+  background:#202326;
+}
+.lms-calculator.menu-open .calc-modes,
+.lms-calculator.is-advanced .calc-modes{
+  display:grid;
+}
+.calc-mode-tab{
+  min-height:33px;
+  padding:6px 7px;
+  border-color:#50575c;
+  border-radius:5px;
+  background:#33383d;
+  color:#e1e4e6;
+  font-size:.64rem;
+}
+.calc-mode-tab.active{
+  background:#d9dde0;
+  border-color:#f0f2f3;
+  color:#151719;
+}
+
+.calc-control-deck{
+  display:grid;
+  grid-template-columns:54px 54px 1fr 54px 54px;
+  grid-template-areas:"shift alpha nav menu on";
+  align-items:center;
+  gap:6px;
+  margin:2px 4px 11px;
+}
+.calc-top-key{
+  min-height:26px;
+  border:0;
+  border-radius:11px 11px 8px 8px;
+  background:linear-gradient(180deg,#565b60,#373b3f);
+  color:#e4e7e9;
+  font:750 .55rem/1 system-ui,-apple-system,"Segoe UI",sans-serif;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.14),
+    0 2px 0 #0d0e0f;
+  cursor:pointer;
+}
+.calc-top-key:active{transform:translateY(1px);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 1px 0 #0d0e0f}
+.calc-shift-key{grid-area:shift}
+.calc-alpha-key{grid-area:alpha}
+.calc-menu-key{grid-area:menu}
+.calc-on-key{grid-area:on}
+.calc-shift-key span{color:#ffd85e}
+.calc-alpha-key span{color:#e37484}
+.shift-active .calc-shift-key{
+  outline:1px solid #ffd85e;
+  background:#4d4938;
+}
+.alpha-active .calc-alpha-key{
+  outline:1px solid #e37484;
+  background:#50383d;
+}
+
+.calc-nav-pad{
+  grid-area:nav;
+  position:relative;
+  justify-self:center;
+  width:102px;
+  height:78px;
+  border:1px solid #7e858a;
+  border-radius:49% 49% 45% 45%;
+  background:
+    radial-gradient(circle at center,#adb2b6 0 23%,#44494e 24% 44%,#9ea4a8 45% 49%,#2c3034 50% 100%);
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,.18),
+    0 2px 0 #090a0b;
+}
+.calc-nav-pad button{
+  position:absolute;
+  border:0;
+  background:transparent;
+  color:#161819;
+  font-weight:900;
+  cursor:pointer;
+}
+.calc-nav-up{top:2px;left:42px}
+.calc-nav-down{bottom:2px;left:42px}
+.calc-nav-left{left:6px;top:30px}
+.calc-nav-right{right:6px;top:30px}
+.calc-nav-ok{
+  left:35px;
+  top:25px;
+  width:32px;
+  height:28px;
+  border-radius:50%!important;
+  color:#101213!important;
+  font-size:.54rem!important;
+}
+
+.calc-science-pad{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:8px 6px;
+  margin:0 4px 12px;
+}
+.calc-sci-key{
+  position:relative;
+  min-width:0;
+  min-height:34px;
+  padding:8px 2px 4px;
+  border:1px solid #50555a;
+  border-radius:6px 6px 4px 4px;
+  background:linear-gradient(180deg,#41464a,#292d30);
+  color:#f4f5f6;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.12),
+    0 2px 0 #090a0b;
+  cursor:pointer;
+}
+.calc-sci-key b{
+  display:block;
+  font:700 .68rem/1 system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+.calc-sci-key .calc-shift-label{
+  position:absolute;
+  top:-7px;
+  left:0;
+  right:0;
+  color:#f4cc55;
+  font-size:.46rem;
+  font-weight:700;
+  line-height:1;
+}
+.calc-sci-key:active{transform:translateY(1px);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 1px 0 #090a0b}
+
+.calc-number-pad{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:7px 6px;
+  margin:0 4px 2px;
+}
+.calc-white-key{
+  min-width:0;
+  min-height:39px;
+  border:1px solid #c8cbcd;
+  border-radius:5px 5px 4px 4px;
+  background:linear-gradient(180deg,#fff,#d9dcde);
+  color:#111315;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 3px 0 #777b7e;
+  font:800 .95rem/1 system-ui,-apple-system,"Segoe UI",sans-serif;
+  cursor:pointer;
+}
+.calc-white-key:active{transform:translateY(2px);box-shadow:inset 0 1px 0 #fff,0 1px 0 #777b7e}
+.calc-op-key{
+  font-size:.72rem;
+  background:linear-gradient(180deg,#f3f4f4,#cdd1d3);
+}
+.calc-del-key,
+.calc-ac-key{
+  background:linear-gradient(180deg,#f0d0d4,#d8afb5);
+  color:#321619;
+  border-color:#e4c2c7;
+  font-size:.66rem;
+}
+.calc-equals-key{
+  background:linear-gradient(180deg,#f7f8f8,#d8dbdd);
+  font-size:1rem;
+}
+.calc-main-face .calc-keypad{display:none!important}
+
+.calc-footnote{
+  color:#7e858a;
+  font-size:.53rem;
+  letter-spacing:.02em;
+}
+
+.calc-tool-panel{
+  margin:0 5px;
+  padding:4px 1px 2px;
+}
+.lms-calculator.is-advanced{
+  width:min(500px,calc(100vw - 20px));
+}
+.lms-calculator.is-advanced .calc-shell{
+  background:
+    linear-gradient(180deg,#888e94 0 9px,#2a2d31 9px 72px,#17191b 72px 100%);
+}
+
+@media(max-width:560px){
+  .lms-calculator{
+    width:min(352px,calc(100vw - 10px));
+  }
+  .calc-shell{padding:9px 8px 8px}
+  .calc-header{min-height:48px}
+  .calc-solar-strip{width:62px;height:19px}
+  .calc-screen{min-height:90px;margin-left:3px;margin-right:3px}
+  .calc-control-deck{
+    grid-template-columns:49px 49px 1fr 49px 49px;
+    gap:4px;
+    margin-left:2px;
+    margin-right:2px;
+  }
+  .calc-nav-pad{width:88px;height:70px}
+  .calc-nav-up{left:36px}
+  .calc-nav-down{left:36px}
+  .calc-nav-left{top:27px}
+  .calc-nav-right{top:27px}
+  .calc-nav-ok{left:30px;top:22px;width:28px;height:27px}
+  .calc-science-pad,
+  .calc-number-pad{
+    gap:7px 4px;
+    margin-left:2px;
+    margin-right:2px;
+  }
+  .calc-sci-key{min-height:32px}
+  .calc-white-key{min-height:37px;font-size:.9rem}
+}
+@media(max-height:680px){
+  .calc-screen{min-height:78px}
+  .calc-control-deck{margin-bottom:8px}
+  .calc-nav-pad{height:64px}
+  .calc-nav-up{top:0}
+  .calc-nav-down{bottom:0}
+  .calc-nav-left,.calc-nav-right{top:24px}
+  .calc-nav-ok{top:19px}
+  .calc-sci-key{min-height:29px}
+  .calc-white-key{min-height:34px}
+}
