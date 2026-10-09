@@ -85,6 +85,12 @@ async function installMock(context){
     const table=path.startsWith('/rest/v1/')?path.slice('/rest/v1/'.length):'';
     if(table==='subjects'){
       if(method==='PATCH'){const body=JSON.parse(req.postData()||'{}');state.subjects[0]={...state.subjects[0],...body};state.mutations.subjectPatch++;return json(route,[state.subjects[0]]);}
+      if(method==='POST'){
+        const body=JSON.parse(req.postData()||'{}');
+        const row={exam_level:'certificate',...body};
+        state.subjects.push(row);
+        return json(route,[row],201);
+      }
       return json(route,state.subjects);
     }
     if(table==='chapters')return json(route,state.chapters);
@@ -190,7 +196,7 @@ async function testHome(browser){
   assert((await page.textContent('#global-notification-count'))==='2','Home notification badge should combine chat + admin unread');
   assert((await page.locator('#subject-catalog .subject-row').count())===1,'Home subject catalog did not render');
   assert((await page.locator('#subject-catalog .chapter-row').count())===2,'Home chapter TOC did not render');
-  assert((await page.locator('.subject-cover-art').count())===1,'Van Gogh subject cover did not render');
+  assert((await page.locator('.subject-cover-art.has-generated-cover img').count())===1,'Automatic accounting cover did not render');
   assert((await page.locator('#home-mini-trend svg').count())===1,'Home score sparkline did not render');
   const heroArt=await page.evaluate(()=>getComputedStyle(document.body,'::before').backgroundImage);
   assert(heroArt.includes('Starry_Night.webp'),'Home is missing the Van Gogh artwork background');
@@ -218,6 +224,48 @@ async function testHome(browser){
   await page.selectOption('.subject-level-select','professional');
   await page.waitForTimeout(30);
   assert(state.mutations.subjectPatch===1 && state.subjects[0].exam_level==='professional','Admin subject exam-level update failed');
+
+  await context.close();
+}
+
+async function testAutomaticSubjectCovers(browser){
+  const {context,page,state}=await newPortalPage(browser);
+  await page.goto(baseURL+'/admin.html',{waitUntil:'domcontentloaded'});
+  await page.waitForSelector('#app:not(.hidden)');
+  await page.locator('details:has(#subject-form)').evaluate(el=>{el.open=true;});
+  await page.fill('#subject-new','Corporate Finance');
+  await page.waitForFunction(()=>document.querySelector('#subject-cover-label-main')?.textContent?.includes('Tài chính'));
+  const preview=await page.locator('#subject-cover-image-main').getAttribute('src');
+  assert(preview?.startsWith('data:image/svg+xml;charset=utf-8,'),'Admin preview did not generate an image locally');
+  await page.locator('#subject-form button').click();
+  await page.waitForFunction(()=>Array.from(document.querySelector('#subject').options).some(el=>el.textContent==='Corporate Finance'));
+  assert(state.subjects.length===2,'Admin new-subject creation did not reach Supabase');
+
+  await page.goto(baseURL+'/home.html',{waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.querySelectorAll('#subject-catalog .subject-row').length===2);
+  const financeRow=page.locator('.subject-row').filter({hasText:'Corporate Finance'});
+  assert(await financeRow.locator('img').count()===1,'New subject lacks an automatic cover on Home');
+  const persisted=await financeRow.locator('img').getAttribute('src');
+  assert(persisted===preview,'Admin preview and Home cover must be identical for the same subject');
+  assert((await financeRow.textContent()).includes('Tài chính'),'Finance subject should receive a finance-themed illustration');
+  assert((await financeRow.locator('img').evaluate(img=>{return img.complete&&img.naturalWidth===720})),
+    'Finance SVG image cannot be decoded in the browser');
+
+  const accounting=await page.locator('.subject-row').filter({hasText:'Accounting'}).locator('img').getAttribute('src');
+  assert(accounting!==persisted,'Different domains must not share the same cover');
+
+  // Simulate another course arriving from an external import or admin route.
+  state.subjects.push({id:'audit_course',title:'Auditing and Assurance',is_active:true,sort_order:2,exam_level:'certificate'});
+  state.subjects.push({id:'costs_course',title:'Cost Accounting',is_active:true,sort_order:3,exam_level:'certificate'});
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.querySelectorAll('#subject-catalog .subject-row').length===4);
+  const covers=await page.locator('.subject-row img').evaluateAll(imgs=>imgs.map(img=>({
+    src:img.getAttribute('src'),width:img.naturalWidth
+  })));
+  assert(covers.every(c=>c.width===720),'All future subjects need decodable covers');
+  assert(new Set(covers.map(c=>c.src)).size===4,'Every subject should have deterministic individual art');
+  assert((await page.locator('.subject-row').filter({hasText:'Auditing'}).textContent()).includes('Kiểm toán'),
+    'Auditing course incorrectly classified');
 
   await context.close();
 }
@@ -337,6 +385,7 @@ async function testResponsivePortal(browser){
 const browser=await engine.launch({headless:true});
 try{
   await testHome(browser);
+  await testAutomaticSubjectCovers(browser);
   await testCommunity(browser);
   await testCommunityEmptyState(browser);
   await testChatPagination(browser);
