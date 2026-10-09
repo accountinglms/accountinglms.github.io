@@ -1762,3 +1762,117 @@ html[data-theme="light"] .question-tools .translation-status.error { color:#b743
         padding-top:calc(var(--mobile-topbar-h) + var(--safe-top) + 8px);
     }
 }
+
+
+/* ===== Audited explanation + practical example ===== */
+.explanation-language-block {
+    display:block;
+}
+.explanation-language-block.with-divider {
+    padding-bottom:14px;
+    margin-bottom:14px;
+    border-bottom:1px dashed #4a4a4a;
+}
+.explanation-section-label {
+    margin:0 0 6px;
+    color:#8ba0b0;
+    font-size:.68rem;
+    font-weight:850;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+}
+.explanation-copy {
+    display:block;
+    margin:0;
+    padding:0;
+    border:0;
+    line-height:1.62;
+    white-space:pre-wrap;
+}
+.eng-exp.explanation-copy {
+    color:#c3cbd2;
+    font-style:normal;
+}
+.vie-exp.explanation-copy {
+    color:#a9d9b1;
+}
+.practical-example-card {
+    margin-top:12px;
+    padding:11px 12px;
+    border:1px solid #355063;
+    border-radius:10px;
+    background:#16232c;
+}
+.practical-example-title {
+    margin-bottom:5px;
+    color:#90caf9;
+    font-size:.72rem;
+    font-weight:850;
+}
+.practical-example-copy {
+    color:#c8d5df;
+    font-size:.88rem;
+    line-height:1.55;
+    white-space:pre-wrap;
+}
+.standard-reference {
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
+    margin-top:12px;
+    padding-top:10px;
+    border-top:1px solid #3a4147;
+    color:#7e8f9d;
+    font-size:.72rem;
+    line-height:1.45;
+}
+.standard-reference[hidden] { display:none; }
+.standard-reference span {
+    flex:0 0 auto;
+    color:#7292aa;
+    font-weight:800;
+}
+.standard-reference strong {
+    color:#aab8c3;
+    font-weight:650;
+}
+
+html[data-theme="light"] .explanation-language-block.with-divider {
+    border-bottom-color:#d5dde5;
+}
+html[data-theme="light"] .explanation-section-label { color:#687c8e; }
+html[data-theme="light"] .eng-exp.explanation-copy { color:#35424d; }
+html[data-theme="light"] .vie-exp.explanation-copy { color:#236c3d; }
+html[data-theme="light"] .practical-example-card {
+    background:#f1f7fb;
+    border-color:#c7dce9;
+}
+html[data-theme="light"] .practical-example-title { color:#216e9d; }
+html[data-theme="light"] .practical-example-copy { color:#334854; }
+html[data-theme="light"] .standard-reference {
+    border-top-color:#d7e0e8;
+    color:#6d7b86;
+}
+html[data-theme="light"] .standard-reference span { color:#56758b; }
+html[data-theme="light"] .standard-reference strong { color:#43545f; }
+
+@media (max-width:560px) {
+    .explanation {
+        padding:13px;
+    }
+    .practical-example-card {
+        margin-top:10px;
+        padding:10px 11px;
+    }
+    .practical-example-copy {
+        font-size:.84rem;
+    }
+    .standard-reference {
+        display:block;
+        font-size:.68rem;
+    }
+    .standard-reference span {
+        display:block;
+        margin-bottom:3px;
+    }
+}
