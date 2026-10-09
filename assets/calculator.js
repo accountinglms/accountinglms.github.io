@@ -235,6 +235,7 @@
   const resultEl = panel.querySelector('.calc-result');
   const angleLabel = panel.querySelector('.calc-angle-mode');
   const modeKey = panel.querySelector('.calc-mode-key');
+  const modeKeyLabel = modeKey?.querySelector('b');
   const closeBtn = panel.querySelector('.calc-close');
   const dragHandle = panel.querySelector('[data-calc-drag]');
 
@@ -490,7 +491,7 @@
   function render() {
     expressionEl.textContent = displayExpression(expression);
     angleLabel.textContent = angleMode;
-    modeKey.textContent = angleMode;
+    if (modeKeyLabel) modeKeyLabel.textContent = angleMode;
     if (!hasResult) {
       resultEl.textContent = '0';
       resultEl.classList.remove('is-error');
