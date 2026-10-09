@@ -23,12 +23,33 @@ function text(value) {
 function fmtTime(value) {
   if (!value) return '—';
   try {
+    const date = new Date(value);
+    const day = new Intl.DateTimeFormat('vi-VN', {
+      day:'2-digit',
+      month:'2-digit',
+      year:'numeric',
+      timeZone:'Asia/Ho_Chi_Minh'
+    }).format(date);
+    const time = new Intl.DateTimeFormat('vi-VN', {
+      hour:'2-digit',
+      minute:'2-digit',
+      hour12:false,
+      timeZone:'Asia/Ho_Chi_Minh'
+    }).format(date);
+    return `${day} · ${time}`;
+  } catch { return text(value); }
+}
+
+function fmtDate(value) {
+  if (!value) return '—';
+  try {
     return new Intl.DateTimeFormat('vi-VN', {
-      dateStyle:'medium',
-      timeStyle:'short',
+      day:'2-digit',
+      month:'2-digit',
+      year:'numeric',
       timeZone:'Asia/Ho_Chi_Minh'
     }).format(new Date(value));
-  } catch { return text(value); }
+  } catch { return '—'; }
 }
 
 function fmtDuration(seconds) {
@@ -121,40 +142,45 @@ function fillSelect(select, rows, placeholder, valueKey='id', labelKey='title', 
 
 function renderFilters(initial=false) {
   const previous = currentFilters();
-  fillSelect($('#filter-subject'), subjects, 'Tất cả môn học', 'id', 'title', previous.subject);
-  const subjectField = $('#filter-subject').closest('.field');
-  if (subjects.length === 1) {
-    $('#filter-subject').value = subjects[0].id;
-    subjectField.hidden = true;
-  } else {
-    subjectField.hidden = false;
-  }
+  const requestedId = initial ? new URLSearchParams(location.search).get('exercise') : '';
+  const requestedExercise = requestedId ? exercises.find(item => item.id === requestedId) : null;
+  const requestedChapter = requestedExercise ? chapters.find(item => item.id === requestedExercise.chapter_id) : null;
+
+  let subjectValue = requestedChapter?.subject_id || previous.subject || '';
+  let chapterValue = requestedExercise?.chapter_id || previous.chapter || '';
+  let exerciseValue = requestedExercise?.id || previous.exercise || '';
+
+  if (subjects.length === 1 && !subjectValue) subjectValue = subjects[0].id;
+  fillSelect($('#filter-subject'), subjects, 'Tất cả môn học', 'id', 'title', subjectValue);
+  if (subjects.some(item => item.id === subjectValue)) $('#filter-subject').value = subjectValue;
 
   const subjectId = $('#filter-subject').value;
-  const chapterRows = subjectId ? chapters.filter(x => x.subject_id === subjectId) : chapters;
-  fillSelect($('#filter-chapter'), chapterRows, 'Tất cả chương', 'id', 'title', previous.chapter);
+  const chapterRows = subjectId ? chapters.filter(item => item.subject_id === subjectId) : chapters;
+  if (chapterRows.length === 1 && !chapterValue) chapterValue = chapterRows[0].id;
+  fillSelect($('#filter-chapter'), chapterRows, 'Tất cả chương', 'id', 'title', chapterValue);
+  if (chapterRows.some(item => item.id === chapterValue)) $('#filter-chapter').value = chapterValue;
 
   const chapterId = $('#filter-chapter').value;
   let exerciseRows = exercises;
-  if (chapterId) exerciseRows = exercises.filter(x => x.chapter_id === chapterId);
-  else if (subjectId) {
-    const chapterIds = new Set(chapters.filter(x => x.subject_id === subjectId).map(x => x.id));
-    exerciseRows = exercises.filter(x => chapterIds.has(x.chapter_id));
+  if (chapterId) {
+    exerciseRows = exercises.filter(item => item.chapter_id === chapterId);
+  } else if (subjectId) {
+    const chapterIds = new Set(chapters.filter(item => item.subject_id === subjectId).map(item => item.id));
+    exerciseRows = exercises.filter(item => chapterIds.has(item.chapter_id));
   }
-  fillSelect($('#filter-exercise'), exerciseRows, 'Tất cả bài tập', 'id', 'title', previous.exercise);
+  if (exerciseRows.length === 1 && !exerciseValue) exerciseValue = exerciseRows[0].id;
+  fillSelect($('#filter-exercise'), exerciseRows, 'Tất cả bài tập', 'id', 'title', exerciseValue);
+  if (exerciseRows.some(item => item.id === exerciseValue)) $('#filter-exercise').value = exerciseValue;
 
-  if (initial) {
-    const requested = new URLSearchParams(location.search).get('exercise');
-    if (requested && exercises.some(x => x.id === requested)) {
-      const exercise = exercises.find(x => x.id === requested);
-      const chapter = chapters.find(x => x.id === exercise.chapter_id);
-      if (chapter) $('#filter-subject').value = chapter.subject_id;
-      renderFilters(false);
-      $('#filter-chapter').value = exercise.chapter_id;
-      renderFilters(false);
-      $('#filter-exercise').value = requested;
-    }
-  }
+  const subjectField = $('#filter-subject-field');
+  const chapterField = $('#filter-chapter-field');
+  const exerciseField = $('#filter-exercise-field');
+
+  subjectField.hidden = subjects.length <= 1;
+  chapterField.hidden = chapterRows.length <= 1;
+  exerciseField.hidden = exerciseRows.length <= 1;
+
+  $('#history-filters').hidden = subjectField.hidden && chapterField.hidden && exerciseField.hidden;
 }
 
 function filteredAttempts() {
@@ -170,21 +196,37 @@ function filteredAttempts() {
 
 function renderSummary(rows) {
   $('#metric-attempts').textContent = rows.length;
+  $('#metric-attempts-note').textContent = rows.length === 1 ? '1 lượt đã nộp' : `${rows.length} lượt đã nộp`;
+
   if (!rows.length) {
     $('#metric-best').textContent = '—';
     $('#metric-latest').textContent = '—';
     $('#metric-time').textContent = '—';
+    $('#metric-best-note').textContent = 'Chưa có dữ liệu';
+    $('#metric-latest-note').textContent = 'Chưa có dữ liệu';
+    $('#metric-time-note').textContent = 'Chưa có dữ liệu';
     return;
   }
+
   const latest = rows.slice().sort((a,b) => Date.parse(b.completed_at || 0) - Date.parse(a.completed_at || 0))[0];
   const best = rows.slice().sort((a,b) => percent(b) - percent(a) || Date.parse(b.completed_at || 0) - Date.parse(a.completed_at || 0))[0];
-  $('#metric-best').textContent = `${best.score}/${best.total_questions} · ${percent(best)}%`;
+
+  $('#metric-best').textContent = `${best.score}/${best.total_questions}`;
+  $('#metric-best-note').textContent = `${percent(best)}% · Lần ${best.attempt_no || '?'}`;
+
   $('#metric-latest').textContent = `${latest.score}/${latest.total_questions}`;
+  $('#metric-latest-note').textContent = `${percent(latest)}% · ${fmtDate(latest.completed_at)}`;
+
   const measuredDurations = rows
     .map(row => attemptDurationSeconds(row.duration_seconds))
     .filter(value => value != null);
   const totalSeconds = measuredDurations.reduce((sum,value) => sum + value,0);
+  const missing = rows.length - measuredDurations.length;
+
   $('#metric-time').textContent = measuredDurations.length ? fmtDuration(totalSeconds) : '—';
+  $('#metric-time-note').textContent = missing
+    ? `${missing} lượt chưa có thời gian chính xác`
+    : 'Thời gian đã ghi nhận';
 }
 
 function buildMini(label, value) {
@@ -251,7 +293,7 @@ function buildQuestion(question, index) {
 function renderTimeline() {
   const rows = filteredAttempts();
   renderSummary(rows);
-  $('#result-count').textContent = `${rows.length} lượt`;
+  $('#result-count').textContent = rows.length === 1 ? '1 lượt làm' : `${rows.length} lượt làm`;
 
   const timeline = $('#timeline');
   timeline.replaceChildren();
@@ -259,31 +301,46 @@ function renderTimeline() {
   if (!rows.length) {
     const empty = document.createElement('div');
     empty.className = 'empty';
-    empty.textContent = 'Chưa có lượt làm phù hợp với bộ lọc này. Kết quả sẽ xuất hiện sau khi bạn nộp bài.';
+    empty.textContent = 'Chưa có lượt làm phù hợp với bộ lọc này. Kết quả sẽ xuất hiện tại đây sau khi bạn nộp bài.';
     timeline.appendChild(empty);
     return;
   }
 
-  const latestId = rows.slice().sort((a,b) => Date.parse(b.completed_at || 0) - Date.parse(a.completed_at || 0))[0]?.id;
+  const latestByExercise = new Map();
   const bestByExercise = new Map();
+  const countByExercise = new Map();
+
   rows.forEach(row => {
-    const current = bestByExercise.get(row.exercise_id);
-    if (!current || percent(row) > percent(current) || (percent(row) === percent(current) && Date.parse(row.completed_at || 0) < Date.parse(current.completed_at || 0))) {
-      bestByExercise.set(row.exercise_id,row);
+    countByExercise.set(row.exercise_id, (countByExercise.get(row.exercise_id) || 0) + 1);
+
+    const latest = latestByExercise.get(row.exercise_id);
+    if (!latest || Date.parse(row.completed_at || 0) > Date.parse(latest.completed_at || 0)) {
+      latestByExercise.set(row.exercise_id, row);
+    }
+
+    const best = bestByExercise.get(row.exercise_id);
+    if (!best
+      || percent(row) > percent(best)
+      || (percent(row) === percent(best) && Date.parse(row.completed_at || 0) < Date.parse(best.completed_at || 0))) {
+      bestByExercise.set(row.exercise_id, row);
     }
   });
 
   rows.forEach(attempt => {
     const context = catalogContext(attempt);
+    const measuredDuration = attemptDurationSeconds(attempt.duration_seconds);
     const detail = document.createElement('details');
     detail.className = 'attempt';
 
     const summary = document.createElement('summary');
+    summary.setAttribute('aria-label', `${context.exerciseTitle}, lần ${attempt.attempt_no || '?'}, điểm ${attempt.score} trên ${attempt.total_questions}`);
+
     const main = document.createElement('div');
     main.className = 'attemptMain';
 
     const topline = document.createElement('div');
     topline.className = 'attemptTopline';
+
     const name = document.createElement('span');
     name.className = 'exerciseName';
     name.textContent = context.exerciseTitle;
@@ -294,25 +351,29 @@ function renderTimeline() {
     number.textContent = `Lần ${attempt.attempt_no || '?'}`;
     topline.appendChild(number);
 
-    const isLatest = attempt.id === latestId;
+    const attemptCount = countByExercise.get(attempt.exercise_id) || 0;
+    const isLatest = latestByExercise.get(attempt.exercise_id)?.id === attempt.id;
     const isBest = bestByExercise.get(attempt.exercise_id)?.id === attempt.id;
-    if (isLatest && isBest) {
-      const combined = document.createElement('span');
-      combined.className = 'chip best-latest';
-      combined.textContent = 'Tốt nhất · gần nhất';
-      topline.appendChild(combined);
-    } else {
-      if (isLatest) {
-        const latest = document.createElement('span');
-        latest.className = 'chip latest';
-        latest.textContent = 'Gần nhất';
-        topline.appendChild(latest);
-      }
-      if (isBest) {
-        const best = document.createElement('span');
-        best.className = 'chip best';
-        best.textContent = 'Tốt nhất';
-        topline.appendChild(best);
+
+    if (attemptCount > 1) {
+      if (isLatest && isBest) {
+        const combined = document.createElement('span');
+        combined.className = 'chip best-latest';
+        combined.textContent = 'Mới nhất · tốt nhất';
+        topline.appendChild(combined);
+      } else {
+        if (isLatest) {
+          const latest = document.createElement('span');
+          latest.className = 'chip latest';
+          latest.textContent = 'Mới nhất';
+          topline.appendChild(latest);
+        }
+        if (isBest) {
+          const best = document.createElement('span');
+          best.className = 'chip best';
+          best.textContent = 'Tốt nhất';
+          topline.appendChild(best);
+        }
       }
     }
 
@@ -322,13 +383,22 @@ function renderTimeline() {
 
     const when = document.createElement('div');
     when.className = 'time';
-    const measuredDuration = attemptDurationSeconds(attempt.duration_seconds);
-    when.textContent = `${fmtTime(attempt.completed_at)} · ${measuredDuration == null ? '—' : fmtDuration(measuredDuration)}`;
+    const submitted = document.createElement('span');
+    submitted.textContent = `Nộp ${fmtTime(attempt.completed_at)}`;
+    const separator = document.createElement('span');
+    separator.className = 'metaSep';
+    separator.textContent = '•';
+    const duration = document.createElement('span');
+    duration.textContent = measuredDuration == null ? 'Không có thời gian chính xác' : fmtDuration(measuredDuration);
+    when.append(submitted,separator,duration);
 
     main.append(topline,path,when);
 
     const scoreBox = document.createElement('div');
     scoreBox.className = 'scoreBox';
+    const scoreLabel = document.createElement('span');
+    scoreLabel.className = 'scoreLabel';
+    scoreLabel.textContent = 'Điểm';
     const score = document.createElement('div');
     score.className = 'score';
     score.textContent = `${attempt.score}/${attempt.total_questions}`;
@@ -337,35 +407,45 @@ function renderTimeline() {
     pct.textContent = `${percent(attempt)}%`;
     const hint = document.createElement('div');
     hint.className = 'attemptHint';
-    hint.textContent = 'Xem chi tiết';
-    scoreBox.append(score,pct,hint);
+    hint.textContent = 'Chi tiết';
+    scoreBox.append(scoreLabel,score,pct,hint);
     summary.append(main,scoreBox);
 
     const body = document.createElement('div');
     body.className = 'attemptBody';
+
     const metrics = document.createElement('div');
     metrics.className = 'metrics';
     metrics.append(
       buildMini('Đúng', attempt.correct_count),
       buildMini('Sai', attempt.wrong_count),
       buildMini('Chưa làm', attempt.unanswered_count),
-      buildMini('Đánh dấu', attempt.bookmarked_count),
-      buildMini('Độ chính xác', `${Math.round(Number(attempt.accuracy || 0))}%`)
+      buildMini('Đánh dấu', attempt.bookmarked_count)
     );
     body.appendChild(metrics);
 
+    const detailHeader = document.createElement('div');
+    detailHeader.className = 'detailHeader';
+    const detailTitle = document.createElement('h3');
+    detailTitle.textContent = 'Chi tiết câu hỏi';
+    const detailCount = document.createElement('span');
+    const snapshot = Array.isArray(attempt.question_snapshot) ? attempt.question_snapshot : [];
+    detailCount.textContent = snapshot.length ? `${snapshot.length} câu` : 'Không có dữ liệu';
+    detailHeader.append(detailTitle,detailCount);
+    body.appendChild(detailHeader);
+
     const questions = document.createElement('div');
     questions.className = 'questions';
-    const snapshot = Array.isArray(attempt.question_snapshot) ? attempt.question_snapshot : [];
     if (snapshot.length) {
       snapshot.forEach((question,index) => questions.appendChild(buildQuestion(question,index)));
     } else {
       const empty = document.createElement('div');
       empty.className = 'empty';
-      empty.textContent = 'Attempt này chưa có snapshot chi tiết câu hỏi.';
+      empty.textContent = 'Lượt làm này chưa có dữ liệu chi tiết từng câu hỏi.';
       questions.appendChild(empty);
     }
     body.appendChild(questions);
+
     detail.append(summary,body);
     timeline.appendChild(detail);
   });
