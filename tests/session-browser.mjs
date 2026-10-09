@@ -55,6 +55,7 @@ async function installSupabaseMock(context, opts={}) {
   const state = {
     logoutScopes: [],
     refreshCount: 0,
+    translationCalls: 0,
     requests: [],
     failRefreshFor: new Set(opts.failRefreshFor || [])
   };
@@ -122,10 +123,47 @@ async function installSupabaseMock(context, opts={}) {
       });
     }
 
+    if (path === '/functions/v1/icaew-translate') {
+      state.translationCalls += 1;
+      let body = {};
+      try { body = JSON.parse(req.postData() || '{}'); } catch {}
+      const target = body.target_language || 'vi';
+      return json(route, {
+        content_type: body.content_type || 'document',
+        target_language: target,
+        cached: false,
+        model_name: 'mock-translator',
+        segments: (body.segments || []).map(item => ({
+          id: item.id,
+          text: `[${target.toUpperCase()}] ${item.text}`
+        }))
+      });
+    }
+
+    if (opts.withLesson && path === '/rest/v1/subjects') {
+      return json(route, [{ id:'accounting_fundamental', title:'Accounting Fundamental', sort_order:0, is_active:true }]);
+    }
+    if (opts.withLesson && path === '/rest/v1/chapters') {
+      return json(route, [{ id:'chapter_1', subject_id:'accounting_fundamental', title:'Chapter 1', sort_order:0, is_active:true }]);
+    }
+    if (opts.withLesson && path === '/rest/v1/lessons') {
+      return json(route, [{
+        id:'lesson-1',
+        chapter_id:'chapter_1',
+        title:'Objectives of financial reporting',
+        summary:'Understand the purpose of financial information.',
+        content_markdown:'Financial reporting provides useful information to investors and other users.\n\nIt also helps assess stewardship of economic resources.',
+        status:'published',
+        sort_order:0,
+        updated_at:'2026-10-09T00:00:00Z'
+      }]);
+    }
+
     if (path === '/rest/v1/subjects' ||
         path === '/rest/v1/chapters' ||
         path === '/rest/v1/exercises' ||
         path === '/rest/v1/questions' ||
+        path === '/rest/v1/lessons' ||
         path === '/rest/v1/user_progress' ||
         path === '/rest/v1/user_preferences') {
       return json(route, []);
@@ -339,6 +377,41 @@ async function testLightThemeQuestionStatusColors(browser) {
   await context.close();
 }
 
+
+async function testLessonTranslationIsOnDemand(browser) {
+  const context = await browser.newContext({
+    serviceWorkers: 'block',
+    ignoreHTTPSErrors: true,
+    viewport: browserName === 'webkit' ? { width: 1512, height: 982 } : { width: 1366, height: 768 }
+  });
+  const mock = await installSupabaseMock(context, { withLesson: true });
+  const page = await context.newPage();
+
+  await page.goto(baseURL + '/', { waitUntil:'domcontentloaded' });
+  await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {
+    key: AUTH_KEY,
+    value: session('token-aal2','refresh-aal2')
+  });
+
+  await page.goto(baseURL + '/lessons.html', { waitUntil:'domcontentloaded' });
+  await page.waitForSelector('#lesson-translate-btn');
+
+  assert(mock.translationCalls === 0, 'Lesson translation called AI before the user clicked translate');
+  const originalTitle = await page.textContent('#lesson-reader-title');
+  assert(originalTitle === 'Objectives of financial reporting', 'Original lesson did not render');
+
+  await page.click('#lesson-translate-btn');
+  await page.waitForFunction(() => document.querySelector('#lesson-reader-title')?.textContent?.startsWith('[VI]'));
+  assert(mock.translationCalls >= 1, 'Lesson translation click did not call universal translation service');
+  assert((await page.textContent('#lesson-reader-content')).startsWith('[VI]'), 'Lesson content was not translated');
+
+  await page.click('#lesson-translate-btn');
+  await page.waitForFunction(() => document.querySelector('#lesson-reader-title')?.textContent === 'Objectives of financial reporting');
+  assert(mock.translationCalls >= 1, 'Returning to original should not remove prior translation evidence');
+
+  await context.close();
+}
+
 const browser = await engine.launch({ headless: true });
 try {
   await testLoginMfaPersistence(browser);
@@ -346,7 +419,8 @@ try {
   await testStaleFailureMessage(browser);
   await testScopedLogout(browser);
   await testLightThemeQuestionStatusColors(browser);
-  console.log(`PASS ${browserName}: session + light-theme status suite`);
+  await testLessonTranslationIsOnDemand(browser);
+  console.log(`PASS ${browserName}: session + UI + universal translation suite`);
 } finally {
   await browser.close();
 }

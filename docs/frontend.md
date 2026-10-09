@@ -9,7 +9,8 @@ index.html
 ├── assets/learner.css
 ├── assets/theme-init.js
 ├── assets/learner-core.js
-└── assets/cloud-sync.js
+├── assets/cloud-sync.js
+└── assets/translation.js
 ```
 
 ### Responsibilities
@@ -19,6 +20,7 @@ index.html
 - `assets/theme-init.js` — very small pre-render theme bootstrap.
 - `assets/learner-core.js` — quiz engine, local progress state, navigation, scoring, database-catalog adapter, accessibility behavior.
 - `assets/cloud-sync.js` — Supabase Auth, role lookup, database catalog loading, cross-device progress/preferences sync and service-worker registration.
+- `assets/translation.js` — on-demand quiz translation controller; translation never runs automatically.
 
 The previous `assets/lms-patch.js` monkey-patch layer has been removed. Final quiz behavior is implemented directly in the learner core and cloud data layer.
 
@@ -61,3 +63,14 @@ A complete selected answer is saved immediately as a draft and counts as answere
 This document marks the end of the requested frontend refactor phase.
 
 The visual redesign (including the approved Van Gogh-inspired homepage and subject-cover redesign) is intentionally **not started here** and requires a separate owner instruction.
+
+
+## Translation behavior
+
+- Quiz content starts in the original language.
+- The translation button detects whether the source is primarily EN or VI and offers the opposite language.
+- Switching questions always returns to the original source.
+- Theory Lessons use the same universal translation client for title, summary and body.
+- Long lesson/document text is split into bounded batches by the shared client and reassembled after translation.
+- Translation never receives answer keys, correctness state or explanations for quiz questions.
+- Cache keys are derived from source text. Editing source content automatically produces a new cache key, so stale translations are not reused.

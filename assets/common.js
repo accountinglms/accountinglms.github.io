@@ -354,22 +354,173 @@ export async function uploadImportFile(file) {
   return { storagePath };
 }
 
-export async function callQuestionTranslate({question, options, target_language='vi', subject=''}) {
+function splitTranslationText(text, maxChars = 9000) {
+  const source = String(text ?? '');
+  if (source.length <= maxChars) return [{ text: source, separator: '' }];
+
+  const paragraphs = source.split(/(\n\s*\n)/);
+  const pieces = [];
+  let current = '';
+  let pendingSeparator = '';
+
+  const pushCurrent = () => {
+    if (!current) return;
+    pieces.push({ text: current, separator: pendingSeparator });
+    current = '';
+    pendingSeparator = '';
+  };
+
+  for (const part of paragraphs) {
+    if (!part) continue;
+    if (/^\n\s*\n$/.test(part)) {
+      pendingSeparator += part;
+      continue;
+    }
+
+    const candidate = current ? current + pendingSeparator + part : part;
+    if (candidate.length <= maxChars) {
+      current = candidate;
+      pendingSeparator = '';
+      continue;
+    }
+
+    pushCurrent();
+
+    if (part.length <= maxChars) {
+      current = part;
+      continue;
+    }
+
+    for (let i = 0; i < part.length; i += maxChars) {
+      pieces.push({
+        text: part.slice(i, i + maxChars),
+        separator: i === 0 ? pendingSeparator : ''
+      });
+      pendingSeparator = '';
+    }
+  }
+
+  pushCurrent();
+  return pieces.length ? pieces : [{ text: source, separator: '' }];
+}
+
+async function callTranslateBatch({content_type, target_language, context, segments}) {
   const session = await ensureSession();
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/icaew-question-translate`, {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/icaew-translate`, {
     method: 'POST',
     headers: {
       apikey: SUPABASE_KEY,
       Authorization: `Bearer ${session.access_token}`,
       'content-type': 'application/json'
     },
-    body: JSON.stringify({ question, options, target_language, subject })
+    body: JSON.stringify({ content_type, target_language, context, segments })
   });
   const text = await res.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = { error: text }; }
-  if (!res.ok) throw new Error(data?.error || 'Không dịch được câu hỏi lúc này.');
+  if (!res.ok) throw new Error(data?.error || 'Không dịch được nội dung lúc này.');
   return data;
+}
+
+export async function callUniversalTranslate({
+  content_type = 'document',
+  target_language = 'vi',
+  context = '',
+  segments = []
+}) {
+  if (!Array.isArray(segments) || !segments.length) throw new Error('Không có nội dung để dịch.');
+
+  const expanded = [];
+  const assembly = new Map();
+
+  segments.forEach((segment, segmentIndex) => {
+    const id = String(segment?.id || `segment_${segmentIndex}`);
+    const source = String(segment?.text ?? '');
+    const parts = splitTranslationText(source);
+    assembly.set(id, parts.map((part, partIndex) => ({
+      partId: `${id}__part_${partIndex}`,
+      separator: part.separator
+    })));
+    parts.forEach((part, partIndex) => {
+      expanded.push({
+        id: `${id}__part_${partIndex}`,
+        text: part.text
+      });
+    });
+  });
+
+  const batches = [];
+  let current = [];
+  let currentChars = 0;
+  for (const segment of expanded) {
+    const size = segment.text.length;
+    if (current.length && (current.length >= 35 || currentChars + size > 28000)) {
+      batches.push(current);
+      current = [];
+      currentChars = 0;
+    }
+    current.push(segment);
+    currentChars += size;
+  }
+  if (current.length) batches.push(current);
+
+  const translatedById = new Map();
+  let allCached = true;
+  let modelName = null;
+
+  for (const batch of batches) {
+    const result = await callTranslateBatch({
+      content_type,
+      target_language,
+      context,
+      segments: batch
+    });
+    allCached = allCached && result?.cached === true;
+    modelName = modelName || result?.model_name || null;
+    for (const item of result?.segments || []) translatedById.set(item.id, item.text);
+  }
+
+  const merged = segments.map((segment, segmentIndex) => {
+    const id = String(segment?.id || `segment_${segmentIndex}`);
+    const parts = assembly.get(id) || [];
+    let text = '';
+    parts.forEach((part, index) => {
+      const translated = translatedById.get(part.partId);
+      if (translated == null) throw new Error('Bản dịch trả về thiếu một phần nội dung.');
+      if (index > 0) text += part.separator || '\n\n';
+      text += translated;
+    });
+    return { id, text };
+  });
+
+  return {
+    content_type,
+    target_language,
+    segments: merged,
+    cached: allCached,
+    model_name: modelName
+  };
+}
+
+export async function callQuestionTranslate({question, options, target_language='vi', subject=''}) {
+  const segments = [
+    { id: 'question_text', text: question },
+    ...options.map((text, index) => ({ id: `option_${index}`, text }))
+  ];
+  const result = await callUniversalTranslate({
+    content_type: 'question',
+    target_language,
+    context: subject,
+    segments
+  });
+  const byId = new Map(result.segments.map(item => [item.id, item.text]));
+  return {
+    question_text: byId.get('question_text') || question,
+    options: options.map((text, index) => byId.get(`option_${index}`) || text),
+    target_language,
+    cached: result.cached,
+    model_name: result.model_name
+  };
 }
 
 export async function callAiImport({storagePath, fileName, mimeType, targetType, subjectTitle, chapterTitle, exerciseTitle}) {
