@@ -1024,7 +1024,7 @@
   function readVector(target){return Array.from(target.querySelectorAll('input')).map(readNumber);}
   function vectorDot(a,b){return a.reduce((sum,v,i)=>sum+v*b[i],0);}
   function vectorMag(a){return Math.sqrt(vectorDot(a,a));}
-  function formatVector(v){return `[${v.map(formatNumber).join(', ')}]`;}
+  function formatVector(v){return `[${v.map(value => formatNumber(value)).join(', ')}]`;}
 
   vectorSize.addEventListener('change',renderVectors);
   panel.querySelector('#calc-vector-ops').addEventListener('click',event=>{
