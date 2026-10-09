@@ -78,9 +78,10 @@ try {
   await page.waitForSelector('#lms-calculator:not([hidden])');
 
   const calc = page.locator('#lms-calculator');
-  const pressInsert = value => calc.locator(`[data-insert="${value}"]`).first().click({ force: true });
-  const action = value => calc.locator(`[data-action="${value}"]`).click({ force: true });
-  const fn = value => calc.locator(`[data-fn="${value}"]`).click({ force: true });
+  const domClick = locator => locator.evaluate(el => el.click());
+  const pressInsert = value => domClick(calc.locator(`[data-insert="${value}"]`).first());
+  const action = value => domClick(calc.locator(`[data-action="${value}"]`));
+  const fn = value => domClick(calc.locator(`[data-fn="${value}"]`).first());
 
   await pressInsert('2');
   await pressInsert('+');
@@ -328,6 +329,14 @@ try {
   await pressInsert('Ans'); await pressInsert('*'); await pressInsert('4');
   await action('equals');
   assert((await calc.locator('.calc-result').textContent()) === '20', 'Multi-statement calculation failed');
+
+  // Zero intermediate Ans must stay zero instead of falling back to an older answer.
+  await action('clear');
+  await pressInsert('0');
+  await calc.locator('[data-insert=":"]').evaluate(el => el.click());
+  await pressInsert('Ans'); await pressInsert('+'); await pressInsert('1');
+  await action('equals');
+  assert((await calc.locator('.calc-result').textContent()) === '1', 'Zero-safe intermediate Ans failed');
 
   // Angle mode cycle DEG -> RAD -> GRA -> DEG
   await action('angle'); await action('angle');
