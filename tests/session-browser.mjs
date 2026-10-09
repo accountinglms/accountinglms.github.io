@@ -197,7 +197,8 @@ function assert(condition, message) {
 
 async function waitForWorkspace(page) {
   // A newly authenticated member is now routed to Home instead of an empty quiz.
-  if(page.url().includes('/home.html')) {
+  if(!page.url().includes('/index.html')) {
+    await page.waitForURL(/\/home\.html(?:\?|$)/,{timeout:10000});
     await page.waitForSelector('#welcome-title');
     return;
   }
