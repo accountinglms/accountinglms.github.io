@@ -986,3 +986,9 @@ body.page-diagnostics .btn.primary{
     scroll-behavior:auto!important;
   }
 }
+
+.home-mini-trend{margin-top:12px;padding-top:10px;border-top:1px solid var(--vg-line)}
+.home-mini-trend[hidden]{display:none}
+.home-mini-trend svg{display:block;width:100%;height:auto;max-height:64px;overflow:visible}
+.home-mini-trend path{fill:none;stroke:var(--vg-cobalt-deep);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.home-mini-trend circle{fill:var(--vg-paper);stroke:var(--vg-gold);stroke-width:1.6}
