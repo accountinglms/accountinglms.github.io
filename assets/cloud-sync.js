@@ -3,6 +3,8 @@
     const SUPABASE_URL = 'https://uangiwgznukuicrfnohq.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_FRBwRP7TAmiu02eRF9l49g_tCa4DsGJ';
     const AUTH_KEY = 'icaew-lms-auth-v2';
+    const LAST_EMAIL_KEY = 'icaew-lms-last-email-v1';
+    const RECOVERY_REDIRECT = 'https://accountinglms.github.io/';
     let accessInfo = null;
 
     let cloudSession = null;
@@ -20,6 +22,18 @@
     const authMessage = document.getElementById('auth-message');
     const authOnlineTip = document.getElementById('auth-online-tip');
     const passwordToggle = document.getElementById('auth-password-toggle');
+    const loginView = document.getElementById('auth-login-view');
+    const forgotView = document.getElementById('auth-forgot-view');
+    const resetView = document.getElementById('auth-reset-view');
+    const forgotBtn = document.getElementById('auth-forgot-btn');
+    const recoveryEmailInput = document.getElementById('auth-recovery-email');
+    const recoverySendBtn = document.getElementById('auth-recovery-send');
+    const recoveryBackBtn = document.getElementById('auth-recovery-back');
+    const recoveryMessage = document.getElementById('auth-recovery-message');
+    const newPasswordInput = document.getElementById('auth-new-password');
+    const confirmPasswordInput = document.getElementById('auth-confirm-password');
+    const resetSubmitBtn = document.getElementById('auth-reset-submit');
+    const resetMessage = document.getElementById('auth-reset-message');
     window.addEventListener('error', e => { if (authMessage) { authMessage.textContent = 'Lỗi ứng dụng: ' + (e.message || 'JavaScript không chạy đúng.'); authMessage.style.color = '#ef7b7b'; } });
     window.addEventListener('unhandledrejection', e => { if (authMessage) { const m = e.reason?.message || String(e.reason || 'Lỗi kết nối'); authMessage.textContent = 'Lỗi kết nối: ' + m; authMessage.style.color = '#ef7b7b'; } });
     const accountBox = document.getElementById('cloud-account');
@@ -56,6 +70,32 @@
         authMessage.style.color = error ? '#ef7b7b' : '';
     }
     function setAuthBusy(busy) { loginBtn.disabled = busy; signupBtn.disabled = busy; }
+
+    function showAuthView(view) {
+        if (loginView) loginView.hidden = view !== 'login';
+        if (forgotView) forgotView.hidden = view !== 'forgot';
+        if (resetView) resetView.hidden = view !== 'reset';
+    }
+    function setRecoveryMessage(message, error=false) {
+        if (!recoveryMessage) return;
+        recoveryMessage.textContent = message || '';
+        recoveryMessage.style.color = error ? '#ef7b7b' : '';
+    }
+    function setResetMessage(message, error=false) {
+        if (!resetMessage) return;
+        resetMessage.textContent = message || '';
+        resetMessage.style.color = error ? '#ef7b7b' : '';
+    }
+    function saveLastEmail(email) {
+        try {
+            const value = String(email || '').trim().toLowerCase();
+            if (value) localStorage.setItem(LAST_EMAIL_KEY, value);
+        } catch (_) {}
+    }
+    function loadLastEmail() {
+        try { return localStorage.getItem(LAST_EMAIL_KEY) || ''; }
+        catch (_) { return ''; }
+    }
     function setCloudLabel(text, online=true) {
         let next = String(text || '');
         if (/đang đồng bộ/i.test(next)) {
@@ -165,6 +205,75 @@
         });
         return parseResponse(res);
     }
+
+    async function authRequestPasswordRecovery(email) {
+        const res = await fetchWithTimeout(
+            `${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(RECOVERY_REDIRECT)}`,
+            {
+                method:'POST',
+                headers:{'apikey':SUPABASE_KEY,'content-type':'application/json'},
+                body:JSON.stringify({email})
+            }
+        );
+        return parseResponse(res);
+    }
+
+    async function recoverySessionFromUrl() {
+        const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+        const query = new URLSearchParams(location.search);
+        const type = hash.get('type') || query.get('type');
+        const errorDescription = hash.get('error_description') || query.get('error_description');
+        const recoveryLike = type === 'recovery' || Boolean(errorDescription);
+        if (!recoveryLike) return { handled:false, session:null };
+
+        if (errorDescription) {
+            history.replaceState(null, '', location.pathname);
+            showGate(true);
+            showAuthView('forgot');
+            setRecoveryMessage('Liên kết khôi phục không còn hợp lệ hoặc đã hết hạn. Hãy yêu cầu một liên kết mới.', true);
+            return { handled:true, session:null };
+        }
+
+        const accessToken = hash.get('access_token');
+        const refreshToken = hash.get('refresh_token');
+        if (!accessToken) {
+            showGate(true);
+            showAuthView('forgot');
+            setRecoveryMessage('Không đọc được phiên khôi phục từ liên kết email. Hãy yêu cầu lại liên kết đặt mật khẩu.', true);
+            return { handled:true, session:null };
+        }
+
+        const userRes = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/user`, {
+            headers:{
+                'apikey':SUPABASE_KEY,
+                'Authorization':`Bearer ${accessToken}`
+            }
+        });
+        const user = await parseResponse(userRes);
+        const session = normalizeSession({
+            access_token:accessToken,
+            refresh_token:refreshToken,
+            expires_in:Number(hash.get('expires_in') || 3600),
+            token_type:hash.get('token_type') || 'bearer',
+            user
+        });
+        if (!session) throw new Error('Không tạo được phiên khôi phục mật khẩu.');
+
+        saveSession(session);
+        accessInfo = null;
+        const access = await getMyAccess(true);
+        if (access?.allowed !== true) {
+            await authSignOut();
+            throw new Error('Tài khoản này không được cấp quyền sử dụng ICAEW LMS.');
+        }
+
+        history.replaceState(null, '', location.pathname);
+        showGate(true);
+        showAuthView('reset');
+        setResetMessage('');
+        newPasswordInput?.focus({preventScroll:true});
+        return { handled:true, session };
+    }
     async function authSignUp(email, password) {
         const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/signup?redirect_to=${encodeURIComponent(location.href.split('#')[0])}`, {
             method:'POST',
@@ -259,6 +368,7 @@
             const data = await authSignIn(email, password);
             const session = normalizeSession(data);
             if (!session) throw new Error('Không nhận được phiên đăng nhập.');
+            saveLastEmail(email);
             saveSession(session);
             await handleSignedIn(session);
         } catch (error) {
@@ -286,6 +396,88 @@
         if (next.length < 8) return alert('Mật khẩu cần ít nhất 8 ký tự.');
         try { await authUpdatePassword(next); alert('Đã đổi mật khẩu.'); }
         catch (error) { alert('Không đổi được mật khẩu: ' + error.message); }
+    }
+
+
+    let recoveryCooldownTimer = null;
+    function startRecoveryCooldown(seconds=60) {
+        if (!recoverySendBtn) return;
+        clearInterval(recoveryCooldownTimer);
+        let remaining = seconds;
+        recoverySendBtn.disabled = true;
+        const original = 'Gửi liên kết khôi phục';
+        const render = () => {
+            recoverySendBtn.querySelector('span')?.replaceChildren(document.createTextNode(`Gửi lại sau ${remaining}s`));
+        };
+        render();
+        recoveryCooldownTimer = setInterval(() => {
+            remaining -= 1;
+            if (remaining <= 0) {
+                clearInterval(recoveryCooldownTimer);
+                recoverySendBtn.disabled = false;
+                recoverySendBtn.querySelector('span')?.replaceChildren(document.createTextNode(original));
+                return;
+            }
+            render();
+        }, 1000);
+    }
+
+    async function requestPasswordRecovery() {
+        const email = String(recoveryEmailInput?.value || '').trim().toLowerCase();
+        if (!email || !recoveryEmailInput.checkValidity()) {
+            recoveryEmailInput?.reportValidity();
+            return setRecoveryMessage('Hãy nhập đúng email của tài khoản.', true);
+        }
+        if (location.protocol === 'file:') {
+            return setRecoveryMessage('Hãy mở website chính thức trước khi yêu cầu khôi phục mật khẩu.', true);
+        }
+
+        recoverySendBtn.disabled = true;
+        setRecoveryMessage('Đang gửi email khôi phục…');
+        try {
+            await authRequestPasswordRecovery(email);
+            saveLastEmail(email);
+            setRecoveryMessage('Nếu email này thuộc tài khoản hợp lệ, liên kết đặt lại mật khẩu đã được gửi. Hãy kiểm tra Inbox và Spam.');
+            startRecoveryCooldown(60);
+        } catch (error) {
+            recoverySendBtn.disabled = false;
+            const message = error?.status === 429
+                ? 'Bạn vừa yêu cầu email khôi phục. Hãy chờ một lúc trước khi thử lại.'
+                : 'Chưa gửi được email khôi phục: ' + error.message;
+            setRecoveryMessage(message, true);
+        }
+    }
+
+    async function submitRecoveredPassword() {
+        const password = String(newPasswordInput?.value || '');
+        const confirm = String(confirmPasswordInput?.value || '');
+        if (password.length < 8) {
+            newPasswordInput?.focus();
+            return setResetMessage('Mật khẩu mới cần ít nhất 8 ký tự.', true);
+        }
+        if (password !== confirm) {
+            confirmPasswordInput?.focus();
+            return setResetMessage('Hai lần nhập mật khẩu chưa khớp.', true);
+        }
+        if (!cloudSession?.access_token) {
+            showAuthView('forgot');
+            return setRecoveryMessage('Phiên khôi phục đã hết hạn. Hãy yêu cầu lại liên kết đặt mật khẩu.', true);
+        }
+
+        resetSubmitBtn.disabled = true;
+        setResetMessage('Đang cập nhật mật khẩu…');
+        try {
+            await authUpdatePassword(password);
+            saveLastEmail(cloudSession.user?.email || '');
+            setResetMessage('Đã cập nhật mật khẩu. Đang mở workspace…');
+            newPasswordInput.value = '';
+            confirmPasswordInput.value = '';
+            await handleSignedIn(cloudSession);
+        } catch (error) {
+            setResetMessage('Không cập nhật được mật khẩu: ' + error.message, true);
+        } finally {
+            resetSubmitBtn.disabled = false;
+        }
     }
 
     async function hydrateCloud() {
@@ -444,6 +636,27 @@
     logoutBtn.addEventListener('click', logout);
     passwordBtn.addEventListener('click', changePassword);
     passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+    forgotBtn?.addEventListener('click', () => {
+        const email = emailInput.value.trim() || loadLastEmail();
+        if (recoveryEmailInput) recoveryEmailInput.value = email;
+        setRecoveryMessage('');
+        showAuthView('forgot');
+        recoveryEmailInput?.focus({preventScroll:true});
+    });
+    recoveryBackBtn?.addEventListener('click', () => {
+        if (emailInput && recoveryEmailInput?.value) emailInput.value = recoveryEmailInput.value.trim();
+        setRecoveryMessage('');
+        showAuthView('login');
+        emailInput?.focus({preventScroll:true});
+    });
+    recoverySendBtn?.addEventListener('click', requestPasswordRecovery);
+    recoveryEmailInput?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') requestPasswordRecovery();
+    });
+    resetSubmitBtn?.addEventListener('click', submitRecoveredPassword);
+    confirmPasswordInput?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') submitRecoveredPassword();
+    });
     passwordToggle?.addEventListener('click', () => {
         const reveal = passwordInput.type === 'password';
         passwordInput.type = reveal ? 'text' : 'password';
@@ -456,6 +669,9 @@
     window.addEventListener('offline', () => setCloudLabel('Offline · tiến độ vẫn lưu trên máy', false));
 
     (async () => {
+        const lastEmail = loadLastEmail();
+        if (lastEmail && emailInput && !emailInput.value) emailInput.value = lastEmail;
+
         if (location.protocol === 'file:') {
             showGate(true);
             if (authOnlineTip) authOnlineTip.hidden = false;
@@ -463,6 +679,19 @@
         } else if (authOnlineTip) {
             authOnlineTip.hidden = true;
         }
+
+        try {
+            const recovery = await recoverySessionFromUrl();
+            if (recovery.handled) return;
+        } catch (error) {
+            saveSession(null);
+            accessInfo = null;
+            showGate(true);
+            showAuthView('forgot');
+            setRecoveryMessage('Không mở được liên kết khôi phục: ' + error.message, true);
+            return;
+        }
+
         const saved = loadSession();
         if (saved) {
             saveSession(saved);
@@ -473,9 +702,13 @@
                 saveSession(null);
                 accessInfo = null;
                 showGate(true);
+                showAuthView('login');
                 setAuthMessage('Phiên đăng nhập cũ đã hết hạn hoặc tài khoản không còn quyền. Hãy đăng nhập lại.');
             }
-        } else showGate(true);
+        } else {
+            showGate(true);
+            showAuthView('login');
+        }
     })();
 
     if ('serviceWorker' in navigator && location.protocol === 'https:') {

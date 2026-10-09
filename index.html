@@ -64,12 +64,6 @@
             </div>
 
             <div class="auth-card">
-                <div class="auth-card-heading">
-                    <span class="auth-eyebrow">WELCOME BACK</span>
-                    <h2 id="auth-title">Đăng nhập</h2>
-                    <p>Tiếp tục học và đồng bộ tiến độ của bạn.</p>
-                </div>
-
                 <div class="auth-online-tip" id="auth-online-tip" hidden>
                     <div>
                         <strong>Bạn đang mở bản file cục bộ</strong>
@@ -78,37 +72,107 @@
                     <a href="https://accountinglms.github.io/" target="_blank" rel="noopener noreferrer">Mở website ↗</a>
                 </div>
 
-                <div class="auth-field">
-                    <label for="auth-email">Email</label>
-                    <div class="auth-input-wrap">
-                        <span class="auth-input-icon" aria-hidden="true">@</span>
-                        <input id="auth-email" type="email" autocomplete="username" inputmode="email" placeholder="name@example.com" required>
+                <div class="auth-view" id="auth-login-view">
+                    <div class="auth-card-heading">
+                        <span class="auth-eyebrow">WELCOME BACK</span>
+                        <h2 id="auth-title">Đăng nhập</h2>
+                        <p>Tiếp tục học và đồng bộ tiến độ của bạn.</p>
+                    </div>
+
+                    <div class="auth-field">
+                        <label for="auth-email">Email</label>
+                        <div class="auth-input-wrap">
+                            <span class="auth-input-icon" aria-hidden="true">@</span>
+                            <input id="auth-email" type="email" autocomplete="username" inputmode="email" placeholder="name@example.com" required>
+                        </div>
+                    </div>
+
+                    <div class="auth-field">
+                        <div class="auth-field-label-row">
+                            <label for="auth-password">Mật khẩu</label>
+                            <button class="auth-text-link" id="auth-forgot-btn" type="button">Quên mật khẩu?</button>
+                        </div>
+                        <div class="auth-input-wrap">
+                            <span class="auth-input-icon" aria-hidden="true">•</span>
+                            <input id="auth-password" type="password" autocomplete="current-password" minlength="8" placeholder="Nhập mật khẩu" required>
+                            <button class="auth-password-toggle" id="auth-password-toggle" type="button" aria-label="Hiện mật khẩu" aria-pressed="false">Hiện</button>
+                        </div>
+                    </div>
+
+                    <div class="auth-session-note">
+                        <span aria-hidden="true">✓</span>
+                        <span>Phiên đăng nhập được ghi nhớ trên thiết bị này. LMS không lưu trực tiếp mật khẩu của bạn.</span>
+                    </div>
+
+                    <div class="auth-actions">
+                        <button class="auth-btn primary" id="auth-login-btn" type="button">
+                            <span>Đăng nhập</span><span aria-hidden="true">→</span>
+                        </button>
+                        <button class="auth-btn" id="auth-signup-btn" type="button" hidden aria-hidden="true">Tạo tài khoản lần đầu</button>
+                    </div>
+
+                    <div class="auth-message" id="auth-message" aria-live="polite"></div>
+
+                    <div class="auth-access-note">
+                        <span class="auth-access-icon" aria-hidden="true">⌾</span>
+                        <div><strong>Không có tài khoản?</strong><span>Workspace này dành cho thành viên được Owner cấp quyền.</span></div>
                     </div>
                 </div>
 
-                <div class="auth-field">
-                    <div class="auth-field-label-row">
-                        <label for="auth-password">Mật khẩu</label>
+                <div class="auth-view" id="auth-forgot-view" hidden>
+                    <div class="auth-card-heading">
+                        <span class="auth-eyebrow">ACCOUNT RECOVERY</span>
+                        <h2>Quên mật khẩu?</h2>
+                        <p>Nhập email tài khoản. Hệ thống sẽ gửi liên kết đặt lại mật khẩu đến email đó.</p>
                     </div>
-                    <div class="auth-input-wrap">
-                        <span class="auth-input-icon" aria-hidden="true">•</span>
-                        <input id="auth-password" type="password" autocomplete="current-password" minlength="8" placeholder="Nhập mật khẩu" required>
-                        <button class="auth-password-toggle" id="auth-password-toggle" type="button" aria-label="Hiện mật khẩu" aria-pressed="false">Hiện</button>
+
+                    <div class="auth-field">
+                        <label for="auth-recovery-email">Email tài khoản</label>
+                        <div class="auth-input-wrap">
+                            <span class="auth-input-icon" aria-hidden="true">@</span>
+                            <input id="auth-recovery-email" type="email" autocomplete="email" inputmode="email" placeholder="name@example.com" required>
+                        </div>
                     </div>
+
+                    <div class="auth-actions auth-actions-stack">
+                        <button class="auth-btn primary" id="auth-recovery-send" type="button">
+                            <span>Gửi liên kết khôi phục</span><span aria-hidden="true">→</span>
+                        </button>
+                        <button class="auth-secondary-btn" id="auth-recovery-back" type="button">← Quay lại đăng nhập</button>
+                    </div>
+                    <div class="auth-message" id="auth-recovery-message" aria-live="polite"></div>
+                    <p class="auth-recovery-hint">Vì lý do bảo mật, hệ thống sẽ không xác nhận công khai email nào có hoặc không có tài khoản.</p>
                 </div>
 
-                <div class="auth-actions">
-                    <button class="auth-btn primary" id="auth-login-btn" type="button">
-                        <span>Đăng nhập</span><span aria-hidden="true">→</span>
-                    </button>
-                    <button class="auth-btn" id="auth-signup-btn" type="button" hidden aria-hidden="true">Tạo tài khoản lần đầu</button>
-                </div>
+                <div class="auth-view" id="auth-reset-view" hidden>
+                    <div class="auth-card-heading">
+                        <span class="auth-eyebrow">SET NEW PASSWORD</span>
+                        <h2>Đặt mật khẩu mới</h2>
+                        <p>Liên kết khôi phục đã được xác thực. Hãy tạo mật khẩu mới cho tài khoản của bạn.</p>
+                    </div>
 
-                <div class="auth-message" id="auth-message" aria-live="polite"></div>
+                    <div class="auth-field">
+                        <label for="auth-new-password">Mật khẩu mới</label>
+                        <div class="auth-input-wrap">
+                            <span class="auth-input-icon" aria-hidden="true">•</span>
+                            <input id="auth-new-password" type="password" autocomplete="new-password" minlength="8" placeholder="Tối thiểu 8 ký tự" required>
+                        </div>
+                    </div>
 
-                <div class="auth-access-note">
-                    <span class="auth-access-icon" aria-hidden="true">⌾</span>
-                    <div><strong>Không có tài khoản?</strong><span>Workspace này dành cho thành viên được Owner cấp quyền.</span></div>
+                    <div class="auth-field">
+                        <label for="auth-confirm-password">Nhập lại mật khẩu mới</label>
+                        <div class="auth-input-wrap">
+                            <span class="auth-input-icon" aria-hidden="true">•</span>
+                            <input id="auth-confirm-password" type="password" autocomplete="new-password" minlength="8" placeholder="Nhập lại mật khẩu" required>
+                        </div>
+                    </div>
+
+                    <div class="auth-actions auth-actions-stack">
+                        <button class="auth-btn primary" id="auth-reset-submit" type="button">
+                            <span>Cập nhật mật khẩu</span><span aria-hidden="true">✓</span>
+                        </button>
+                    </div>
+                    <div class="auth-message" id="auth-reset-message" aria-live="polite"></div>
                 </div>
             </div>
 

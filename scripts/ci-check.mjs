@@ -95,8 +95,18 @@ if (fs.existsSync(path.join(root, 'assets/lms-patch.js')) || learnerHtml.include
 if (!fs.readFileSync(path.join(root, 'assets/learner-core.js'), 'utf8').includes('function draftComplete')) {
   throw new Error('Integrated quiz flow is missing from learner core.');
 }
-if (!fs.readFileSync(path.join(root, 'assets/cloud-sync.js'), 'utf8').includes('loadDatabaseCatalog')) {
+const cloudSync = fs.readFileSync(path.join(root, 'assets/cloud-sync.js'), 'utf8');
+if (!cloudSync.includes('loadDatabaseCatalog')) {
   throw new Error('Database catalog loading is missing from cloud data layer.');
+}
+if (!cloudSync.includes('/auth/v1/recover')) {
+  throw new Error('Password recovery endpoint missing from auth data layer.');
+}
+if (!cloudSync.includes('localStorage.setItem(AUTH_KEY')) {
+  throw new Error('Persistent auth session storage missing from auth data layer.');
+}
+if (!learnerHtml.includes('id="auth-forgot-btn"') || !learnerHtml.includes('id="auth-reset-view"')) {
+  throw new Error('Password recovery UI is incomplete.');
 }
 
 console.log('Security/static integrity checks passed.');
