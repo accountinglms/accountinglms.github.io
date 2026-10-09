@@ -1470,11 +1470,33 @@
         saveProgress();
         const finishedAt = Date.now();
         const startedAt = Number(state.startedAt || finishedAt);
+        const provisional = {
+            id: 'local:' + state.runId,
+            exercise_id: activeSectionId,
+            score: metrics.correct,
+            total_questions: metrics.total,
+            completed_at: new Date(finishedAt).toISOString()
+        };
+        const existingSummary = attemptSummaryByExercise.get(activeSectionId);
+        if (!existingSummary) {
+            attemptSummaryByExercise.set(activeSectionId, { latest: provisional, best: provisional, count: 1 });
+        } else if (existingSummary.latest?.id !== provisional.id) {
+            const bestPct = Number(existingSummary.best?.total_questions) > 0
+                ? Number(existingSummary.best.score || 0) / Number(existingSummary.best.total_questions)
+                : -1;
+            const currentPct = metrics.total > 0 ? metrics.correct / metrics.total : 0;
+            existingSummary.latest = provisional;
+            existingSummary.count += 1;
+            if (currentPct > bestPct) existingSummary.best = provisional;
+        }
+        updateSidebarScore(activeSectionId, metrics.total);
+
         window.dispatchEvent(new CustomEvent('lms:attempt-submitted', {
             detail: {
                 exercise_id: activeSectionId,
                 run_id: state.runId,
                 started_at: new Date(startedAt).toISOString(),
+                submitted_at: new Date(finishedAt).toISOString(),
                 score: metrics.correct,
                 total_questions: metrics.total,
                 correct_count: metrics.correct,
