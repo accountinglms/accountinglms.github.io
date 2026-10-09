@@ -423,14 +423,29 @@
         return parseResponse(res);
     }
 
+    const CATALOG_CACHE_KEY = 'accountingLMSCatalog_v1';
+
     async function loadDatabaseCatalog() {
-        const [subjects, chapters, exercises, questions] = await Promise.all([
-            restGet('subjects', 'select=*&is_active=eq.true&order=sort_order.asc'),
-            restGet('chapters', 'select=*&is_active=eq.true&order=sort_order.asc'),
-            restGet('exercises', 'select=*&is_active=eq.true&order=sort_order.asc'),
-            restGet('questions', 'select=*&status=eq.published&order=sort_order.asc')
-        ]);
-        return applyDatabaseCatalog({ subjects, chapters, exercises, questions });
+        try {
+            const [subjects, chapters, exercises, questions] = await Promise.all([
+                restGet('subjects', 'select=*&is_active=eq.true&order=sort_order.asc'),
+                restGet('chapters', 'select=*&is_active=eq.true&order=sort_order.asc'),
+                restGet('exercises', 'select=*&is_active=eq.true&order=sort_order.asc'),
+                restGet('questions', 'select=*&status=eq.published&order=sort_order.asc')
+            ]);
+            const catalog = { subjects, chapters, exercises, questions, cached_at: Date.now() };
+            try { localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(catalog)); } catch (_) {}
+            return applyDatabaseCatalog(catalog);
+        } catch (error) {
+            try {
+                const cached = JSON.parse(localStorage.getItem(CATALOG_CACHE_KEY) || 'null');
+                if (cached?.subjects?.length) {
+                    console.warn('Catalog network load failed; using last synced database catalog.', error);
+                    return applyDatabaseCatalog(cached);
+                }
+            } catch (_) {}
+            throw error;
+        }
     }
     async function restUpsert(table, payload, conflict) {
         const q = conflict ? `?on_conflict=${encodeURIComponent(conflict)}` : '';

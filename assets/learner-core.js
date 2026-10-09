@@ -697,6 +697,9 @@
             required: Number(row.required_selections || (Array.isArray(row.correct_answer) ? row.correct_answer.length : 1)),
             expEng: row.explanation_en || '',
             expVie: row.explanation_vi || '',
+            exampleEng: row.practical_example_en || '',
+            exampleVie: row.practical_example_vi || '',
+            standardReference: row.standard_reference || '',
             _legacyMigrated: row.metadata?.legacy_migrated === true
         };
     }
@@ -1403,7 +1406,14 @@
         if (state.isAnswered[currentQuestion]) {
             renderAnsweredQuestion(question, state.userSelections[currentQuestion]);
             submitBtn.style.display = 'none';
-            showExplanation(state.answersStatus[currentQuestion] === 'correct', question.expEng, question.expVie);
+            showExplanation(
+                state.answersStatus[currentQuestion] === 'correct',
+                question.expEng,
+                question.expVie,
+                question.exampleEng,
+                question.exampleVie,
+                question.standardReference
+            );
         } else {
             const draft = state.draftSelections[currentQuestion];
             if (question.type === 'tf') renderTFQuestion(question, draft);
@@ -1634,7 +1644,7 @@
         });
     }
 
-    function showExplanation(isCorrect, textEng, textVie) {
+    function showExplanation(isCorrect, textEng, textVie, exampleEng = '', exampleVie = '', standardReference = '') {
         const resultColor = isCorrect ? '#4caf50' : '#ef5350';
         const resultText = isCorrect ? '🎉 Chính xác (Correct)!' : '❌ Chưa chính xác.';
         explanationBox.style.borderLeftColor = resultColor;
@@ -1647,12 +1657,59 @@
                     <button class="lang-btn" type="button" data-lang="both" onclick="setExplanationLang('both')">EN + VI</button>
                 </div>
             </div>
-            <span class="eng-exp" id="eng-exp"></span>
-            <span class="vie-exp" id="vie-exp"></span>`;
+
+            <section class="explanation-language-block" id="eng-explanation-block">
+                <div class="explanation-section-label">Explanation</div>
+                <div class="eng-exp explanation-copy" id="eng-exp"></div>
+                <div class="practical-example-card" id="eng-example-card" hidden>
+                    <div class="practical-example-title">💼 Practical example</div>
+                    <div class="practical-example-copy" id="eng-example"></div>
+                </div>
+            </section>
+
+            <section class="explanation-language-block" id="vie-explanation-block">
+                <div class="explanation-section-label">Giải thích</div>
+                <div class="vie-exp explanation-copy" id="vie-exp"></div>
+                <div class="practical-example-card" id="vie-example-card" hidden>
+                    <div class="practical-example-title">💼 Ví dụ thực tế</div>
+                    <div class="practical-example-copy" id="vie-example"></div>
+                </div>
+            </section>
+
+            <div class="standard-reference" id="standard-reference" hidden>
+                <span>Chuẩn tham chiếu</span>
+                <strong id="standard-reference-text"></strong>
+            </div>`;
+
         const engExp = document.getElementById('eng-exp');
         const vieExp = document.getElementById('vie-exp');
+        const engExample = document.getElementById('eng-example');
+        const vieExample = document.getElementById('vie-example');
+        const engExampleCard = document.getElementById('eng-example-card');
+        const vieExampleCard = document.getElementById('vie-example-card');
+        const reference = document.getElementById('standard-reference');
+        const referenceText = document.getElementById('standard-reference-text');
+
         if (engExp) engExp.textContent = safePlainText(textEng);
         if (vieExp) vieExp.textContent = safePlainText(textVie);
+
+        const cleanEngExample = safePlainText(exampleEng);
+        const cleanVieExample = safePlainText(exampleVie);
+        if (engExample && cleanEngExample) {
+            engExample.textContent = cleanEngExample;
+            engExampleCard.hidden = false;
+        }
+        if (vieExample && cleanVieExample) {
+            vieExample.textContent = cleanVieExample;
+            vieExampleCard.hidden = false;
+        }
+
+        const cleanReference = safePlainText(standardReference);
+        if (reference && referenceText && cleanReference) {
+            referenceText.textContent = cleanReference;
+            reference.hidden = false;
+        }
+
         explanationBox.classList.add('show');
         applyExplanationLang();
     }
@@ -1664,13 +1721,13 @@
     }
 
     function applyExplanationLang() {
-        const eng = document.getElementById('eng-exp');
-        const vie = document.getElementById('vie-exp');
-        if (!eng || !vie) return;
+        const engBlock = document.getElementById('eng-explanation-block');
+        const vieBlock = document.getElementById('vie-explanation-block');
+        if (!engBlock || !vieBlock) return;
         const lang = uiPrefs.explanationLang || 'both';
-        eng.style.display = (lang === 'eng' || lang === 'both') ? 'block' : 'none';
-        vie.style.display = (lang === 'vie' || lang === 'both') ? 'block' : 'none';
-        eng.style.borderBottom = lang === 'both' ? '1px dashed #555' : 'none';
+        engBlock.style.display = (lang === 'eng' || lang === 'both') ? 'block' : 'none';
+        vieBlock.style.display = (lang === 'vie' || lang === 'both') ? 'block' : 'none';
+        engBlock.classList.toggle('with-divider', lang === 'both');
         document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
     }
 

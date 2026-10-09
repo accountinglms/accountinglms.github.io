@@ -106,6 +106,7 @@ const cloudSync = fs.readFileSync(path.join(root, 'assets/cloud-sync.js'), 'utf8
 if (!cloudSync.includes('loadDatabaseCatalog')) {
   throw new Error('Database catalog loading is missing from cloud data layer.');
 }
+
 if (!cloudSync.includes('/auth/v1/recover')) {
   throw new Error('Password recovery endpoint missing from auth data layer.');
 }
@@ -169,6 +170,34 @@ if (!translateEdge.includes('content_translations') || !translateEdge.includes('
 }
 if (!translateEdge.includes('"question","lesson","theory","document"')) {
   throw new Error('Universal translation content-type coverage regressed.');
+}
+
+const learnerCore = fs.readFileSync(path.join(root, 'assets/learner-core.js'), 'utf8');
+const adminHtml = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
+const adminJs = fs.readFileSync(path.join(root, 'assets/admin.js'), 'utf8');
+if (!cloudSync.includes('CATALOG_CACHE_KEY')) {
+  throw new Error('Latest database catalog is not cached for offline fallback.');
+}
+if (!adminJs.includes('verification_status')) {
+  throw new Error('Admin import workflow is missing verification persistence.');
+}
+if (!edge.includes('google_search') || !edge.includes('verification_status')) {
+  throw new Error('AI import function is missing grounded verification.');
+}
+if (!learnerCore.includes('row.practical_example_en') || !learnerCore.includes('row.practical_example_vi') || !learnerCore.includes('row.standard_reference')) {
+  throw new Error('Practical-example learner mapping is missing.');
+}
+if (!learnerCore.includes('practical-example-card') || !learnerCore.includes('standard-reference')) {
+  throw new Error('Practical example/reference learner UI is missing.');
+}
+if (!adminHtml.includes('id="q-example-en"') || !adminHtml.includes('id="q-example-vi"') || !adminHtml.includes('id="q-standard-ref"')) {
+  throw new Error('Question Editor is missing practical-example/reference fields.');
+}
+if (!adminJs.includes('practical_example_en') || !adminJs.includes('standard_reference')) {
+  throw new Error('Admin publish flow is not preserving practical examples/references.');
+}
+if (!edge.includes('practical_example_en') || !edge.includes('standard_reference') || !edge.includes('Never invent paragraph numbers')) {
+  throw new Error('AI Import explanation/example/reference safeguards are missing.');
 }
 
 console.log('Security/static integrity checks passed.');
