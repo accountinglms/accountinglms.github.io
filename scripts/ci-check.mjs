@@ -286,6 +286,11 @@ if (!cloudSync.includes('record_exercise_attempt') || !cloudSync.includes('ATTEM
 if (!cloudSync.includes('payload.owner_user_id = cloudSession.user.id') || !cloudSync.includes('payload.owner_user_id !== cloudSession.user.id') || !learnerCore.includes('lmsBindOfflineUser')) {
   throw new Error('Cross-account offline attempt isolation or user-scoped study state is missing.');
 }
+if (!learnerHtml.includes('id="legacy-recover-btn"') ||
+    !learnerCore.includes('lmsRecoverLegacyProgress') ||
+    !cloudSync.includes('accountingLMSLegacyClaimedBy_v1')) {
+  throw new Error('Legacy progress archives require explicit owner-approved recovery.');
+}
 if (!cloudSync.includes('attempt_run_id') || !cloudSync.includes('attempt_recorded')) {
   throw new Error('Current attempt identity is not preserved in cloud progress.');
 }
