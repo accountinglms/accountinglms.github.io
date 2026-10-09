@@ -32,6 +32,7 @@ jobs:
           node --check assets/calculator-pro.js
           node --check assets/translation.js
           node --check assets/common.js
+          node --check assets/score-model.js
           node --check assets/account.js
           node --check assets/admin.js
           node --check assets/lessons.js
@@ -44,6 +45,9 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+
+      - name: Learning score unit tests
+        run: node tests/score-model.test.mjs
 
       - name: Edge Function typecheck
         run: |
