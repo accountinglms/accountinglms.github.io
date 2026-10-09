@@ -180,13 +180,17 @@ async function testHome(browser){
   await page.fill('#feedback-subject','Need another mock');
   await page.fill('#feedback-message','Please add a timed mock for adjustments.');
   await page.click('#feedback-form button[type="submit"]');
-  await page.waitForFunction(()=>document.querySelector('#feedback-status')?.textContent?.includes('Đã gửi'));
+  await page.waitForTimeout(350);
+  const feedbackStatus=await page.textContent('#feedback-status');
+  assert(feedbackStatus?.includes('Đã gửi'), `Feedback flow failed: status=${feedbackStatus} mutations=${state.mutations.feedback}`);
   assert(state.mutations.feedback===1,'Member feedback was not sent to admin backend');
 
   await page.fill('#announcement-title','Update tối nay');
   await page.fill('#announcement-body','Sửa phần lịch sử và thêm tài liệu.');
   await page.click('#announcement-form button[type="submit"]');
-  await page.waitForFunction(()=>document.querySelector('#announcement-status')?.textContent?.includes('Đã gửi'));
+  await page.waitForTimeout(350);
+  const announcementStatus=await page.textContent('#announcement-status');
+  assert(announcementStatus?.includes('Đã gửi'), `Announcement flow failed: status=${announcementStatus} mutations=${state.mutations.announcement}`);
   assert(state.mutations.announcement===1,'Admin announcement was not published');
 
   await page.selectOption('.subject-level-select','professional');
