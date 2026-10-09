@@ -169,11 +169,22 @@ try{
   const mock=await installMock(context);
 
   const page=await context.newPage();
-  await page.addInitScript(({key,value})=>localStorage.setItem(key,JSON.stringify(value)),{key:AUTH_KEY,value:session});
+  await page.addInitScript(({key,value})=>{
+    localStorage.setItem(key,JSON.stringify(value));
+    // This archive intentionally belongs to an unknown pre-v40 account.
+    // It must not be silently merged into the currently signed-in account.
+    localStorage.setItem('accountingLMSProgress_v2',JSON.stringify({
+      exercise_1:{bookmarks:[true],isAnswered:[true],answersStatus:['correct'],updatedAt:Date.now()+180000}
+    }));
+  },{key:AUTH_KEY,value:session});
   await page.goto(baseURL+'/',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.querySelector('#auth-gate')?.classList.contains('hidden')===true);
   await page.waitForSelector('#menu-exercise_1');
   await page.waitForFunction(()=>/Đã đồng bộ/.test(document.querySelector('#cloud-sync-label')?.textContent||''));
+  await page.waitForFunction(()=>!document.querySelector('#legacy-recover-btn')?.hidden);
+  const scopedState=await page.evaluate(()=>JSON.parse(localStorage.getItem('accountingLMSProgress_v2:user:'+JSON.parse(localStorage.getItem('icaew-lms-auth-v2')).user.id)||'{}'));
+  assert(!scopedState?.exercise_1?.bookmarks?.[0],'Pre-v40 archive leaked into an authenticated account without consent');
+
 
   await page.click('#mobile-menu-btn');
   await page.click('#menu-exercise_1');
