@@ -873,8 +873,8 @@
         STORAGE_KEY = scopedKey('accountingLMSProgress_v2', next);
         UI_PREF_KEY = scopedKey('accountingLMSUiPrefs_v3', next);
         savedProgress = loadJSON(STORAGE_KEY, {});
-        Object.assign(uiPrefs, { explanationLang: 'both', lastSectionId: null, updatedAt: 0 },
-            loadJSON(UI_PREF_KEY, {}));
+        Object.keys(uiPrefs).forEach(key => delete uiPrefs[key]);
+        Object.assign(uiPrefs,{ explanationLang:'both', lastSectionId:null, updatedAt:0 },loadJSON(UI_PREF_KEY, {}));
         progressStore = {};
         activeSectionId = null;
         activeSectionData = null;
