@@ -90,3 +90,10 @@ Every push to `main` is published automatically by GitHub Pages.
 - [ ] Final iPad check if used, then retire Floot only with owner approval
 
 See `docs/operations.md` for operating and recovery procedures.
+
+## LMS brand icon v46 (2026-10-10)
+
+The approved white-cloud mascot with its **LMS** speech bubble is the canonical LMS icon.
+Browser favicons (16/32/ICO), Apple touch (180) and PWA icons (192/512) are produced from the same approved artwork.
+All pages declare favicon links; the service-worker cache is versioned v46 to refresh offline assets.
+In-browser tabs, the portal header and installed PWAs use these local icons with no third-party dependency.

@@ -361,4 +361,26 @@ if (!commonJs.includes('uploadChatFile') || !commonJs.includes('downloadChatFile
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
 if (manifest.start_url !== './home.html') throw new Error('Installed PWA must launch into member home.');
 
+
+const brandPages=['index.html','home.html','account.html','admin.html','community.html','history.html','lessons.html','progress.html','diagnostics.html'];
+for(const page of brandPages){
+  const html=fs.readFileSync(path.join(root,page),'utf8');
+  for(const marker of ['favicon.ico?v=46','favicon-32.png?v=46','favicon-16.png?v=46','apple-touch-icon.png?v=46']){
+    if(!html.includes(marker))throw new Error('Missing mascot favicon in '+page+': '+marker);
+  }
+}
+for(const [file,size] of [['icon-192.png',192],['icon-512.png',512],['apple-touch-icon.png',180],['favicon-32.png',32],['favicon-16.png',16]]){
+  const data=fs.readFileSync(path.join(root,file));
+  if(data.toString('hex',0,8)!=='89504e470d0a1a0a'||data.readUInt32BE(16)!==size||data.readUInt32BE(20)!==size)
+    throw new Error('Malformed brand icon: '+file);
+}
+const brandedIco=fs.readFileSync(path.join(root,'favicon.ico'));
+if(brandedIco.length<100||brandedIco.readUInt16LE(0)!==0||brandedIco.readUInt16LE(2)!==1||brandedIco.readUInt16LE(4)<3)
+  throw new Error('Multi-resolution favicon.ico is invalid.');
+const brandManifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.webmanifest'),'utf8'));
+if(!['icon-192.png','icon-512.png'].every(src=>brandManifest.icons.some(icon=>icon.src===src)))throw new Error('PWA branding icons missing.');
+const brandSw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
+if(!brandSw.includes("icaew-lms-github-v46")||!brandSw.includes("'./favicon.ico'"))
+  throw new Error('Brand icons absent from updated PWA cache.');
+
 console.log('Security/static integrity checks passed.');
