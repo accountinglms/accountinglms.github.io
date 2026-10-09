@@ -121,3 +121,7 @@ Accounting LMS member pages (`home.html`, `community.html`, `progress.html`) sha
 ## Community mobile refinement and member avatars v50 (2026-10-10)
 
 Header buttons use 44px hit targets and 22px SVGs, with a mobile overflow menu for calls and group details. Messages, image previews and composer spacing have been redesigned; all member pages share private profile avatars. Members can choose device photos, crop/zoom on a 400px canvas, upload compressed WebP/JPEG to the `profile-avatars` *private* Supabase Storage bucket, and reset to initials. Profiles store `avatar_path`; only the authenticated user's own folder is writable, and only authenticated LMS members may fetch stored avatars. Crop/uploads are limited to 3 MB, storage objects have immutable UUID filenames. Database migration `member_private_photo_avatars_v50` was applied. Avatar changes are displayed across Home, Community, Progress and Account on refresh; Community also refreshes when profiles update.
+
+## Community v51 mobile photo overflow fix (2026-10-10)
+
+Hard-bounds the mobile chat grid, message stream, own/peer message rows, filenames, image previews, and composer against iPhone viewport width. Long filenames truncate, images scale to available bubble width, message labels wrap, composer uses four intrinsic-safe grid tracks at 320–430px. Adds a browser regression reproducing the user's own sticker + large picture + long file name; guards against right-edge clipping and horizontal scrolling on Chromium and Safari/WebKit. Invalidate the offline CSS cache with PWA version v51.

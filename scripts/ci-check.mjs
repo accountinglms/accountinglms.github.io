@@ -23,6 +23,7 @@ const required = [
   'assets/avatar-editor.js',
   'assets/avatar.css',
   'assets/community-v50.css',
+  'assets/community-v51.css',
   'assets/community-polish.js',
   'assets/vg-theme.css',
   'assets/calculator.css',
@@ -391,7 +392,7 @@ if(brandedIco.length<100||brandedIco.readUInt16LE(0)!==0||brandedIco.readUInt16L
 const brandManifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.webmanifest'),'utf8'));
 if(!['icon-192.png','icon-512.png'].every(src=>brandManifest.icons.some(icon=>icon.src===src)))throw new Error('PWA branding icons missing.');
 const brandSw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
-if(!brandSw.includes("icaew-lms-github-v50")||!brandSw.includes("'./favicon.ico'"))
+if(!brandSw.includes("icaew-lms-github-v51")||!brandSw.includes("'./favicon.ico'"))
   throw new Error('Brand icons absent from updated PWA cache.');
 
 
@@ -412,7 +413,7 @@ if(!voiceJs.includes("start_media_call")||!voiceJs.includes("getUserMedia")||!vo
  throw new Error('Voice call signaling is incomplete.');
 if(!upgradedCommon.includes('export async function getChatFileBlob')||!chatSocialCss.includes('#social-tabs'))
  throw new Error('Secure private chat media display missing.');
-if(!sw.includes('icaew-lms-github-v50')||!sw.includes("'./assets/community-social.js'"))
+if(!sw.includes('icaew-lms-github-v51')||!sw.includes("'./assets/community-social.js'"))
  throw new Error('PWA v47 social upgrade cache is missing.');
 
 
@@ -469,5 +470,17 @@ if(!fs.readFileSync(path.join(root,'community.html'),'utf8').includes('assets/co
  throw new Error('Contextual mobile chat menu is missing.');
 for(const file of ["assets/avatar.js","assets/avatar-editor.js","assets/avatar.css","assets/community-v50.css","assets/community-polish.js"])
  if(!sw.includes("'./"+file+"'"))throw new Error('PWA cache missing '+file);
+
+
+const chatOverflowCss=fs.readFileSync(path.join(root,'assets/community-v51.css'),'utf8');
+const chatV51Html=fs.readFileSync(path.join(root,'community.html'),'utf8');
+if(!chatV51Html.includes('assets/community-v51.css')||
+ !chatOverflowCss.includes('grid-template-columns:minmax(0,1fr)!important')||
+ !chatOverflowCss.includes('grid-template-columns:44px 44px minmax(0,1fr)')||
+ !chatOverflowCss.includes('.message-attachment > span:nth-child(2)')||
+ !chatOverflowCss.includes('.message-meta strong'))
+ throw new Error('Mobile chat overflow safeguards are missing');
+if(!sw.includes("'./assets/community-v51.css'"))
+ throw new Error('Mobile chat overflow fix is missing from PWA cache');
 
 console.log('Security/static integrity checks passed.');

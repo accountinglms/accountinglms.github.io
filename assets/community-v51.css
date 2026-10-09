@@ -1,0 +1,272 @@
+/* Accounting LMS v51 — hard bounds for mobile Safari message layouts.
+   Content must never enlarge the chat grid or escape the viewport. */
+body.page-community .portal-shell,
+body.page-community .chat-layout,
+body.page-community .chat-center,
+body.page-community .message-stream,
+body.page-community .chat-composer,
+body.page-community #composer-active,
+body.page-community .composer-box,
+body.page-community .composer-tools{
+  min-width:0;
+  max-width:100%;
+  box-sizing:border-box;
+}
+body.page-community .chat-layout{
+  width:100%;
+  min-width:0;
+  grid-template-columns:minmax(0,310px) minmax(0,1fr) minmax(0,260px);
+}
+body.page-community .chat-center{
+  width:100%;
+  min-width:0;
+  overflow:hidden;
+}
+body.page-community .message-stream{
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  overflow-x:hidden;
+  overflow-y:auto;
+  overscroll-behavior-x:contain;
+}
+body.page-community .message-row{
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  box-sizing:border-box;
+}
+body.page-community .message-main{
+  width:auto;
+  flex:0 1 auto;
+  min-width:0;
+  max-width:min(78%,560px);
+  box-sizing:border-box;
+  overflow-wrap:anywhere;
+}
+body.page-community .message-row.own .message-main{
+  max-width:min(86%,560px);
+}
+body.page-community .message-main > *{
+  box-sizing:border-box;
+  max-width:100%;
+}
+body.page-community .message-meta{
+  min-width:0;
+  width:100%;
+  max-width:100%;
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-start;
+  overflow-wrap:anywhere;
+  text-align:left;
+}
+body.page-community .message-row.own .message-meta{
+  justify-content:flex-end;
+}
+body.page-community .message-meta strong{
+  min-width:0;
+  max-width:100%;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+body.page-community .message-meta time{flex:none;}
+body.page-community .message-body{
+  min-width:0;
+  max-width:100%!important;
+  width:fit-content;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+}
+body.page-community .chat-image-preview{
+  display:block;
+  width:auto!important;
+  height:auto!important;
+  max-width:100%!important;
+  max-height:320px;
+  object-fit:contain;
+  border-radius:15px;
+}
+body.page-community .chat-image-preview[hidden]{display:none!important;}
+body.page-community .message-attachment{
+  display:flex;
+  align-items:center;
+  width:100%;
+  min-width:0;
+  max-width:100%!important;
+  box-sizing:border-box;
+  overflow:hidden;
+  text-align:left;
+}
+body.page-community .message-attachment > span:first-child{
+  flex:0 0 auto;
+}
+body.page-community .message-attachment > span:nth-child(2){
+  display:block;
+  flex:1 1 0;
+  min-width:0;
+  overflow:hidden;
+  overflow-wrap:anywhere;
+}
+body.page-community .message-attachment strong{
+  display:block;
+  min-width:0;
+  max-width:100%;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+body.page-community .reaction-row,
+body.page-community .message-actions{
+  min-width:0;
+  max-width:100%;
+  flex-wrap:wrap;
+}
+body.page-community .chat-room-head{
+  min-width:0;
+  max-width:100%;
+}
+body.page-community .chat-room-head > div:first-child{
+  min-width:0;
+  overflow:hidden;
+}
+body.page-community .chat-room-copy{
+  min-width:0;
+  max-width:100%;
+}
+body.page-community .chat-room-head h1,
+body.page-community .chat-room-head p{
+  display:block;
+  max-width:100%!important;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+body.page-community .chat-composer{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  overflow:visible;
+}
+body.page-community .composer-box{
+  width:100%;
+  min-width:0;
+  max-width:100%;
+}
+body.page-community .composer-tools{
+  width:100%;
+}
+body.page-community #pending-file{
+  min-width:0;
+  max-width:100%;
+  overflow:hidden;
+}
+body.page-community #pending-file-name{
+  min-width:0;
+  flex:1;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+@media (min-width:701px) and (max-width:1130px){
+  body.page-community .chat-layout{
+    grid-template-columns:minmax(0,270px) minmax(0,1fr);
+  }
+}
+@media(max-width:700px){
+  body.page-community,
+  body.page-community .portal-shell{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+  }
+  body.page-community .chat-layout{
+    display:grid;
+    grid-template-columns:minmax(0,1fr)!important;
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    overflow:hidden;
+  }
+  body.page-community .chat-center{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    grid-template-columns:minmax(0,1fr);
+    overflow:hidden;
+  }
+  body.page-community .message-stream{
+    width:100%;
+    min-width:0;
+    max-width:100%;
+    overflow-x:hidden;
+  }
+  body.page-community .message-row{width:100%;max-width:100%;}
+  body.page-community .message-row.own .message-main{
+    max-width:min(calc(100% - 8px),500px)!important;
+    min-width:0;
+  }
+  body.page-community .message-row:not(.own) .message-main{
+    max-width:min(calc(100% - 42px),500px)!important;
+    min-width:0;
+  }
+  body.page-community .message-attachment{
+    width:100%;
+    max-width:100%;
+  }
+  body.page-community .chat-image-preview{
+    display:block;
+    width:auto!important;
+    max-width:100%!important;
+    max-height:min(300px,42dvh)!important;
+  }
+  body.page-community .message-meta{
+    max-width:100%;
+    gap:3px 9px!important;
+  }
+  body.page-community .message-meta strong{
+    font-size:12px!important;
+  }
+  body.page-community .composer-tools{
+    display:grid!important;
+    grid-template-columns:44px 44px minmax(0,1fr) minmax(65px,78px);
+    gap:5px!important;
+    width:100%;
+    min-width:0;
+    max-width:100%;
+    align-items:center;
+  }
+  body.page-community .composer-tools > button:not(.send),
+  body.page-community .composer-tools > label{
+    width:44px!important;
+    min-width:44px!important;
+    max-width:44px!important;
+    height:44px!important;
+  }
+  body.page-community #message-type{
+    display:block;
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    font-size:11px!important;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  body.page-community #send-btn{
+    min-width:0!important;
+    width:100%!important;
+    max-width:100%!important;
+    margin-left:0!important;
+    padding:0 5px!important;
+  }
+  /* The emoji popover is absolutely positioned and must not affect grid width. */
+  body.page-community #emoji-popover{
+    position:absolute;
+    max-width:min(390px,calc(100vw - 28px));
+    min-width:0;
+    width:min(390px,calc(100vw - 28px));
+  }
+}
+@media(max-width:355px){
+  body.page-community #send-btn span{font-size:12px;}
+  body.page-community .composer-tools{gap:3px!important;}
+}

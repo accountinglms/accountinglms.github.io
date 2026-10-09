@@ -519,6 +519,40 @@ async function testResponsivePortal(browser){
     'Tablet navigation should retain its text labels');
   await page.setViewportSize({width:390,height:844});
 
+  // Regression: own image message + long filename must not crop off the right
+  // edge, even if mobile Safari gives the attachment its intrinsic width.
+  const ownPhoto=state.messages.push({
+    id:991,group_id:state.groups[0].id,sender_id:user.id,
+    body:'🥳',message_type:'sticker',
+    attachment_path:'fixture/photo.jpg',attachment_name:'snapvideo--tom and jerry meme-6250509 extra-wide-name.jpeg',
+    attachment_size:25300,attachment_mime:'image/jpeg',
+    created_at:'2026-10-09T14:00:00Z',deleted_at:null
+  });
+  for(const width of [320,375,390,414,430]){
+    await page.setViewportSize({width,height:844});
+    await page.goto(baseURL+'/community.html',{waitUntil:'domcontentloaded'});
+    await page.waitForFunction(()=>document.querySelector('[data-message-id="991"]'));
+    await page.evaluate(()=>{
+      const row=document.querySelector('[data-message-id="991"]');
+      const img=row?.querySelector('.chat-image-preview');
+      if(img){img.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="950"><rect width="1400" height="950" fill="#346899"/></svg>');img.hidden=false;}
+    });
+    const geometry=await page.evaluate(()=>{
+      const names=['.chat-layout','.chat-center','#message-stream','.chat-composer','.composer-box','#send-btn','[data-message-id="991"]','[data-message-id="991"] .message-main','[data-message-id="991"] .chat-image-preview','[data-message-id="991"] .message-attachment','[data-message-id="991"] .message-meta'];
+      const boxes=names.map(selector=>{
+        const el=document.querySelector(selector),r=el?.getBoundingClientRect();
+        return {selector,left:r?.left,right:r?.right,width:r?.width,scroll:el?.scrollWidth,client:el?.clientWidth};
+      });
+      return {viewport:document.documentElement.clientWidth,docScroll:document.documentElement.scrollWidth,bodyScroll:document.body.scrollWidth,
+        boxes};
+    });
+    const off=geometry.boxes.filter(b=>Number.isFinite(b.right)&&
+      (b.right>geometry.viewport+2||b.left< -2));
+    assert(!off.length&&geometry.docScroll<=geometry.viewport+2&&geometry.bodyScroll<=geometry.viewport+2,
+      'Mobile photo/long filename is clipped at '+width+'px: '+JSON.stringify(geometry));
+  }
+  await page.setViewportSize({width:390,height:844});
+
   await page.goto(baseURL+'/community.html',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.querySelector('#room-title')?.textContent?.includes('General'));
   let geo=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:window.innerWidth}));
