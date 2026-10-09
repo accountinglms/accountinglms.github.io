@@ -1948,3 +1948,18 @@ html[data-theme="light"] .auth-boot-card i {
 @media (prefers-reduced-motion: reduce) {
     .auth-boot-card i { animation-duration:1.5s; }
 }
+
+
+/* ===== Attempt history integration ===== */
+.section-item.historical-score .section-score-badge {
+    opacity:.88;
+}
+.history-result-link {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    text-decoration:none;
+}
+html[data-theme="light"] .history-result-link {
+    text-decoration:none;
+}
