@@ -35,6 +35,10 @@ function verifiedTotpFactors() {
   return (authUser?.factors || []).filter(f => f.factor_type === 'totp' && f.status === 'verified');
 }
 
+function unverifiedTotpFactors() {
+  return (authUser?.factors || []).filter(f => f.factor_type === 'totp' && f.status !== 'verified');
+}
+
 function render() {
   const displayName = profile?.display_name || authUser?.user_metadata?.display_name || authUser?.email?.split('@')[0] || 'Account';
   $('#profile-name').textContent = displayName;
@@ -137,7 +141,17 @@ $('#start-totp').addEventListener('click', async () => {
   const button = $('#start-totp');
   button.disabled = true;
   try {
-    const label = 'Authenticator ' + new Date().toLocaleDateString('vi-VN');
+    authUser = await authGetUser(session);
+    const staleFactors = unverifiedTotpFactors();
+    if (staleFactors.length) {
+      const ok = confirm('Tài khoản đang có ' + staleFactors.length + ' Authenticator thiết lập dang dở. Xóa bản dang dở trước khi tạo QR mới?');
+      if (!ok) return;
+      for (const factor of staleFactors) await authMfaUnenroll(factor.id);
+      authUser = await authGetUser(session);
+      render();
+    }
+    const now = new Date();
+    const label = 'Authenticator ' + now.toISOString().replace(/[:.]/g,'-') + '-' + Math.random().toString(36).slice(2,6).toUpperCase();
     pendingFactor = await authMfaEnrollTotp(label);
     if (!pendingFactor?.id || !pendingFactor?.totp?.qr_code) throw new Error('Supabase không trả về QR setup.');
 
