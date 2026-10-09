@@ -49,6 +49,37 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
 .destinationHead strong{font-size:.86rem}
 .cloud{color:#6bd6a0;font-size:.7rem}
 .destinationGrid{display:grid;gap:10px}
+.destinationActionRow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.routeBtn,.confirmDestinationBtn{min-height:40px;border-radius:10px;padding:8px 10px;font-weight:800;font-size:.74rem;cursor:pointer}
+.routeBtn{border:1px solid #3f6f90;background:#102a3c;color:#9ed8f7}
+.confirmDestinationBtn{border:1px solid #3d785f;background:#123126;color:#9de2bf}
+.routeBtn:disabled,.confirmDestinationBtn:disabled{opacity:.45;cursor:not-allowed}
+.destinationStatus{margin-top:10px;padding:9px 10px;border:1px solid #263f52;border-radius:10px;background:#0a141e;color:#8197a8;font-size:.71rem;line-height:1.45}
+.destinationStatus.confirmed{border-color:#2f6d53;background:#0d241b;color:#8edbb4}
+.destinationStatus.warning{border-color:#725d2d;background:#2a2211;color:#e7ca79}
+.routeSuggestion{margin-top:10px;padding:11px;border:1px solid #315b76;border-radius:11px;background:#0c1d29}
+.routeSuggestionHead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px}
+.routeSuggestionHead strong{font-size:.8rem}
+.routeConfidence{font:800 .67rem ui-monospace,SFMono-Regular,Menlo,monospace;color:#77c4ef}
+.routePath{display:grid;gap:6px}
+.routeNode{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:8px 9px;border:1px solid #213b4d;border-radius:9px;background:#091720}
+.routeNode span{color:#7890a2;font-size:.68rem}
+.routeNode strong{display:block;color:#d9e8f2;font-size:.76rem;margin-top:2px}
+.routeNode em{font-style:normal;color:#edca72;font-size:.66rem;white-space:nowrap}
+.routeSuggestionActions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.routeSuggestionActions button{border-radius:9px;padding:7px 10px;font-size:.7rem;font-weight:800;cursor:pointer}
+.routeApply{border:1px solid #39775c;background:#123126;color:#9fe2c0}
+.routeDismiss{border:1px solid #3a5367;background:#101e29;color:#aac0d0}
+.inlineCreate{display:none;grid-template-columns:1fr auto;gap:7px;margin-top:-5px}
+.inlineCreate.show{display:grid}
+.inlineCreate input{width:100%;border:1px solid #294154;background:#0a141e;color:#e8eef5;border-radius:9px;padding:8px 9px}
+.inlineCreate button{border:1px solid #2e688c;background:#12334a;color:#83cef6;border-radius:9px;padding:0 10px;font-weight:800;cursor:pointer}
+.destinationFieldRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:end}
+.destinationFieldRow .field{margin:0}
+.quickAdd{min-width:38px;height:40px;border:1px solid #2e688c;background:#12334a;color:#83cef6;border-radius:9px;cursor:pointer;font-size:1rem}
+.routeTopics{margin-top:8px;color:#71899b;font-size:.68rem;line-height:1.45}
+.routeTopics b{color:#a8c9dd}
+
 .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
 .field:last-child{margin-bottom:0}
 .field>span{font-size:.75rem;color:#94aabe;font-weight:700}
@@ -117,7 +148,7 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
   .topActions{width:100%;justify-content:flex-start}
   .aiHero,.sectionPad,.toolBody{padding:14px}
   .flow{justify-content:flex-start}
-  .importTargetRow,.grid2,.structureGrid{grid-template-columns:1fr}
+  .importTargetRow,.grid2,.structureGrid,.destinationActionRow{grid-template-columns:1fr}
   .fileDrop{min-height:145px;padding:18px 14px}
   .reviewHead .primary{width:100%}
   .summaryCopy small{display:none}
@@ -164,7 +195,7 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
           </div>
         </div>
         <div class="flow" aria-label="Quy trình AI Import">
-          <span>1 · Upload</span><span>2 · AI Draft</span><span>3 · Review</span><span>4 · Publish</span>
+          <span>1 · Upload</span><span>2 · AI phân loại</span><span>3 · Xác nhận nơi lưu</span><span>4 · Draft</span><span>5 · Review & Publish</span>
         </div>
       </div>
 
@@ -185,7 +216,7 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
                 <option value="lesson">Lesson / Notes</option>
               </select>
             </label>
-            <button id="ai-generate" type="button" class="aiBtn">✦ Generate Draft</button>
+            <button id="ai-generate" type="button" class="aiBtn" disabled>✦ Generate Draft</button>
           </div>
         </div>
 
@@ -194,12 +225,45 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
             <strong>📍 Nơi lưu nội dung</strong>
             <span class="cloud">● Cloud</span>
           </div>
+
           <div class="destinationGrid">
-            <label class="field"><span>Subject</span><select id="subject"></select></label>
-            <label class="field"><span>Chapter</span><select id="chapter"></select></label>
-            <label class="field"><span>Exercise</span><select id="exercise"></select></label>
+            <div class="destinationFieldRow">
+              <label class="field"><span>Subject · bắt buộc</span><select id="subject"></select></label>
+              <button id="quick-add-subject" class="quickAdd" type="button" aria-label="Tạo Subject mới" title="Tạo Subject mới">＋</button>
+            </div>
+            <form id="quick-subject-form" class="inlineCreate">
+              <input id="quick-subject-title" placeholder="Tên Subject mới">
+              <button type="submit">Tạo</button>
+            </form>
+
+            <div class="destinationFieldRow">
+              <label class="field"><span>Chapter · bắt buộc</span><select id="chapter"></select></label>
+              <button id="quick-add-chapter" class="quickAdd" type="button" aria-label="Tạo Chapter mới" title="Tạo Chapter mới">＋</button>
+            </div>
+            <form id="quick-chapter-form" class="inlineCreate">
+              <input id="quick-chapter-title" placeholder="Tên Chapter mới">
+              <button type="submit">Tạo</button>
+            </form>
+
+            <div id="exercise-destination-row">
+              <div class="destinationFieldRow">
+                <label class="field"><span>Exercise · bắt buộc với Question Bank</span><select id="exercise"></select></label>
+                <button id="quick-add-exercise" class="quickAdd" type="button" aria-label="Tạo Exercise mới" title="Tạo Exercise mới">＋</button>
+              </div>
+              <form id="quick-exercise-form" class="inlineCreate">
+                <input id="quick-exercise-title" placeholder="Tên Exercise mới">
+                <button type="submit">Tạo</button>
+              </form>
+            </div>
           </div>
-          <div style="color:#6f8799;font-size:.7rem;line-height:1.45">AI dùng đúng Subject / Chapter / Exercise đang chọn để kiểm tra ngữ cảnh trước khi cho phép publish.</div>
+
+          <div class="destinationActionRow">
+            <button id="ai-route" class="routeBtn" type="button">✨ AI gợi ý nơi lưu</button>
+            <button id="confirm-destination" class="confirmDestinationBtn" type="button">✓ Xác nhận nơi lưu</button>
+          </div>
+
+          <div id="destination-status" class="destinationStatus">Chưa xác nhận. AI sẽ không tạo Draft cho đến khi bạn chọn đúng nơi lưu.</div>
+          <div id="route-suggestion" class="routeSuggestion hidden" aria-live="polite"></div>
         </aside>
       </div>
 
