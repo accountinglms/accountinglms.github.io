@@ -785,8 +785,16 @@
     let tfDraft = [];
     let exerciseDeepLinkHandled = false;
 
-    const STORAGE_KEY = 'accountingLMSProgress_v2'; // keep V2 key so existing progress migrates forward
-    const UI_PREF_KEY = 'accountingLMSUiPrefs_v3';
+    // Never read another account's browser progress. Pre-v40 global keys remain untouched
+    // as recoverable legacy archives; cloud remains the canonical cross-device source.
+    const scopedKey = (base, userId) => base + ':user:' + (userId || 'signed-out');
+    function bootUserId() {
+        try { return JSON.parse(localStorage.getItem('icaew-lms-auth-v2') || 'null')?.user?.id || null; }
+        catch { return null; }
+    }
+    let offlineUserId = bootUserId();
+    let STORAGE_KEY = scopedKey('accountingLMSProgress_v2', offlineUserId);
+    let UI_PREF_KEY = scopedKey('accountingLMSUiPrefs_v3', offlineUserId);
     const ATTEMPT_HISTORY_LAUNCHED_AT = Date.parse('2026-10-09T00:00:00Z');
     const MAX_ATTEMPT_DURATION_SECONDS = 24 * 60 * 60;
 
@@ -856,8 +864,28 @@
         }
     }
 
-    const savedProgress = loadJSON(STORAGE_KEY, {});
+    let savedProgress = loadJSON(STORAGE_KEY, {});
     const uiPrefs = { explanationLang: 'both', ...loadJSON(UI_PREF_KEY, {}) };
+    window.lmsBindOfflineUser = function (userId) {
+        const next = typeof userId === 'string' && /^[a-f0-9-]{36}$/i.test(userId) ? userId : null;
+        if (next === offlineUserId) return;
+        offlineUserId = next;
+        STORAGE_KEY = scopedKey('accountingLMSProgress_v2', next);
+        UI_PREF_KEY = scopedKey('accountingLMSUiPrefs_v3', next);
+        savedProgress = loadJSON(STORAGE_KEY, {});
+        Object.assign(uiPrefs, { explanationLang: 'both', lastSectionId: null, updatedAt: 0 },
+            loadJSON(UI_PREF_KEY, {}));
+        progressStore = {};
+        activeSectionId = null;
+        activeSectionData = null;
+        currentQuestion = 0;
+        if (typeof quizContainer !== 'undefined') quizContainer.style.display = 'none';
+        if (typeof navGridContainer !== 'undefined') navGridContainer.style.display = 'none';
+        if (typeof emptyState !== 'undefined') emptyState.style.display = '';
+        initSidebar();
+        updateAllSidebarScores();
+        updateResumeButton();
+    };
     const THEME_KEY = 'icaewLMSTheme_v1';
 
     function getCurrentTheme() {
