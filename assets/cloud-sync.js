@@ -1091,8 +1091,9 @@
     });
     loginBtn.addEventListener('click', login);
     signupBtn.addEventListener('click', signup);
-    logoutBtn.addEventListener('click', logout);
-    passwordBtn.addEventListener('click', changePassword);
+    // Account actions live in account.html. Only the background sync status remains here.
+    logoutBtn?.addEventListener('click', logout);
+    passwordBtn?.addEventListener('click', changePassword);
     passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
     forgotBtn?.addEventListener('click', () => {
         const email = emailInput.value.trim() || loadLastEmail();
