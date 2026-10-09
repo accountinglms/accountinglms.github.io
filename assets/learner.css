@@ -1527,3 +1527,183 @@ html[data-theme="light"] .translation-status.error { color:#b74343; }
     .translate-question-btn { width:100%; min-height:42px; }
     .translation-status { width:100%; }
 }
+
+
+/* ===== Compact Quiz Tools: bookmark + translation ===== */
+.question-tools {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+    margin:-6px 0 14px;
+}
+.question-tool-btn {
+    width:auto;
+    min-width:0;
+    min-height:40px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:7px 11px;
+    border-radius:10px;
+    font-size:.76rem;
+    font-weight:850;
+    line-height:1;
+    white-space:nowrap;
+    cursor:pointer;
+    transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease;
+}
+.question-tool-btn .tool-icon {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:18px;
+    flex:0 0 18px;
+    font-size:.94rem;
+    line-height:1;
+}
+.tool-label-short { display:none; }
+
+/* Bookmark is a secondary utility, not a banner. */
+.question-tools .bookmark-btn {
+    width:auto;
+    min-height:40px;
+    justify-content:center;
+    padding:7px 11px;
+    border:1px solid #665124;
+    border-radius:10px;
+    background:rgba(255,179,0,.045);
+    color:#e5ad2c;
+    box-shadow:none;
+}
+.question-tools .bookmark-btn:hover {
+    background:rgba(255,179,0,.10);
+    border-color:#8a6a26;
+}
+.question-tools .bookmark-btn.active {
+    background:rgba(255,179,0,.13);
+    border-color:#b78416;
+    color:#ffc94d;
+    box-shadow:inset 0 0 0 1px rgba(255,179,0,.06);
+}
+
+/* Translation stays compact and visually equal to bookmark. */
+.question-tools .translate-question-btn {
+    width:auto;
+    min-height:40px;
+    padding:7px 11px;
+    border-radius:10px;
+    background:#13283a;
+    border:1px solid #3f617b;
+    color:#b9e1fb;
+}
+.question-tools .translate-question-btn:hover:not(:disabled) {
+    background:#18354b;
+    border-color:#5e8aab;
+}
+.question-tools .translate-question-btn[aria-pressed="true"] {
+    background:#20372b;
+    border-color:#4c7b5f;
+    color:#b8e4c5;
+}
+.question-tools .translate-question-btn:disabled {
+    opacity:.6;
+    cursor:wait;
+}
+.question-tools .translation-status {
+    min-height:0;
+    margin-left:2px;
+    color:#70899b;
+    font-size:.68rem;
+    line-height:1.35;
+}
+.question-tools .translation-status:empty { display:none; }
+.question-tools .translation-status.error { color:#e98b8b; }
+
+html[data-theme="light"] .question-tools .bookmark-btn {
+    background:#fffaf0;
+    border-color:#e2c06e;
+    color:#8b650b;
+}
+html[data-theme="light"] .question-tools .bookmark-btn:hover {
+    background:#fff5d8;
+    border-color:#cda83e;
+}
+html[data-theme="light"] .question-tools .bookmark-btn.active {
+    background:#fff2c7;
+    border-color:#c99318;
+    color:#795600;
+}
+html[data-theme="light"] .question-tools .translate-question-btn {
+    background:#eef6fb;
+    border-color:#b8d5e8;
+    color:#1e648f;
+}
+html[data-theme="light"] .question-tools .translate-question-btn:hover:not(:disabled) {
+    background:#e3f0f8;
+    border-color:#86b7d5;
+}
+html[data-theme="light"] .question-tools .translate-question-btn[aria-pressed="true"] {
+    background:#e9f5ec;
+    border-color:#9ac2a6;
+    color:#27613b;
+}
+html[data-theme="light"] .question-tools .translation-status { color:#657988; }
+html[data-theme="light"] .question-tools .translation-status.error { color:#b74343; }
+
+/* Mobile: keep both utilities on one compact row; never promote them to full-width banners. */
+@media (max-width:900px) {
+    .action-bar {
+        margin-bottom:12px;
+        padding-bottom:8px;
+    }
+    .question-tools {
+        gap:7px;
+        margin:-4px 0 12px;
+    }
+    .question-tools .bookmark-btn,
+    .question-tools .translate-question-btn {
+        width:auto;
+        min-height:42px;
+        padding:7px 10px;
+        border-radius:10px;
+    }
+}
+
+@media (max-width:560px) {
+    .question-tools {
+        flex-wrap:nowrap;
+        align-items:center;
+        overflow:visible;
+    }
+    .question-tools .bookmark-btn,
+    .question-tools .translate-question-btn {
+        flex:0 0 auto;
+        width:auto;
+        min-height:40px;
+        padding:6px 10px;
+        font-size:.74rem;
+    }
+    .question-tools .tool-label-full { display:none; }
+    .question-tools .tool-label-short { display:inline; }
+    .question-tools .translation-status {
+        min-width:0;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+        flex:1 1 auto;
+    }
+    .question-text {
+        margin-bottom:14px;
+    }
+}
+
+@media (max-width:390px) {
+    .question-tools { gap:6px; }
+    .question-tools .bookmark-btn,
+    .question-tools .translate-question-btn {
+        padding-left:9px;
+        padding-right:9px;
+    }
+}
