@@ -503,11 +503,12 @@
     async function logout() {
         cloudReady = false;
         accessInfo = null;
-        await authSignOut();
+        await authSignOut('local');
         accountBox.hidden = true;
         if (adminToolLink) adminToolLink.hidden = true;
         showGate(true);
-        setAuthMessage('Đã đăng xuất. Tiến độ cục bộ trên thiết bị vẫn được giữ.');
+        showAuthView('login');
+        setAuthMessage('Đã đăng xuất khỏi thiết bị này. Các thiết bị khác vẫn giữ phiên đăng nhập.');
     }
 
     async function changePassword() {
@@ -785,20 +786,26 @@
             accessInfo = null;
             access = await getMyAccess(true);
         } catch (error) {
-            await authSignOut();
+            await authSignOut('local');
             showGate(true);
             showAuthView('login');
-            return setAuthMessage(error.message || 'Tài khoản này không có quyền sử dụng ICAEW LMS.', true);
+            const message = isStaleSessionError(error) || error?.code === 'SESSION_EXPIRED'
+                ? 'Phiên đăng nhập trên thiết bị này đã hết hiệu lực. Hãy đăng nhập lại.'
+                : (error.message || 'Tài khoản này không có quyền sử dụng ICAEW LMS.');
+            return setAuthMessage(message, true);
         }
 
         if (access?.mfa_required === true && access?.mfa_satisfied !== true) {
             try {
                 await beginMfaChallenge();
             } catch (error) {
-                await authSignOut();
+                await authSignOut('local');
                 showGate(true);
                 showAuthView('login');
-                setAuthMessage('Không thể khởi tạo xác thực 2 bước: ' + error.message, true);
+                const message = isStaleSessionError(error) || error?.code === 'SESSION_EXPIRED'
+                    ? 'Phiên đăng nhập cũ đã hết hiệu lực. Hãy đăng nhập lại bằng mật khẩu.'
+                    : 'Không thể khởi tạo xác thực 2 bước. Hãy thử đăng nhập lại.';
+                setAuthMessage(message, true);
             }
             return;
         }
@@ -852,7 +859,7 @@
         if (e.key === 'Enter') verifyMfaLogin();
     });
     mfaCancelBtn?.addEventListener('click', async () => {
-        await authSignOut();
+        await authSignOut('local');
         accessInfo = null;
         mfaFactors = [];
         if (mfaCodeInput) mfaCodeInput.value = '';
@@ -870,6 +877,38 @@
     });
     window.addEventListener('online', () => { setCloudLabel('Đã có mạng · đang đồng bộ…', true); scheduleSyncFlush(50); queuePrefSync(80); });
     window.addEventListener('offline', () => setCloudLabel('Offline · tiến độ vẫn lưu trên máy', false));
+
+    let resumeCheckPromise = null;
+    async function validateSessionOnResume() {
+        if (document.visibilityState === 'hidden' || !loadSession() || gate.classList.contains('hidden') === false) return;
+        if (resumeCheckPromise) return resumeCheckPromise;
+        resumeCheckPromise = (async () => {
+            try {
+                await ensureSession();
+                await authGetCurrentUser();
+                accessInfo = null;
+                const access = await getMyAccess(true);
+                if (access?.mfa_required === true && access?.mfa_satisfied !== true) {
+                    await beginMfaChallenge();
+                }
+            } catch (error) {
+                saveSession(null);
+                accessInfo = null;
+                cloudReady = false;
+                accountBox.hidden = true;
+                if (adminToolLink) adminToolLink.hidden = true;
+                showGate(true);
+                showAuthView('login');
+                setAuthMessage('Phiên đăng nhập trên thiết bị này đã hết hiệu lực. Hãy đăng nhập lại.', true);
+            }
+        })().finally(() => { resumeCheckPromise = null; });
+        return resumeCheckPromise;
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') validateSessionOnResume();
+    });
+    window.addEventListener('pageshow', () => validateSessionOnResume());
 
     (async () => {
         const lastEmail = loadLastEmail();
@@ -900,13 +939,17 @@
             saveSession(saved);
             try {
                 await ensureSession();
+                await authGetCurrentUser();
                 await handleSignedIn(cloudSession);
-            } catch (_) {
+            } catch (error) {
                 saveSession(null);
                 accessInfo = null;
                 showGate(true);
                 showAuthView('login');
-                setAuthMessage('Phiên đăng nhập cũ đã hết hạn hoặc tài khoản không còn quyền. Hãy đăng nhập lại.');
+                const message = isStaleSessionError(error) || error?.code === 'SESSION_EXPIRED'
+                    ? 'Phiên đăng nhập trên thiết bị này đã hết hiệu lực. Hãy đăng nhập lại bằng mật khẩu.'
+                    : 'Phiên đăng nhập cũ đã hết hạn hoặc tài khoản không còn quyền. Hãy đăng nhập lại.';
+                setAuthMessage(message, true);
             }
         } else {
             showGate(true);
