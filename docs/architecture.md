@@ -25,11 +25,13 @@ Supabase
 │   ├── content_sources
 │   ├── import_drafts
 │   ├── content_audit_log
-│   └── content_snapshots
+│   ├── content_snapshots
+│   └── content_translations
 ├── Storage
 │   └── content-imports (private)
 └── Edge Functions
-    └── icaew-ai-import
+    ├── icaew-ai-import
+    └── icaew-translate
            │
            ▼
       Google Gemini API
@@ -40,3 +42,28 @@ GitHub owns source control and deployment. Supabase owns authenticated data, sto
 The original Chapter 1 exercises use `content_mode = database`, so Supabase is authoritative when the CMS catalog loads successfully. The V7.5 hardcoded bank remains only as an offline/network fallback.
 
 Floot is not part of the active runtime architecture. Keep the old deployment available only until final cross-device regression testing passes.
+
+
+## Universal translation layer
+
+Question, lesson/theory and future document-text readers use the same protected translation service.
+
+```text
+Published content
+      │
+      ├── Question
+      ├── Lesson / Theory
+      └── Document text
+              ↓
+      User presses Translate
+              ↓
+      assets/common.js
+              ↓
+      icaew-translate
+              ↓
+      content_translations cache
+              ↓
+      Gemini only on cache miss
+```
+
+Translation is lazy/on-demand. Publishing new content does not call AI automatically. New Questions and Lessons inherit translation support because the feature is attached to the shared quiz/theory readers rather than to individual records or chapters.
