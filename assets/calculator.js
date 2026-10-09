@@ -331,7 +331,11 @@
   }
 
   function trig(name, value) {
-    const radians = angleMode === 'DEG' ? value * Math.PI / 180 : value;
+    const radians = angleMode === 'DEG'
+      ? value * Math.PI / 180
+      : angleMode === 'GRA'
+        ? value * Math.PI / 200
+        : value;
     if (name === 'sin') return Math.sin(radians);
     if (name === 'cos') return Math.cos(radians);
     if (name === 'tan') {
@@ -339,6 +343,34 @@
       return Math.tan(radians);
     }
     throw new Error('Math ERROR');
+  }
+
+  function fromRadians(value) {
+    if (angleMode === 'DEG') return value * 180 / Math.PI;
+    if (angleMode === 'GRA') return value * 200 / Math.PI;
+    return value;
+  }
+
+  function integerGcd(a, b) {
+    if (!Number.isInteger(a) || !Number.isInteger(b)) throw new Error('Math ERROR');
+    a = Math.abs(a); b = Math.abs(b);
+    while (b) [a,b] = [b,a % b];
+    return a;
+  }
+
+  function permutation(n, r) {
+    if (!Number.isInteger(n) || !Number.isInteger(r) || n < 0 || r < 0 || r > n) throw new Error('Math ERROR');
+    let out = 1;
+    for (let i = 0; i < r; i += 1) out *= (n - i);
+    return out;
+  }
+
+  function combination(n, r) {
+    if (!Number.isInteger(n) || !Number.isInteger(r) || n < 0 || r < 0 || r > n) throw new Error('Math ERROR');
+    r = Math.min(r, n-r);
+    let out = 1;
+    for (let i = 1; i <= r; i += 1) out = out * (n-r+i) / i;
+    return out;
   }
 
   function tokenize(source) {
@@ -383,7 +415,11 @@
   }
 
   class Parser {
-    constructor(tokens) { this.tokens = tokens; this.index = 0; }
+    constructor(tokens, variables = {}) {
+      this.tokens = tokens;
+      this.index = 0;
+      this.variables = variables || {};
+    }
     peek(type) { return this.tokens[this.index]?.type === type; }
     take(type) {
       if (!this.peek(type)) throw new Error('Syntax ERROR');
@@ -439,6 +475,92 @@
       }
       return value;
     }
+    parseArgs() {
+      this.take('(');
+      const args = [];
+      if (!this.peek(')')) {
+        args.push(this.parseAddSub());
+        while (this.peek(',')) {
+          this.index += 1;
+          args.push(this.parseAddSub());
+        }
+      }
+      this.take(')');
+      return args;
+    }
+    callFunction(id, args) {
+      const one = () => {
+        if (args.length !== 1) throw new Error('Syntax ERROR');
+        return args[0];
+      };
+      const two = () => {
+        if (args.length !== 2) throw new Error('Syntax ERROR');
+        return args;
+      };
+
+      if (id === 'sin' || id === 'cos' || id === 'tan') return trig(id, one());
+      if (id === 'asin') return fromRadians(Math.asin(one()));
+      if (id === 'acos') return fromRadians(Math.acos(one()));
+      if (id === 'atan') return fromRadians(Math.atan(one()));
+      if (id === 'sinh') return Math.sinh(one());
+      if (id === 'cosh') return Math.cosh(one());
+      if (id === 'tanh') return Math.tanh(one());
+      if (id === 'asinh') return Math.asinh(one());
+      if (id === 'acosh') return Math.acosh(one());
+      if (id === 'atanh') return Math.atanh(one());
+      if (id === 'log') {
+        const v=one(); if(v<=0) throw new Error('Math ERROR'); return Math.log10(v);
+      }
+      if (id === 'ln') {
+        const v=one(); if(v<=0) throw new Error('Math ERROR'); return Math.log(v);
+      }
+      if (id === 'logb') {
+        const [v,b]=two(); if(v<=0||b<=0||Math.abs(b-1)<1e-15) throw new Error('Math ERROR'); return Math.log(v)/Math.log(b);
+      }
+      if (id === 'sqrt') {
+        const v=one(); if(v<0) throw new Error('Math ERROR'); return Math.sqrt(v);
+      }
+      if (id === 'cbrt') return Math.cbrt(one());
+      if (id === 'root') {
+        const [v,n]=two(); if(Math.abs(n)<1e-15) throw new Error('Math ERROR');
+        if(v<0 && Math.abs(n%2)!==1) throw new Error('Math ERROR');
+        return v<0 ? -Math.pow(-v,1/n) : Math.pow(v,1/n);
+      }
+      if (id === 'pow10') return Math.pow(10, one());
+      if (id === 'exp') return Math.exp(one());
+      if (id === 'abs') return Math.abs(one());
+      if (id === 'floor' || id === 'intg') return Math.floor(one());
+      if (id === 'ceil') return Math.ceil(one());
+      if (id === 'int') return Math.trunc(one());
+      if (id === 'round' || id === 'rnd') return Math.round(one());
+      if (id === 'gcd') {
+        const [a,b]=two(); return integerGcd(a,b);
+      }
+      if (id === 'lcm') {
+        const [a,b]=two(); if(a===0||b===0) return 0; return Math.abs(a*b)/integerGcd(a,b);
+      }
+      if (id === 'mod') {
+        const [a,b]=two(); if(Math.abs(b)<1e-15) throw new Error('Math ERROR'); return a % b;
+      }
+      if (id === 'npr') {
+        const [n,r]=two(); return permutation(n,r);
+      }
+      if (id === 'ncr') {
+        const [n,r]=two(); return combination(n,r);
+      }
+      if (id === 'min') return Math.min(...args);
+      if (id === 'max') return Math.max(...args);
+      if (id === 'rand') {
+        if (args.length) throw new Error('Syntax ERROR');
+        return Math.random();
+      }
+      if (id === 'randint') {
+        const [a,b]=two();
+        if(!Number.isInteger(a)||!Number.isInteger(b)||b<a) throw new Error('Math ERROR');
+        return Math.floor(Math.random()*(b-a+1))+a;
+      }
+      throw new Error('Syntax ERROR');
+    }
     parsePrimary() {
       if (this.peek('number')) return this.tokens[this.index++].value;
       if (this.peek('(')) {
@@ -452,40 +574,20 @@
         if (id === 'pi') return Math.PI;
         if (id === 'e') return Math.E;
         if (id === 'Ans') return answer;
-        this.take('(');
-        const arg = this.parseAddSub();
-        this.take(')');
-        if (id === 'sin' || id === 'cos' || id === 'tan') return trig(id, arg);
-        if (id === 'asin' || id === 'acos' || id === 'atan') {
-          let result;
-          if (id === 'asin') result = Math.asin(arg);
-          else if (id === 'acos') result = Math.acos(arg);
-          else result = Math.atan(arg);
-          return angleMode === 'DEG' ? result * 180 / Math.PI : result;
-        }
-        if (id === 'log') {
-          if (arg <= 0) throw new Error('Math ERROR');
-          return Math.log10(arg);
-        }
-        if (id === 'ln') {
-          if (arg <= 0) throw new Error('Math ERROR');
-          return Math.log(arg);
-        }
-        if (id === 'sqrt') {
-          if (arg < 0) throw new Error('Math ERROR');
-          return Math.sqrt(arg);
-        }
-        if (id === 'pow10') return Math.pow(10, arg);
-        if (id === 'exp') return Math.exp(arg);
-        throw new Error('Syntax ERROR');
+        if (Object.prototype.hasOwnProperty.call(this.variables,id)) return Number(this.variables[id]);
+        if (!this.peek('(')) throw new Error('Syntax ERROR');
+        const args=this.parseArgs();
+        const value=this.callFunction(id,args);
+        if(!Number.isFinite(value)) throw new Error('Math ERROR');
+        return value;
       }
       throw new Error('Syntax ERROR');
     }
   }
 
-  function calculate(source) {
+  function calculate(source, variables = {}) {
     if (!source.trim()) return 0;
-    return new Parser(tokenize(source)).parse();
+    return new Parser(tokenize(source), variables).parse();
   }
 
   function render() {
@@ -567,7 +669,7 @@
   }
 
   function toggleAngle() {
-    angleMode = angleMode === 'DEG' ? 'RAD' : 'DEG';
+    angleMode = angleMode === 'DEG' ? 'RAD' : angleMode === 'RAD' ? 'GRA' : 'DEG';
     render();
   }
 
