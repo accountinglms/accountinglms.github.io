@@ -3,21 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Account & Security · ICAEW LMS</title>
+<title>Tài khoản & bảo mật · ICAEW LMS</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://uangiwgznukuicrfnohq.supabase.co; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests">
 <meta name="theme-color" content="#0b1118">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<script src="assets/theme-init.js"></script>
 <link rel="stylesheet" href="assets/account.css">
+<link rel="stylesheet" href="assets/ui-system.css">
 </head>
-<body>
+<body class="page-account">
 <main class="page">
   <header class="topbar">
     <div class="brand">
       <img src="icon-192.png" alt="">
-      <div><span>ICAEW LMS</span><strong>Account & Security</strong></div>
+      <div><span>ICAEW LMS</span><strong>Tài khoản & bảo mật</strong></div>
     </div>
-    <a class="back" href="./">← Quay lại LMS</a>
+    <a class="back" href="./">← Quay lại trang học</a>
   </header>
 
   <div id="notice" class="notice">Đang tải thông tin tài khoản…</div>
@@ -25,8 +27,8 @@
   <section id="account-app" class="shell hidden">
     <aside class="profileCard card">
       <div class="avatar" id="profile-avatar">U</div>
-      <div class="roleLine"><span id="profile-role">Member</span><i id="security-dot"></i></div>
-      <h1 id="profile-name">Account</h1>
+      <div class="roleLine"><span id="profile-role">Thành viên</span><i id="security-dot"></i></div>
+      <h1 id="profile-name">Tài khoản</h1>
       <p id="profile-email">—</p>
 
       <form id="profile-form" class="profileForm">
@@ -37,21 +39,21 @@
       <div class="identityList">
         <div class="identityRow">
           <div><span>Email</span><strong id="identity-email">—</strong></div>
-          <b class="verified" id="email-state">✓ Verified</b>
+          <b class="verified" id="email-state">Đã xác minh</b>
         </div>
         <div class="identityRow">
           <div><span>Số điện thoại</span><strong id="identity-phone">Chưa cấu hình</strong></div>
-          <b class="pending" id="phone-state">SMS later</b>
+          <b class="pending" id="phone-state">Chưa xác minh</b>
         </div>
       </div>
-      <p class="finePrint">Số điện thoại sẽ chỉ được coi là xác minh sau khi có SMS OTP provider. Không dùng số nhập tay làm bằng chứng xác thực.</p>
+      <p class="finePrint">Số điện thoại chỉ được coi là đã xác minh sau khi hoàn tất mã OTP qua SMS.</p>
     </aside>
 
     <div class="content">
       <section class="card">
         <div class="sectionHead">
           <div>
-            <span class="eyebrow">SECURITY</span>
+            <span class="eyebrow">Bảo mật</span>
             <h2>Xác thực hai bước</h2>
             <p>Dùng mã TOTP 6 số từ Google Authenticator, Authy, 1Password hoặc ứng dụng tương thích.</p>
           </div>
@@ -66,7 +68,7 @@
 
         <div id="totp-setup" class="setupBox hidden">
           <div class="setupHead">
-            <div><span class="eyebrow">SETUP TOTP</span><h3>Quét mã QR</h3></div>
+            <div><span class="eyebrow">Thiết lập Authenticator</span><h3>Quét mã QR</h3></div>
             <button id="cancel-totp" class="textBtn" type="button">Hủy</button>
           </div>
           <p>Mở ứng dụng Authenticator và quét QR bên dưới. Bạn cũng có thể nhập secret thủ công.</p>
@@ -80,15 +82,15 @@
 
       <section class="card grid2">
         <div class="securityBlock">
-          <span class="eyebrow">RECOVERY</span>
+          <span class="eyebrow">Khôi phục</span>
           <h2>Khôi phục tài khoản</h2>
-          <div class="securityRow"><div><strong>Email recovery</strong><span>Gửi link đặt lại mật khẩu tới email đã xác minh.</span></div><b class="verified">Active</b></div>
-          <div class="securityRow"><div><strong>SMS recovery</strong><span>Sẽ bật sau khi kết nối SMS provider.</span></div><b class="pending">Planned</b></div>
+          <div class="securityRow"><div><strong>Khôi phục bằng email</strong><span>Gửi liên kết đặt lại mật khẩu tới email đã xác minh.</span></div><b class="verified">Đang dùng</b></div>
+          <div class="securityRow"><div><strong>Khôi phục bằng SMS</strong><span>Chưa khả dụng trên hệ thống hiện tại.</span></div><b class="pending">Chưa bật</b></div>
           <p class="warningText">Reset mật khẩu qua email không tự tắt TOTP. Nếu mất Authenticator, hãy dùng Authenticator dự phòng hoặc liên hệ Owner để xử lý factor.</p>
         </div>
 
         <div class="securityBlock">
-          <span class="eyebrow">CURRENT SESSION</span>
+          <span class="eyebrow">Phiên đăng nhập</span>
           <h2>Phiên hiện tại</h2>
           <div class="sessionBox">
             <span>Mức xác thực</span><strong id="aal-state">—</strong>
@@ -98,7 +100,7 @@
             <button id="logout-current" class="secondary sessionBtn" type="button">Đăng xuất thiết bị này</button>
             <button id="logout-all" class="danger sessionBtn" type="button">Đăng xuất tất cả thiết bị</button>
           </div>
-          <p class="finePrint">LMS ghi nhớ session/refresh token trên thiết bị này, không lưu mật khẩu thô. “Đăng xuất thiết bị này” không ảnh hưởng iPhone/iPad/Windows khác. “Đăng xuất tất cả thiết bị” sẽ thu hồi mọi phiên của tài khoản.</p>
+          <p class="finePrint">Đăng xuất thiết bị này chỉ kết thúc phiên hiện tại. Đăng xuất tất cả thiết bị sẽ thu hồi toàn bộ phiên đang hoạt động của tài khoản.</p>
         </div>
       </section>
     </div>
