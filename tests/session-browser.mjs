@@ -201,7 +201,7 @@ async function waitForWorkspace(page) {
 }
 
 async function seedSession(page, value) {
-  await page.goto(baseURL + '/', { waitUntil: 'domcontentloaded' });
+  await page.goto(baseURL + '/index.html', { waitUntil: 'domcontentloaded' });
   await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), { key: AUTH_KEY, value });
   await page.reload({ waitUntil: 'domcontentloaded' });
 }
