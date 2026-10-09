@@ -6,6 +6,7 @@ import {
   authMfaChallenge,
   authMfaVerify,
   authMfaUnenroll,
+  authSignOut,
   restGet,
   restInsert,
   restPatch
@@ -221,6 +222,26 @@ $('#verify-totp').addEventListener('click', async () => {
     $('#totp-message').textContent = 'Mã không đúng hoặc đã hết hạn: ' + error.message;
   } finally {
     button.disabled = false;
+  }
+});
+
+$('#logout-current').addEventListener('click', async () => {
+  if (!confirm('Đăng xuất khỏi thiết bị hiện tại? Các thiết bị khác vẫn giữ phiên đăng nhập.')) return;
+  notice('Đang đăng xuất thiết bị này…');
+  try {
+    await authSignOut('local');
+  } finally {
+    location.href = './?signed_out=local';
+  }
+});
+
+$('#logout-all').addEventListener('click', async () => {
+  if (!confirm('Đăng xuất tất cả thiết bị? Bạn sẽ cần đăng nhập lại và nhập mã Authenticator trên từng thiết bị.')) return;
+  notice('Đang thu hồi tất cả phiên đăng nhập…');
+  try {
+    await authSignOut('global');
+  } finally {
+    location.href = './?signed_out=all';
   }
 });
 

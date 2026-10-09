@@ -72,3 +72,23 @@ Email password recovery does not remove verified MFA factors. Losing all Authent
 ## Phone verification
 
 The Account page reserves a phone identity/status area but does not treat an unverified phone number as a security factor. SMS recovery/MFA remains disabled until a supported SMS provider is intentionally configured.
+
+
+## Session UX and device-scoped sign-out
+
+The LMS treats each browser/PWA installation as its own client session.
+
+- Closing Safari, closing the Home Screen web app, locking the device, refreshing the page or temporarily losing network access does **not** intentionally sign the user out.
+- The stored Supabase refresh token is used to renew the access token when needed.
+- A valid `aal2` session remains trusted after reopening the same client, so TOTP is not requested again simply because the app was closed.
+- Safari and an iOS Home Screen web app may have separate browser storage; each client can therefore require its own initial login/MFA.
+
+The learner validates a restored session against Supabase Auth on startup and when the app returns to the foreground. If the access token refers to a deleted/revoked server session, the LMS attempts one refresh. If that also fails, the stale token is removed and the user sees a normal “session expired” login message instead of the raw Supabase error.
+
+Sign-out scopes:
+
+- **Đăng xuất thiết bị này** uses Supabase `scope=local` and clears only this client's stored session.
+- **Đăng xuất tất cả thiết bị** uses `scope=global` and clears the current client after requesting revocation of all user sessions.
+- Ordinary logout must never default to global scope.
+
+This keeps day-to-day access convenient while preserving an explicit global-revocation control for security incidents.

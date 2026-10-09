@@ -2,7 +2,9 @@ const SUPABASE_URL = 'https://uangiwgznukuicrfnohq.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_FRBwRP7TAmiu02eRF9l49g_tCa4DsGJ';
 const AUTH_KEY = 'icaew-lms-auth-v2';
 let accessCache = { userId: null, checkedAt: 0, value: null };
+let authValidation = { token: null, checkedAt: 0 };
 const ACCESS_CACHE_MS = 60_000;
+const AUTH_VALIDATION_MS = 5 * 60_000;
 
 export function loadSession() {
   try {
@@ -21,6 +23,28 @@ export function saveSession(session) {
 
 function clearAccessCache() {
   accessCache = { userId: null, checkedAt: 0, value: null };
+}
+
+function clearAuthValidation() {
+  authValidation = { token: null, checkedAt: 0 };
+}
+
+export function isStaleSessionError(error) {
+  const raw = [
+    error?.message || '',
+    typeof error?.body === 'string' ? error.body : '',
+    error?.body?.msg || '',
+    error?.body?.message || '',
+    error?.body?.error_description || '',
+    error?.body?.error || ''
+  ].join(' ').toLowerCase();
+  return /session_id claim.*does not exist|session from session_id claim.*does not exist|invalid refresh token|refresh token.*not found|session.*does not exist/.test(raw);
+}
+
+function makeSessionExpiredError() {
+  const error = new Error('Phiên đăng nhập trên thiết bị này đã hết hiệu lực. Hãy đăng nhập lại.');
+  error.code = 'SESSION_EXPIRED';
+  return error;
 }
 
 export async function getMyAccess(session, force = false) {
@@ -47,30 +71,94 @@ export async function getMyAccess(session, force = false) {
 }
 
 export async function refreshSession(session) {
-  if (!session?.refresh_token) throw new Error('Phiên đăng nhập đã hết hạn.');
+  if (!session?.refresh_token) {
+    saveSession(null);
+    clearAccessCache();
+    clearAuthValidation();
+    throw makeSessionExpiredError();
+  }
   const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
     method: 'POST',
     headers: { apikey: SUPABASE_KEY, 'content-type': 'application/json' },
     body: JSON.stringify({ refresh_token: session.refresh_token })
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.msg || data?.error_description || 'Không thể làm mới phiên đăng nhập.');
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { message: text }; }
+  if (!res.ok) {
+    saveSession(null);
+    clearAccessCache();
+    clearAuthValidation();
+    throw makeSessionExpiredError();
+  }
   const next = {
     access_token: data.access_token,
-    refresh_token: data.refresh_token,
+    refresh_token: data.refresh_token || session.refresh_token,
     expires_at: data.expires_at || Math.floor(Date.now()/1000) + Number(data.expires_in || 3600),
-    user: data.user
+    token_type: data.token_type || 'bearer',
+    user: data.user || session.user
   };
   clearAccessCache();
+  clearAuthValidation();
   saveSession(next);
   return next;
 }
 
-export async function ensureBaseSession() {
+async function validateAuthSession(session, retry = true) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${session.access_token}`
+    }
+  });
+  const text = await res.text();
+  let body = null;
+  try { body = text ? JSON.parse(text) : null; } catch { body = { message: text }; }
+
+  if (res.ok) {
+    authValidation = { token: session.access_token, checkedAt: Date.now() };
+    if (body?.id && session.user?.id === body.id) {
+      const next = { ...session, user: body };
+      saveSession(next);
+      return next;
+    }
+    return session;
+  }
+
+  const error = new Error(body?.msg || body?.message || body?.error_description || body?.error || 'Phiên đăng nhập không còn hợp lệ.');
+  error.status = res.status;
+  error.body = body;
+
+  if (retry && session.refresh_token) {
+    try {
+      const next = await refreshSession(session);
+      return await validateAuthSession(next, false);
+    } catch (_) {
+      saveSession(null);
+      clearAccessCache();
+      clearAuthValidation();
+      throw makeSessionExpiredError();
+    }
+  }
+
+  saveSession(null);
+  clearAccessCache();
+  clearAuthValidation();
+  throw makeSessionExpiredError();
+}
+
+export async function ensureBaseSession({ validate = true } = {}) {
   let session = loadSession();
   if (!session) throw new Error('Bạn chưa đăng nhập ICAEW LMS.');
   const now = Math.floor(Date.now()/1000);
   if (Number(session.expires_at || 0) - now < 60) session = await refreshSession(session);
+
+  if (validate) {
+    const needsValidation =
+      authValidation.token !== session.access_token ||
+      Date.now() - authValidation.checkedAt > AUTH_VALIDATION_MS;
+    if (needsValidation) session = await validateAuthSession(session);
+  }
   return session;
 }
 
@@ -94,15 +182,34 @@ export async function ensureEditorSession() {
 
 export async function authGetUser(session = null) {
   const current = session || await ensureBaseSession();
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${current.access_token}`
+  const validated = await validateAuthSession(current);
+  return validated.user || null;
+}
+
+export async function authSignOut(scope = 'local') {
+  const allowedScopes = new Set(['local', 'global', 'others']);
+  if (!allowedScopes.has(scope)) throw new Error('Phạm vi đăng xuất không hợp lệ.');
+
+  const session = loadSession();
+  if (session?.access_token) {
+    try {
+      await fetch(`${SUPABASE_URL}/auth/v1/logout?scope=${encodeURIComponent(scope)}`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+    } catch (_) {
+      // Local cleanup still proceeds if the server session has already disappeared.
     }
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(text || 'Không đọc được thông tin tài khoản.');
-  return text ? JSON.parse(text) : null;
+  }
+
+  if (scope !== 'others') {
+    saveSession(null);
+    clearAccessCache();
+    clearAuthValidation();
+  }
 }
 
 export async function authMfaEnrollTotp(friendlyName = 'Authenticator') {

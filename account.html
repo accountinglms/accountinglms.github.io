@@ -94,7 +94,11 @@
             <span>Mức xác thực</span><strong id="aal-state">—</strong>
             <small id="session-note">—</small>
           </div>
-          <p class="finePrint">LMS ghi nhớ session/refresh token trên thiết bị này, không lưu mật khẩu thô. Trình quản lý mật khẩu của thiết bị có thể lưu mật khẩu nếu bạn chọn.</p>
+          <div class="sessionActions">
+            <button id="logout-current" class="secondary sessionBtn" type="button">Đăng xuất thiết bị này</button>
+            <button id="logout-all" class="danger sessionBtn" type="button">Đăng xuất tất cả thiết bị</button>
+          </div>
+          <p class="finePrint">LMS ghi nhớ session/refresh token trên thiết bị này, không lưu mật khẩu thô. “Đăng xuất thiết bị này” không ảnh hưởng iPhone/iPad/Windows khác. “Đăng xuất tất cả thiết bị” sẽ thu hồi mọi phiên của tài khoản.</p>
         </div>
       </section>
     </div>
