@@ -83,7 +83,27 @@ async function installMock(context){
         metadata:{}
       }]);
     }
-    if(path==='/rest/v1/user_progress' || path==='/rest/v1/user_preferences'){
+    if(path==='/rest/v1/user_progress'){
+      if(req.method()==='GET') return json(route,[{
+        user_id:user.id,
+        exercise_id:'exercise_1',
+        current_question:0,
+        score:0,
+        answers_status:[],
+        is_answered:[],
+        selected_answers:[],
+        draft_selections:[],
+        bookmarks:[],
+        attempt_run_id:null,
+        attempt_started_at:null,
+        attempt_recorded:false,
+        completed:false,
+        completed_at:null,
+        updated_at:'2026-10-09T08:00:00Z'
+      }]);
+      return route.fulfill({status:204,headers:cors(),body:''});
+    }
+    if(path==='/rest/v1/user_preferences'){
       if(req.method()==='GET') return json(route,[]);
       return route.fulfill({status:204,headers:cors(),body:''});
     }
@@ -166,6 +186,10 @@ try{
   await page.waitForFunction(()=>document.querySelector('#menu-exercise_1 .section-score-badge')?.textContent==='1/1');
 
   assert(mock.rpcPayloads.length===1,'First submission did not create exactly one attempt');
+  const firstStartedAt=Date.parse(mock.rpcPayloads[0].p_started_at||'');
+  assert(Number.isFinite(firstStartedAt) && firstStartedAt>=Date.parse('2026-10-09T00:00:00Z'),'Legacy progress without attempt_started_at was parsed as an old date');
+  assert(firstStartedAt>=Date.now()-120000,'Legacy progress timer did not start when the exercise became trackable');
+  assert(mock.rpcPayloads[0].p_duration_seconds==null || mock.rpcPayloads[0].p_duration_seconds<=120,'Legacy progress produced an implausibly large duration');
   assert(mock.rpcPayloads[0].p_question_snapshot?.[0]?.question_id==='question_1','Question snapshot did not preserve database question ID');
   assert(mock.rpcPayloads[0].p_question_snapshot?.[0]?.selected_answer===0,'Question snapshot did not preserve selected answer');
   assert(mock.rpcPayloads[0].p_context_snapshot?.exercise_id==='exercise_1','Attempt context snapshot is missing exercise identity');
@@ -196,6 +220,7 @@ try{
     timeline:document.querySelectorAll('.attempt').length,
     latest:document.querySelector('.chip.latest')?.textContent,
     best:document.querySelector('.chip.best')?.textContent,
+    firstTime:document.querySelector('.attempt .time')?.textContent,
     overflow:document.documentElement.scrollWidth>window.innerWidth+1
   }));
 
@@ -203,6 +228,7 @@ try{
   assert(summary.timeline===2,'History timeline did not render both attempts');
   assert(summary.latest==='Gần nhất','Latest-attempt badge is missing');
   assert(summary.best==='Tốt nhất','Best-attempt badge is missing');
+  assert(/16:02/.test(summary.firstTime||''),'Attempt timestamp is not displayed in Asia/Ho_Chi_Minh time');
   assert(!summary.overflow,'Attempt History overflows mobile viewport');
 
   await history.locator('.attempt').first().locator('summary').click();
