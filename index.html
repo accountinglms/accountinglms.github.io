@@ -869,10 +869,10 @@
         <div class="auth-field"><label for="auth-password">Mật khẩu</label><input id="auth-password" type="password" autocomplete="current-password" minlength="8" placeholder="Tối thiểu 8 ký tự" required></div>
         <div class="auth-actions">
             <button class="auth-btn primary" id="auth-login-btn" type="button">Đăng nhập</button>
-            <button class="auth-btn" id="auth-signup-btn" type="button">Tạo tài khoản lần đầu</button>
+            <button class="auth-btn" id="auth-signup-btn" type="button" hidden aria-hidden="true">Tạo tài khoản lần đầu</button>
         </div>
-        <div class="auth-message" id="auth-message" aria-live="polite">Chỉ 2 email đã được cấp quyền mới có thể sử dụng hệ thống.</div>
-        <div class="auth-note">Nếu đây là lần đầu sử dụng, chọn “Tạo tài khoản lần đầu”. Supabase có thể gửi email xác nhận. Sau khi xác nhận, quay lại trang này và đăng nhập.</div>
+        <div class="auth-message" id="auth-message" aria-live="polite">Chỉ tài khoản đã được Admin cấp quyền mới có thể sử dụng hệ thống.</div>
+        <div class="auth-note">Đăng ký công khai đã tắt. Nếu cần thêm thành viên, Owner sẽ cấp quyền từ hệ thống quản trị.</div>
     </div>
 </div>
 
@@ -2593,7 +2593,7 @@
     const SUPABASE_URL = 'https://uangiwgznukuicrfnohq.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_FRBwRP7TAmiu02eRF9l49g_tCa4DsGJ';
     const AUTH_KEY = 'icaew-lms-auth-v2';
-    const ALLOWED_EMAILS = new Set(['sondoanthai2007@gmail.com','trancongphuong301@gmail.com']);
+    let accessInfo = null;
 
     let cloudSession = null;
     let cloudReady = false;
@@ -2621,7 +2621,23 @@
     const localSaveUIPrefs = saveUIPrefs;
     const localApplyTheme = applyTheme;
 
-    function allowed(email) { return ALLOWED_EMAILS.has(String(email || '').trim().toLowerCase()); }
+    async function getMyAccess(force=false) {
+        if (!cloudSession?.access_token) throw new Error('Bạn chưa đăng nhập.');
+        if (!force && accessInfo) return accessInfo;
+        const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/rpc/get_my_access`, {
+            method:'POST',
+            headers:{
+                'apikey':SUPABASE_KEY,
+                'Authorization':`Bearer ${cloudSession.access_token}`,
+                'content-type':'application/json'
+            },
+            body:'{}'
+        });
+        const value = await parseResponse(res);
+        if (!value || value.allowed !== true) throw new Error('Tài khoản này không được cấp quyền sử dụng ICAEW LMS.');
+        accessInfo = value;
+        return value;
+    }
     function setAuthMessage(msg, error=false) {
         authMessage.textContent = msg;
         authMessage.style.color = error ? '#ef7b7b' : '';
@@ -2693,6 +2709,7 @@
             });
             const data = await parseResponse(res);
             const next = normalizeSession(data);
+            accessInfo = null;
             saveSession(next);
             return next;
         })().finally(() => { refreshing = null; });
@@ -2801,7 +2818,6 @@
         const email = emailInput.value.trim().toLowerCase();
         const password = passwordInput.value;
         if (!emailInput.checkValidity()) { emailInput.reportValidity(); return setAuthMessage('Hãy nhập đúng địa chỉ email.', true); }
-        if (!allowed(email)) return setAuthMessage('Email này không nằm trong danh sách 2 người dùng được cấp quyền.', true);
         if (!passwordInput.checkValidity() || !password) { passwordInput.reportValidity(); return setAuthMessage('Hãy nhập mật khẩu.', true); }
         if (location.protocol === 'file:') return setAuthMessage('Bạn đang mở file HTML cục bộ. Hãy bấm “Mở ICAEW LMS Online” ở phía trên rồi đăng nhập trong Safari.', true);
         setAuthBusy(true); setAuthMessage('Đang đăng nhập…');
@@ -2817,28 +2833,7 @@
     }
 
     async function signup() {
-        const email = emailInput.value.trim().toLowerCase();
-        const password = passwordInput.value;
-        if (!emailInput.checkValidity()) { emailInput.reportValidity(); return setAuthMessage('Hãy nhập đúng địa chỉ email.', true); }
-        if (!allowed(email)) return setAuthMessage('Email này không nằm trong danh sách 2 người dùng được cấp quyền.', true);
-        if (!passwordInput.checkValidity() || password.length < 8) { passwordInput.reportValidity(); return setAuthMessage('Hãy nhập mật khẩu ít nhất 8 ký tự trước khi tạo tài khoản.', true); }
-        if (location.protocol === 'file:') return setAuthMessage('Bạn đang mở file HTML cục bộ. Hãy bấm “Mở ICAEW LMS Online” ở phía trên rồi tạo tài khoản trong Safari.', true);
-        setAuthBusy(true); setAuthMessage('Đang gửi yêu cầu tạo tài khoản…');
-        try {
-            const data = await authSignUp(email, password);
-            const session = normalizeSession(data);
-            if (session) {
-                saveSession(session);
-                setAuthMessage('Tài khoản đã tạo. Đang đồng bộ…');
-                await handleSignedIn(session);
-            } else {
-                setAuthMessage('Đã tạo tài khoản. Hãy mở email xác nhận của Supabase. Xác nhận xong, quay lại trang này và bấm Đăng nhập.');
-            }
-        } catch (error) {
-            const msg = String(error.message || '');
-            if (/already|registered|exists/i.test(msg)) setAuthMessage('Email này đã có tài khoản. Hãy dùng nút Đăng nhập.', true);
-            else setAuthMessage('Không tạo được tài khoản: ' + msg, true);
-        } finally { setAuthBusy(false); }
+        setAuthMessage('Đăng ký công khai đã được tắt. Tài khoản mới phải được Admin cấp quyền trước.', true);
     }
 
     async function logout() {
@@ -2981,12 +2976,15 @@
     }
 
     async function handleSignedIn(session) {
-        const email = session?.user?.email?.toLowerCase();
-        if (!allowed(email)) {
-            await authSignOut();
-            return setAuthMessage('Tài khoản này không có quyền sử dụng ICAEW LMS.', true);
-        }
+        const email = session?.user?.email?.toLowerCase() || '';
         saveSession(session);
+        try {
+            await getMyAccess(true);
+        } catch (error) {
+            await authSignOut();
+            showGate(true);
+            return setAuthMessage(error.message || 'Tài khoản này không có quyền sử dụng ICAEW LMS.', true);
+        }
         accountEmail.textContent = email;
         accountBox.hidden = false;
         showGate(false);
@@ -3006,15 +3004,16 @@
             setAuthMessage('Bạn đang mở file .html cục bộ. Hãy dùng nút “Mở ICAEW LMS Online” để đăng nhập và đồng bộ cloud.', true);
         }
         const saved = loadSession();
-        if (saved && allowed(saved.user?.email)) {
+        if (saved) {
             saveSession(saved);
             try {
                 await ensureSession();
                 await handleSignedIn(cloudSession);
             } catch (_) {
                 saveSession(null);
+                accessInfo = null;
                 showGate(true);
-                setAuthMessage('Phiên đăng nhập cũ đã hết hạn. Hãy đăng nhập lại.');
+                setAuthMessage('Phiên đăng nhập cũ đã hết hạn hoặc tài khoản không còn quyền. Hãy đăng nhập lại.');
             }
         } else showGate(true);
     })();
