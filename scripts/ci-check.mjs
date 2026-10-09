@@ -28,6 +28,7 @@ const required = [
   'assets/translation.js',
   'assets/common.js',
   'assets/score-model.js',
+  'assets/subject-cover.js',
   'assets/account.js',
   'assets/admin.js',
   'assets/lessons.js',
@@ -335,6 +336,12 @@ if (!learnerHtml.includes('href="home.html"') || !learnerHtml.includes('href="hi
 }
 if (!homeHtml.includes('href="community.html"') || !homeHtml.includes('href="progress.html"') || !homeHtml.includes('href="account.html"')) {
   throw new Error('Global navigation belongs to the Home member portal.');
+}
+const coverStudio=fs.readFileSync(path.join(root,'assets/subject-cover.js'),'utf8');
+if (!homeJs.includes("subjectCoverDataURL") || !coverStudio.includes("classifySubjectCover") ||
+    !coverStudio.includes("generateSubjectCoverSVG") || !adminJs.includes("renderSubjectCoverPreview") ||
+    !homeHtml.includes('assets/home.js') || !fs.readFileSync(path.join(root,'admin.html'),'utf8').includes('id="subject-cover-image-main"')) {
+  throw new Error('Every subject must receive an automatic zero-cost contextual cover.');
 }
 if (!homeHtml.includes('id="feedback-form"') || !homeHtml.includes('id="announcement-form"') || !homeJs.includes("restInsert('feedback'") || !homeJs.includes("restInsert('announcements'")) {
   throw new Error('Home feedback or admin announcement workflow is incomplete.');
