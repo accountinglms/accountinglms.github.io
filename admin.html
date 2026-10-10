@@ -42,9 +42,10 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
 .flow span{font-size:.7rem;color:#9cc7df;border:1px solid #2a526c;background:#0b1d2a;border-radius:999px;padding:6px 9px;white-space:nowrap}
 .aiWorkspace{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.8fr);gap:14px}
 .uploadZone{display:grid;gap:12px}
-.fileDrop{min-height:180px;border:1.5px dashed #48738d;background:linear-gradient(180deg,#0a1722,#09131c);border-radius:15px;padding:22px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:8px;cursor:pointer;transition:.18s ease}
+.fileDrop{position:relative;min-height:180px;border:1.5px dashed #48738d;background:linear-gradient(180deg,#0a1722,#09131c);border-radius:15px;padding:22px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:8px;cursor:pointer;transition:.18s ease}
 .fileDrop:hover{border-color:#62a5cb;background:#0d1d29}
-.fileDrop input{position:absolute;opacity:0;pointer-events:none}
+.fileDrop input{position:absolute;left:0;top:0;width:1px;height:1px;min-width:0;padding:0;margin:0;border:0;overflow:hidden;clip-path:inset(50%);opacity:0;pointer-events:none}
+.fileDrop:focus-within{outline:2px solid var(--vg-cobalt,#62a5cb);outline-offset:2px}
 .dropIcon{font-size:1.8rem}
 .fileDrop strong{font-size:1rem;color:#e6f5ff}
 .fileDrop span{color:#7890a3;font-size:.76rem;line-height:1.45}
