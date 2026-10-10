@@ -214,8 +214,9 @@ if (!cloudSync.includes('CATALOG_CACHE_KEY')) {
 if (!adminJs.includes('verification_status')) {
   throw new Error('Admin import workflow is missing verification persistence.');
 }
-if (!edge.includes('google_search') || !edge.includes('verification_status')) {
-  throw new Error('AI import function is missing grounded verification.');
+if (!edge.includes('freeTierSafeToolConfig') || !edge.includes('verification_status') ||
+    !edge.includes('NEVER set verification_status=verified')) {
+  throw new Error('AI import lacks source-based verification and no-charge Gemini tool safeguards.');
 }
 if (!learnerCore.includes('row.practical_example_en') || !learnerCore.includes('row.practical_example_vi') || !learnerCore.includes('row.standard_reference')) {
   throw new Error('Practical-example learner mapping is missing.');
