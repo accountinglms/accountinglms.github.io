@@ -505,7 +505,7 @@
         } catch (error) {
             try {
                 const cached = JSON.parse(localStorage.getItem(CATALOG_CACHE_KEY) || 'null');
-                if (cached?.subjects?.length) {
+                if (Array.isArray(cached?.subjects)) {
                     console.warn('Catalog network load failed; using last synced database catalog.', error);
                     return applyDatabaseCatalog(cached);
                 }

@@ -706,7 +706,9 @@
     }
 
     function applyDatabaseCatalog({ subjects = [], chapters = [], exercises = [], questions = [] } = {}) {
-        if (!Array.isArray(subjects) || subjects.length === 0) return false;
+        // An empty authoritative catalog is valid after removing the last course.
+        // Do not resurrect the legacy bank when the server intentionally returns [].
+        if (!Array.isArray(subjects)) return false;
 
         const questionsByExercise = new Map();
         questions.forEach(row => {
@@ -766,6 +768,9 @@
                 activeSectionData = null;
                 activeSectionId = null;
                 currentQuestion = 0;
+                quizContainer.style.display = 'none';
+                navGridContainer.style.display = 'none';
+                emptyState.style.display = '';
             }
         }
 

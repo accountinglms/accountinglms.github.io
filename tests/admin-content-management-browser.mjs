@@ -118,6 +118,17 @@ try{
     page.once('dialog',dialog=>dialog.accept());await page.click('[data-restore-content="c1"]');
     await page.waitForFunction(()=>!document.querySelector('[data-restore-content="c1"]'));
     assert.equal(data.questions.length,1);assert.equal(data.lessons.length,1);
+    // Removing every subject must also clear the built-in learner fallback.
+    data.subjects.length=0;
+    await page.goto(baseURL+'/index.html',{waitUntil:'domcontentloaded'});
+    await page.waitForFunction(()=>document.querySelector('#auth-gate').classList.contains('hidden'));
+    await page.waitForFunction(()=>JSON.parse(localStorage.getItem('accountingLMSCatalog_v1')||'null')?.subjects?.length===0);
+    assert.equal(await page.locator('#menu-c1_s1').count(),0,'An empty server catalog resurrected the legacy course');
+    assert.equal(await page.locator('.learner-start-option').count(),0);
+    await test.context.route(/\/rest\/v1\/subjects\?/,route=>route.abort());
+    await page.reload({waitUntil:'domcontentloaded'});
+    await page.waitForFunction(()=>document.querySelector('#auth-gate').classList.contains('hidden'));
+    assert.equal(await page.locator('#menu-c1_s1').count(),0,'An empty offline catalog resurrected a deleted course');
     await test.context.close();
   }
   for(const options of [{owner:false},{owner:true,accessError:true}]){

@@ -38,7 +38,7 @@ Gemini output should never be treated as an authoritative answer key when the so
 
 ## Course visibility
 
-Do not delete course structure during normal operations.
+Use hide/show for temporary visibility changes. The two course owners can remove unwanted structure with recoverable deletion.
 
 Use Admin:
 
@@ -46,7 +46,13 @@ Use Admin:
 - **Ẩn chapter / Hiện chapter**
 - **Ẩn exercise / Hiện exercise**
 
-The learner catalog only loads rows with `is_active = true`.
+To remove a duplicate, select its exact destination in **Nơi lưu nội dung**, expand **Cấu trúc khóa học**, then use **Xoá môn học / Xoá chương / Xoá bài tập**. Check the confirmation path, creation date and question/lesson counts, particularly when two titles match. Cancel leaves the item unchanged.
+
+**Mục đã xoá → Khôi phục** reverses removal. Restore a deleted parent first. Descendants, import sources/drafts, progress and attempt history stay intact; a previously hidden item remains hidden after restore. Deletion/restore generates the normal content audit event. Ownership is tied to the two verified Auth identities in `private.content_owners`, not merely to the editor role. RPCs and direct writes enforce ownership, live sessions and MFA on the server.
+
+The learner catalog only loads rows with `is_active = true` and `deleted_at IS NULL`. An intentionally empty online or cached catalog clears the legacy fallback as well. Devices using an older offline catalog will see the change after their next successful catalog refresh.
+
+Creating the same normalized title under the same parent reuses the existing node. The database serializes matching inserts and rejects duplicates created concurrently on different devices.
 
 ## Questions
 
