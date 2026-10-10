@@ -42,9 +42,10 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
 .flow span{font-size:.7rem;color:#9cc7df;border:1px solid #2a526c;background:#0b1d2a;border-radius:999px;padding:6px 9px;white-space:nowrap}
 .aiWorkspace{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.8fr);gap:14px}
 .uploadZone{display:grid;gap:12px}
-.fileDrop{min-height:180px;border:1.5px dashed #48738d;background:linear-gradient(180deg,#0a1722,#09131c);border-radius:15px;padding:22px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:8px;cursor:pointer;transition:.18s ease}
+.fileDrop{position:relative;min-height:180px;border:1.5px dashed #48738d;background:linear-gradient(180deg,#0a1722,#09131c);border-radius:15px;padding:22px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:8px;cursor:pointer;transition:.18s ease}
 .fileDrop:hover{border-color:#62a5cb;background:#0d1d29}
-.fileDrop input{position:absolute;opacity:0;pointer-events:none}
+.fileDrop input{position:absolute;left:0;top:0;width:1px;height:1px;min-width:0;padding:0;margin:0;border:0;overflow:hidden;clip-path:inset(50%);opacity:0;pointer-events:none}
+.fileDrop:focus-within{outline:2px solid var(--vg-cobalt,#62a5cb);outline-offset:2px}
 .dropIcon{font-size:1.8rem}
 .fileDrop strong{font-size:1rem;color:#e6f5ff}
 .fileDrop span{color:#7890a3;font-size:.76rem;line-height:1.45}
@@ -90,6 +91,8 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
 .field>span{font-size:.75rem;color:#94aabe;font-weight:700}
 .field small{font-size:.7rem;color:#657b8d;line-height:1.45}
 .field input,.field select,.field textarea,.inline input{width:100%;border:1px solid #294154;background:#0a141e;color:#e8eef5;border-radius:10px;padding:10px 11px;outline:none}
+/* WebKit's native select decoration can overflow for long catalog titles. */
+.field select{appearance:none;-webkit-appearance:none;overflow:hidden;text-overflow:ellipsis;padding-right:30px;background-image:url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"%3E%3Cpath d="M1 1l5 5 5-5" fill="none" stroke="%237890a3" stroke-width="2"/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 10px center;background-size:12px 8px}
 .field input:focus,.field select:focus,.field textarea:focus,.inline input:focus{border-color:#4b8db5;box-shadow:0 0 0 3px rgba(73,143,185,.1)}
 .field textarea{resize:vertical;line-height:1.5}
 .aiBtn{width:100%;min-height:46px;border:1px solid #4d83a5;background:linear-gradient(135deg,#1f75aa,#2c9c7d);color:#fff;border-radius:11px;padding:0 16px;font-weight:850;cursor:pointer;box-shadow:0 10px 26px rgba(21,104,147,.18)}
@@ -144,6 +147,23 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
 .inline{display:grid;grid-template-columns:1fr 42px;gap:7px;margin:0 0 9px}
 .inline button{border:1px solid #2e688c;background:#12334a;color:#83cef6;border-radius:10px;cursor:pointer;font-size:1.1rem}
 .miniToggle{padding:7px 10px;font-size:.7rem}
+.structureSelection{font-size:.78rem;line-height:1.6;overflow-wrap:anywhere;color:var(--vg-muted,#94aabe)}
+.aiWorkspace>*,.destinationFieldRow>*,.structureGrid>*,.field,.inline>*,.subject-cover-preview>div{min-width:0}
+.field input,.field select,.field textarea,.inline input{min-width:0;max-width:100%}
+.structureActions{display:flex;gap:8px;flex-wrap:wrap}
+body.page-admin button.deleteItem{color:var(--vg-danger,#db7d79)!important;border-color:var(--vg-danger,#a9514f)!important;min-height:44px}
+.trashList{display:grid;gap:10px;margin-top:14px}
+.trashItem{display:flex;gap:12px;align-items:center;justify-content:space-between;border:1px solid var(--vg-line,#294154);border-radius:10px;padding:12px}
+.trashItem div{min-width:0;overflow-wrap:anywhere;font-size:.85rem}
+.trashItem small{display:block;color:var(--vg-muted,#94aabe);line-height:1.6;margin-top:4px}
+.trashItem button{flex-shrink:0;min-height:44px}
+.contentDialog{width:min(520px,calc(100% - 28px));max-height:calc(100dvh - 40px);overflow:auto;background:var(--vg-paper,#12263b);color:var(--vg-ink,#edf0ed);border:1px solid var(--vg-line,#2c4359);border-radius:16px;padding:24px}
+.contentDialog::backdrop{background:rgba(8,16,25,.62)}
+.contentDialog h2{margin:0 0 14px;font-size:1.3rem}
+.contentDialog p{line-height:1.65;overflow-wrap:anywhere}
+.contentDialog .dialogActions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;flex-wrap:wrap}
+.contentDialog button{min-height:44px}
+.contentDialog .dialogError{color:var(--vg-danger,#db7d79)}
 .primary{width:100%;border:0;border-radius:11px;padding:12px 15px;background:linear-gradient(135deg,#1f8ac4,#35a984);color:white;font-weight:800;cursor:pointer}
 .primary:disabled,.ghost:disabled{opacity:.45;cursor:not-allowed}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -324,7 +344,7 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
     <div class="toolStack">
       <details class="toolDetails">
         <summary>
-          <span class="summaryCopy"><span>Cấu trúc khóa học</span><small>Tạo hoặc ẩn môn học, chương và bài tập</small></span>
+          <span class="summaryCopy"><span>Cấu trúc khóa học</span><small>Tạo, ẩn hoặc xoá mục đang chọn</small></span>
         </summary>
         <div class="toolBody">
           <div class="structureGrid">
@@ -338,7 +358,8 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
                 <img id="subject-cover-image-main" alt="Xem trước ảnh môn học được tạo tự động" width="720" height="440">
                 <div><strong>Ảnh đại diện tự động</strong><span id="subject-cover-label-main">Theo tên và chủ đề môn học · miễn phí</span></div>
               </div>
-              <button id="toggle-subject" type="button" class="ghost miniToggle">Ẩn môn</button>
+              <p id="subject-selection" class="structureSelection">Chọn môn học ở phần Nơi lưu nội dung.</p>
+              <div class="structureActions"><button id="toggle-subject" type="button" class="ghost miniToggle">Ẩn môn</button><button id="delete-subject" type="button" class="ghost miniToggle deleteItem hidden" disabled>Xoá môn học</button></div>
             </section>
             <section class="structureBlock">
               <h3>Chương</h3>
@@ -346,7 +367,8 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
                 <input id="chapter-new" placeholder="Tên chương mới">
                 <button aria-label="Thêm chương">＋</button>
               </form>
-              <button id="toggle-chapter" type="button" class="ghost miniToggle">Ẩn chương</button>
+              <p id="chapter-selection" class="structureSelection">Chọn chương ở phần Nơi lưu nội dung.</p>
+              <div class="structureActions"><button id="toggle-chapter" type="button" class="ghost miniToggle">Ẩn chương</button><button id="delete-chapter" type="button" class="ghost miniToggle deleteItem hidden" disabled>Xoá chương</button></div>
             </section>
             <section class="structureBlock">
               <h3>Bài tập</h3>
@@ -354,13 +376,19 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
                 <input id="exercise-new" placeholder="Tên bài tập mới">
                 <button aria-label="Thêm bài tập">＋</button>
               </form>
-              <button id="toggle-exercise" type="button" class="ghost miniToggle">Ẩn bài tập</button>
+              <p id="exercise-selection" class="structureSelection">Chọn bài tập ở phần Nơi lưu nội dung.</p>
+              <div class="structureActions"><button id="toggle-exercise" type="button" class="ghost miniToggle">Ẩn bài tập</button><button id="delete-exercise" type="button" class="ghost miniToggle deleteItem hidden" disabled>Xoá bài tập</button></div>
             </section>
           </div>
           <div style="margin-top:12px;padding:11px 12px;border:1px dashed #2f536c;border-radius:10px;color:#7f98aa;font-size:.74rem;line-height:1.45">
             <strong style="color:#cfe7f7">Lưu trực tiếp trên hệ thống</strong> · Nội dung được cập nhật ngay sau khi lưu; không cần build lại website khi thêm môn học, chương, bài tập, câu hỏi hoặc bài học.
           </div>
         </div>
+      </details>
+
+      <details id="content-trash" class="toolDetails hidden">
+        <summary><span class="summaryCopy"><span>Mục đã xoá</span><small>Chỉ hai admin chủ có quyền xoá và khôi phục</small></span></summary>
+        <div class="toolBody"><p class="structureSelection">Xoá sẽ bỏ mục khỏi danh sách học. Nội dung và lịch sử làm bài được giữ để khôi phục. Các mục bên trong sẽ xuất hiện lại khi khôi phục mục cha.</p><div id="content-trash-list" class="trashList"></div></div>
       </details>
 
       <details class="toolDetails">
@@ -429,6 +457,15 @@ D.</textarea></label>
     </div>
   </div>
 </main>
+
+<dialog id="content-delete-dialog" class="contentDialog" aria-labelledby="content-delete-title" aria-describedby="content-delete-path content-delete-note">
+  <h2 id="content-delete-title">Xoá mục đã chọn?</h2>
+  <p id="content-delete-path"></p>
+  <p id="content-delete-meta" class="structureSelection"></p>
+  <p id="content-delete-note">Mục và nội dung bên trong sẽ được bỏ khỏi danh sách học. Câu hỏi, bài học và lịch sử làm bài vẫn được giữ để khôi phục trong “Mục đã xoá”.</p>
+  <p id="content-delete-error" class="dialogError" role="alert"></p>
+  <div class="dialogActions"><button id="content-delete-cancel" type="button" class="ghost" autofocus>Huỷ</button><button id="content-delete-confirm" type="button" class="ghost deleteItem">Xác nhận xoá</button></div>
+</dialog>
 
 <script type="module" src="assets/admin.js"></script>
 </body>

@@ -53,6 +53,9 @@ jobs:
       - name: Subject cover classification and artwork tests
         run: node tests/subject-cover.test.mjs
 
+      - name: Course deletion previews and restore rules
+        run: node tests/content-management.test.mjs
+
       - name: Formula preservation and active markup regression tests
         run: node tests/text-safety.test.mjs
 
@@ -140,6 +143,12 @@ jobs:
           BROWSER: ${{ matrix.browser }}
           TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/admin-import-recovery-browser.mjs
+
+      - name: Run owner-only course deletion and restore test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/admin-content-management-browser.mjs
 
       - name: Run auth boot/no-flash test
         env:

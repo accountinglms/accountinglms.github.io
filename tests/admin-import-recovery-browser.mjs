@@ -25,6 +25,7 @@ try{
     const req=route.request(),url=new URL(req.url()),path=url.pathname,method=req.method();
     if(method==='OPTIONS')return route.fulfill({status:204,headers:cors,body:''});
     if(path==='/auth/v1/user')return json(route,user);
+    if(path==='/rest/v1/rpc/get_my_content_access')return json(route,{content_owner:false});
     if(path==='/rest/v1/rpc/get_my_access')return json(route,{allowed:true,editor:true,role:'owner',mfa_required:false,mfa_satisfied:true,aal:'aal2'});
     if(path==='/rest/v1/subjects')return json(route,[{id:'accounting',title:'Accounting',sort_order:0,is_active:true}]);
     if(path==='/rest/v1/chapters')return json(route,[{id:'revenue',subject_id:'accounting',title:'Revenue',sort_order:0,is_active:true}]);

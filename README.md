@@ -40,6 +40,9 @@ These exercises use `content_mode = database`, so Supabase is authoritative when
 
 - Publishing/unpublishing a question requires confirmation.
 - Subjects, chapters and exercises can be hidden instead of deleted.
+- The two existing course owners can also remove selected course items to a recoverable trash list. Deletion preserves descendants, source drafts and attempt history; restore retains the previous visibility state.
+- Ownership is fixed to verified Auth user IDs in a private table and checked against a live session and existing MFA rules. Later editor accounts cannot delete or restore items. Direct PATCH/DELETE requests are also guarded.
+- Creation reuses an existing title within the same parent; database locking rejects concurrent duplicate creation.
 - Content INSERT/UPDATE activity is recorded in `content_audit_log`.
 - Manual content backups are stored in `content_snapshots`.
 - AI Import blocks publishing when the uploaded source clearly mismatches the selected Subject/Chapter/Exercise.
@@ -90,6 +93,12 @@ Every push to `main` is published automatically by GitHub Pages.
 - [ ] Final iPad check if used, then retire Floot only with owner approval
 
 See `docs/operations.md` for operating and recovery procedures.
+
+## Recoverable course deletion v57
+
+Select the subject, chapter and optional exercise in **Nơi lưu nội dung**, then open **Cấu trúc khóa học** and choose the corresponding **Xoá** button. The confirmation shows the exact path, creation date and affected content counts. Use **Mục đã xoá → Khôi phục** to undo. Restore a deleted parent before its deleted children. Hiding remains available for temporary visibility changes.
+
+The migration `owner_course_delete_restore` is applied to production. `supabase/tests/course-deletion.sql` verifies real database authorization and mutation behavior inside a transaction that is rolled back. Browser CI covers owner/non-owner controls, failed/cancelled deletion, restore, duplicate-title reuse, import destination invalidation and phone/tablet widths.
 
 ## LMS brand icon v46 (2026-10-10)
 
