@@ -20,7 +20,11 @@ Supported v1 inputs:
 
 Flow:
 
-`Upload → Gemini extraction → Draft → Human review → Publish`
+`Upload → Save source and draft → Gemini extraction → Human review → Publish`
+
+The import request does not enable Google Search: that tool is unavailable on the project's Gemini 3.5 Flash-Lite free API tier. Extraction still handles images, PDF and TXT. Generated explanations and standard references require review; the server never labels an ungrounded response `verified`.
+
+If Gemini returns quota error 429, the draft and source remain saved. Retry uses the same storage object and draft. Admin shows the provider's retry delay when supplied and does not automatically retry daily quotas. Open **Bản nháp đã lưu → Tiếp tục** after reloading the page. **Lưu bản nháp không dùng AI** and **Nhập thủ công** work without Gemini; manual items retain the source link. **Tải tệp nguồn** requires the editor's session.
 
 The AI receives the selected Subject, Chapter and Exercise as context. If the source is clearly unrelated, it returns `SOURCE_CONTEXT_MISMATCH` and Admin disables publishing.
 
@@ -137,3 +141,4 @@ Keep the old Floot production instance available until final regression testing 
 - iPad if used
 
 Only retire Floot after login, quiz flow, cloud progress sync, Admin, Lessons and AI Import all pass on the GitHub production URL.
+
