@@ -1,7 +1,12 @@
 /* Authenticated account avatar editor and image rendering. */
-[data-avatar-user],#profile-avatar{
+[data-avatar-user],#profile-avatar,#portal-avatar{
  background-position:center;background-size:cover;background-repeat:no-repeat;
- overflow:hidden;flex-shrink:0;isolation:isolate;
+ position:relative;overflow:hidden;flex-shrink:0;isolation:isolate;
+}
+/* The photo is a decoded child element, above every theme background layer. */
+.lms-avatar-photo{
+ position:absolute;inset:0;display:block;width:100%!important;height:100%!important;
+ object-fit:cover;object-position:center;border-radius:inherit;pointer-events:none;
 }
 .has-avatar-image{color:transparent!important;font-size:0!important;}
 #avatar-own-controls{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin:8px 0 16px;}

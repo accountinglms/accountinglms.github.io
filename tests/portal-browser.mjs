@@ -123,7 +123,7 @@ async function installMock(context){
         // WebKit does not expose streamed Blob request bytes to Playwright route.postDataBuffer().
         // Return a genuine WebP sample so signed-in GET/cross-page rendering is exercised.
         const webpSample=Buffer.from('UklGRjYAAABXRUJQVlA4ICoAAACQAQCdASoQABAAAUAmJZgCdLoAA5gA/vLrf/xDnQ50OX/v+xZy2BYgAAA=','base64');
-        state.avatarFiles.set(path,req.postDataBuffer()||webpSample);
+        state.avatarFiles.set(path,webpSample);
         return json(route,{Key:path},201);
       }
       if(method==='GET')return json(route,{message:'Private avatars require the authenticated download endpoint'},403);
@@ -168,7 +168,12 @@ async function installMock(context){
         if(row)Object.assign(row,JSON.parse(req.postData()||'{}'));
         return json(route,row?[row]:[]);
       }
-      return json(route,state.profiles);
+      const columns=(url.searchParams.get('select')||'*').split(',');
+      const profileRows=state.profiles.filter(p=>{
+        const uid=url.searchParams.get('id')?.replace('eq.','');
+        return !uid||p.id===uid;
+      }).map(p=>columns.includes('*')?{...p}:Object.fromEntries(columns.filter(c=>Object.hasOwn(p,c)).map(c=>[c,p[c]])));
+      return json(route,profileRows);
     }
     if(table==='social_friendships')return json(route,state.friendships);
 
@@ -596,13 +601,25 @@ async function testAvatarUpload(browser){
  await page.waitForFunction(()=>document.querySelector('#avatar-edit-dialog')?.hidden===true, null,{timeout:20000});
  assert(state.profiles[0].avatar_path?.startsWith(user.id+'/'),'Avatar must be stored in the account storage folder');
  assert(state.avatarFiles.size===1,'Avatar upload must reach private Supabase Storage');
- await page.waitForFunction(()=>document.querySelector('#profile-avatar')?.classList.contains('has-avatar-image'),null,{timeout:10000});
- assert((await page.locator('#profile-avatar').evaluate(el=>getComputedStyle(el).backgroundImage)).includes('blob:'),
-   'Account theme must not cover the loaded avatar image with its fallback gradient');
- await page.goto(baseURL+'/home.html',{waitUntil:'domcontentloaded'});
- await page.waitForFunction(()=>document.querySelector('#portal-avatar')?.classList.contains('has-avatar-image'),null,{timeout:10000});
- assert((await page.locator('#portal-avatar').evaluate(el=>getComputedStyle(el).backgroundImage)).includes('blob:'),
-  'Saved private avatar should render across member pages');
+ const assertAvatar=async (selector,where)=>{
+   await page.waitForFunction(s=>{
+     const host=document.querySelector(s),img=host?.querySelector('img.lms-avatar-photo');
+     return host?.classList.contains('has-avatar-image')&&img?.complete&&img.naturalWidth>0;
+   },selector,{timeout:12000});
+   const visible=await page.locator(selector).evaluate(el=>{
+     const img=el.querySelector('img.lms-avatar-photo'),r=img.getBoundingClientRect(),p=el.getBoundingClientRect();
+     return img&&r.width>0&&r.height>0&&r.width<=p.width+1&&r.height<=p.height+1
+        &&getComputedStyle(img).objectFit==='cover';
+   });
+   assert(visible,'Avatar must be visibly decoded and sized at '+where);
+ };
+ await assertAvatar('#profile-avatar','Account');
+ for(const [pageName,where] of [['home.html','Home'],['progress.html','Progress'],['community.html','Community']]){
+   await page.goto(baseURL+'/'+pageName,{waitUntil:'domcontentloaded'});
+   await assertAvatar('#portal-avatar',where);
+ }
+ assert((await page.locator('#member-list img.lms-avatar-photo').count())>0,
+  'Community member list must also use stored profile avatar_path');
  await context.close();
 }
 
