@@ -604,19 +604,26 @@ async function testAvatarUpload(browser){
  const assertAvatar=async (selector,where)=>{
    await page.waitForFunction(s=>{
      const host=document.querySelector(s),img=host?.querySelector('img.lms-avatar-photo');
-     return host?.classList.contains('has-avatar-image')&&img?.complete&&img.naturalWidth>0;
+     if(!host?.classList.contains('has-avatar-image')||!img?.complete||!img.naturalWidth)return false;
+     const r=img.getBoundingClientRect(),p=host.getBoundingClientRect();
+     return r.width>0&&r.height>0&&r.width<=p.width+1&&r.height<=p.height+1
+       &&getComputedStyle(img).objectFit==='cover';
    },selector,{timeout:12000});
-   const visible=await page.locator(selector).evaluate(el=>{
-     const img=el.querySelector('img.lms-avatar-photo'),r=img.getBoundingClientRect(),p=el.getBoundingClientRect();
-     return img&&r.width>0&&r.height>0&&r.width<=p.width+1&&r.height<=p.height+1
-        &&getComputedStyle(img).objectFit==='cover';
-   });
-   assert(visible,'Avatar must be visibly decoded and sized at '+where);
  };
  await assertAvatar('#profile-avatar','Account');
  for(const [pageName,where] of [['home.html','Home'],['progress.html','Progress'],['community.html','Community']]){
    await page.goto(baseURL+'/'+pageName,{waitUntil:'domcontentloaded'});
    await assertAvatar('#portal-avatar',where);
+   if(where==='Community'){
+     const preserved=await page.evaluate(uid=>{
+       const node=document.querySelector('#portal-avatar');
+       const original=node.querySelector('img.lms-avatar-photo');
+       document.dispatchEvent(new CustomEvent('lms:profile-image',{detail:{profile:{id:uid,display_name:'Portal Owner'}}}));
+       return original&&node.querySelector('img.lms-avatar-photo')===original;
+     },user.id);
+     assert(preserved,'Profile update must preserve the existing decoded header avatar');
+     await assertAvatar('#portal-avatar','Community after profile update');
+   }
  }
  assert((await page.locator('#member-list img.lms-avatar-photo').count())>0,
   'Community member list must also use stored profile avatar_path');

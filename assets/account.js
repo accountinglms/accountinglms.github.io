@@ -45,7 +45,7 @@ function unverifiedTotpFactors() {
 function render() {
   const displayName = profile?.display_name || authUser?.user_metadata?.display_name || authUser?.email?.split('@')[0] || 'Account';
   $('#profile-name').textContent = displayName;
-  $('#profile-avatar').textContent = initials(displayName);
+  // Let paintAvatar preserve a decoded image between profile updates.
   paintAvatar($('#profile-avatar'),profile,displayName).catch(()=>{});
   $('#profile-email').textContent = authUser?.email || '—';
   $('#identity-email').textContent = authUser?.email || '—';

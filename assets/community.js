@@ -46,7 +46,7 @@ function renderHeader(){
   const me=profiles.find(p=>p.id===session.user.id);
   const name=me?.display_name||session.user.user_metadata?.display_name||session.user.email?.split('@')[0]||'Member';
   $('#portal-user-name').textContent=name;
-  $('#portal-avatar').textContent=initials(name);
+  // Keep the existing image node when realtime updates the header.
   paintAvatar($('#portal-avatar'),me,name).catch(()=>{});
   const u=unreadInfo();
   const badge=$('#global-notification-count');
