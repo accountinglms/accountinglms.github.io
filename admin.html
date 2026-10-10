@@ -94,6 +94,15 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
 .field textarea{resize:vertical;line-height:1.5}
 .aiBtn{width:100%;min-height:46px;border:1px solid #4d83a5;background:linear-gradient(135deg,#1f75aa,#2c9c7d);color:#fff;border-radius:11px;padding:0 16px;font-weight:850;cursor:pointer;box-shadow:0 10px 26px rgba(21,104,147,.18)}
 .aiBtn:disabled{opacity:.5;cursor:wait}
+.importActions{display:grid;gap:8px}
+.importRecovery{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px;padding:12px;border:1px solid #2f6d53;border-radius:10px;background:#0d241b;font-size:.8rem;color:#a3e4c3}
+.importRecovery p{flex:1;min-width:200px;margin:0;line-height:1.5}
+.savedImports{margin-top:16px;padding-top:14px;border-top:1px solid #294154}
+.savedImports h3{font-size:.9rem;margin:0 0 10px}
+.savedImport{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px;border:1px solid #294154;border-radius:10px;margin-top:7px}
+.savedImport div{min-width:0;overflow-wrap:anywhere;font-size:.8rem}
+.savedImport small{display:block;color:#8ca2b5;margin-top:4px}
+.savedImport button{flex-shrink:0}
 .reviewArea{margin-top:18px;border-top:1px solid #1e3444;padding-top:18px}
 .reviewHead{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:12px}
 .reviewHead .primary{width:auto}
@@ -222,7 +231,10 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
                 <option value="lesson">Bài học / ghi chú</option>
               </select>
             </label>
-            <button id="ai-generate" type="button" class="aiBtn" disabled>Tạo bản nháp</button>
+            <div class="importActions">
+              <button id="ai-generate" type="button" class="aiBtn" disabled>Tạo bản nháp bằng AI</button>
+              <button id="save-import" type="button" class="ghost" disabled>Lưu bản nháp không dùng AI</button>
+            </div>
           </div>
         </div>
 
@@ -277,8 +289,17 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
         </aside>
       </div>
 
+      <div id="import-recovery" class="importRecovery hidden" aria-live="polite">
+        <p id="import-recovery-text"></p>
+        <button id="download-import-source" type="button" class="ghost">Tải tệp nguồn</button>
+        <button id="continue-manual-import" type="button" class="ghost">Nhập thủ công</button>
+      </div>
       <div id="import-warning" class="warning hidden"></div>
       <div id="review-area" class="reviewArea hidden"></div>
+      <div id="saved-imports" class="savedImports hidden">
+        <h3>Bản nháp đã lưu</h3>
+        <div id="saved-import-list"></div>
+      </div>
     </section>
 
     <section class="card sectionCard sectionPad">

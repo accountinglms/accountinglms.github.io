@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { hasUnsafeMarkup } from "../_shared/text-safety.js";
+import { geminiFailure } from "../_shared/gemini-errors.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -304,12 +305,11 @@ Deno.serve(async (req: Request) => {
       "multiple: correct_answer is an array of zero-based option indexes.",
       "tf: options are statements and correct_answer is a same-length boolean array.",
       "Treat the uploaded source as authoritative for the ORIGINAL wording and any EXPLICIT answer key. Never silently replace an explicit source answer with a web-derived answer.",
-      "For accounting, finance, sustainability and professional-ethics content, verify definitions and explanations against CURRENT authoritative guidance when possible.",
-      "When grounding, prefer official domains such as ifrs.org, icaew.com, ethicsboard.org, frc.org.uk and gov.uk. Do not treat blogs, forums or study-answer sites as authoritative.",
+      "This request has NO web search or external verification tools. Do not claim to have checked current standards or browsed authoritative guidance.",
       "For each question, produce a concise but technically precise EN and VI explanation using current standard terminology where relevant.",
       "Also produce one practical business/workplace example in EN and VI showing what the concept means in a real entity, transaction, control or decision.",
       "Set standard_reference to the most relevant authoritative standard/framework/topic, such as IAS 16, Conceptual Framework, IFRS S1, IFRS S2, ICAEW Code of Ethics, IESBA Code or UK GAAP. Never invent paragraph numbers.",
-      "verification_status rules: verified = source answer and explanation are supported; source_only = source answer is explicit but current external verification is unavailable; needs_review = answer/explanation is inferred, ambiguous, legacy wording, or insufficiently supported; conflict = current authoritative guidance appears to conflict with the source answer or wording.",
+      "verification_status rules: source_only = an answer key is explicitly present in the source; needs_review = an answer/explanation is inferred, ambiguous, legacy wording, or insufficiently supported; conflict = the source contains an internal inconsistency. Never return verified because external verification is unavailable.",
       "If the source does not contain an answer key, you may infer a likely answer only for a draft; verification_status MUST be needs_review and verification_note must explicitly say the answer was inferred.",
       "If current guidance differs from legacy syllabus wording, preserve the source answer and explain the difference in verification_note rather than silently rewriting the source.",
       "If an explanation/example/reference is generated rather than explicitly present in the source, say so in review_note.",
@@ -350,7 +350,6 @@ Deno.serve(async (req: Request) => {
           },
           body: JSON.stringify({
             contents: [{ role: "user", parts }],
-            tools: [{ google_search: {} }],
             generationConfig: {
               responseMimeType: "application/json",
               temperature: 0.1,
@@ -371,11 +370,8 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!aiRes?.ok) {
-      return json(req, {
-        error: aiBody?.error?.message || "Gemini API error",
-        provider: "gemini",
-        retryable: aiRes?.status === 503
-      }, 502);
+      const failure = geminiFailure(aiRes?.status || 502, aiBody, aiRes?.headers.get("retry-after"));
+      return json(req, failure.body, failure.status);
     }
 
     const text = (aiBody?.candidates?.[0]?.content?.parts || [])
@@ -387,6 +383,14 @@ Deno.serve(async (req: Request) => {
     try {
       const parsed = JSON.parse(stripFence(text));
       const validated = validateOutput(parsed, targetType);
+      // A model can overstate its own verification. Enforce the actual request capabilities.
+      for (const item of [...validated.questions, ...(validated.lesson ? [validated.lesson] : [])]) {
+        const wasVerified = item.verification_status === "verified";
+        if (wasVerified) item.verification_status = "needs_review";
+        const note = "AI không tra cứu nguồn bên ngoài; cần đối chiếu giải thích và chuẩn tham chiếu trước khi xuất bản.";
+        item.verification_note = !wasVerified && item.verification_note ? item.verification_note + " " + note : note;
+      }
+      validated.warnings.push("AI không tra cứu web. Hãy đối chiếu đáp án và giải thích trước khi xuất bản.");
       return json(req, {
         ...validated,
         model_name: GEMINI_MODEL,

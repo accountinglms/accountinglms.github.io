@@ -214,8 +214,8 @@ if (!cloudSync.includes('CATALOG_CACHE_KEY')) {
 if (!adminJs.includes('verification_status')) {
   throw new Error('Admin import workflow is missing verification persistence.');
 }
-if (!edge.includes('google_search') || !edge.includes('verification_status')) {
-  throw new Error('AI import function is missing grounded verification.');
+if (/tools\s*:\s*\[\s*\{\s*google_search/.test(edge) || !edge.includes('verification_status') || !edge.includes('external verification is unavailable')) {
+  throw new Error('AI import must preserve review status and use only free-tier compatible capabilities.');
 }
 if (!learnerCore.includes('row.practical_example_en') || !learnerCore.includes('row.practical_example_vi') || !learnerCore.includes('row.standard_reference')) {
   throw new Error('Practical-example learner mapping is missing.');
@@ -484,3 +484,4 @@ if(!sw.includes("'./assets/community-v51.css'"))
  throw new Error('Mobile chat overflow fix is missing from PWA cache');
 
 console.log('Security/static integrity checks passed.');
+

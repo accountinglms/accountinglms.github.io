@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { hasUnsafeMarkup } from "../_shared/text-safety.js";
+import { geminiFailure } from "../_shared/gemini-errors.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -328,10 +329,8 @@ Deno.serve(async (req: Request) => {
 
     const aiBody = await aiRes.json();
     if (!aiRes.ok) {
-      return json(req, {
-        error: aiBody?.error?.message || "Gemini routing error",
-        provider:"gemini",
-      }, 502);
+      const failure = geminiFailure(aiRes.status, aiBody, aiRes.headers.get("retry-after"));
+      return json(req, failure.body, failure.status);
     }
 
     const text = (aiBody?.candidates?.[0]?.content?.parts || [])

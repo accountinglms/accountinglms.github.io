@@ -535,6 +535,22 @@ export async function uploadImportFile(file) {
   return { storagePath };
 }
 
+export async function downloadImportFile(storagePath) {
+  const encoded = storagePath.split('/').map(encodeURIComponent).join('/');
+  const res = await authedFetch(`/storage/v1/object/authenticated/content-imports/${encoded}`);
+  if (!res.ok) throw new Error('Không tải được tệp nguồn đã lưu.');
+  return res.blob();
+}
+
+function aiRequestError(data, status, fallback) {
+  const error = new Error(data?.error || fallback);
+  error.code = data?.code || (status === 429 ? 'AI_QUOTA_EXCEEDED' : 'AI_REQUEST_FAILED');
+  error.status = status;
+  error.retryAfterSeconds = Number(data?.retry_after_seconds) || null;
+  error.quotaScope = data?.quota_scope || 'unknown';
+  return error;
+}
+
 function splitTranslationText(text, maxChars = 9000) {
   const source = String(text ?? '');
   if (source.length <= maxChars) return [{ text: source, separator: '' }];
@@ -718,7 +734,7 @@ export async function callAiRoute({storagePath, fileName, mimeType, targetType})
   const text = await res.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = { error: text }; }
-  if (!res.ok) throw new Error(data?.error || 'AI chưa phân loại được nơi lưu.');
+  if (!res.ok) throw aiRequestError(data, res.status, 'AI chưa phân loại được nơi lưu.');
   return data;
 }
 
@@ -736,7 +752,7 @@ export async function callAiImport({storagePath, fileName, mimeType, targetType,
   const text = await res.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = { error: text }; }
-  if (!res.ok) throw new Error(data?.error || 'AI Import chưa được cấu hình.');
+  if (!res.ok) throw aiRequestError(data, res.status, 'AI Import chưa được cấu hình.');
   return data;
 }
 
