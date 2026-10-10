@@ -75,9 +75,22 @@ try{
     assert.match(await page.textContent('#content-delete-meta'),/0 câu hỏi.*0 bài học/);
     const bounds=await page.locator('#content-delete-dialog').boundingBox();
     assert.ok(bounds.x>=0&&bounds.x+bounds.width<=width,'Delete dialog exceeds viewport');
-    const overflow=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,
-      offenders:[...document.querySelectorAll('body *')].map(el=>({tag:el.tagName,id:el.id,class:el.className,right:el.getBoundingClientRect().right}))
-        .filter(x=>x.right>innerWidth+1).slice(0,12)}));
+    const overflow=await page.evaluate(()=>{
+      const root=document.documentElement,scrollWidth=root.scrollWidth;
+      const describe=el=>({tag:el.tagName,id:el.id,class:String(el.className),right:el.getBoundingClientRect().right,
+        clientWidth:el.clientWidth,scrollWidth:el.scrollWidth});
+      const result={width:innerWidth,scrollWidth,offenders:[...document.querySelectorAll('body *')].map(describe)
+        .filter(x=>x.right>innerWidth+1||x.scrollWidth>x.clientWidth+1&&x.clientWidth>0).slice(0,20)};
+      if(scrollWidth>innerWidth){
+        result.isolated=[];
+        for(const el of document.querySelectorAll('body > *,#app .shell > *,.aiWorkspace > *,.toolDetails,.toolBody > *,input,select,textarea')){
+          const css=el.style.cssText;el.style.setProperty('display','none','important');
+          const after=root.scrollWidth;el.style.cssText=css;
+          if(after<scrollWidth)result.isolated.push({...describe(el),after});
+        }
+      }
+      return result;
+    });
     assert.ok(overflow.scrollWidth<=overflow.width,'Horizontal overflow: '+JSON.stringify(overflow));
     await page.click('#content-delete-cancel');
     assert.equal(test.calls,0,'Cancel sent a mutation');
