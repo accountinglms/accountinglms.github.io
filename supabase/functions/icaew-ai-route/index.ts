@@ -1,16 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { resolveGeminiModel, freeTierSafeToolConfig } from "../_shared/gemini-free-tier-policy.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
-const configuredModel = Deno.env.get("GEMINI_MODEL") || "";
-const GEMINI_MODEL =
-  configuredModel &&
-  configuredModel !== "gemini-2.5-flash" &&
-  configuredModel !== "gemini-3.8-flash" &&
-  configuredModel !== "gemini-3.7-flash"
-    ? configuredModel
-    : "gemini-3.5-flash-lite";
+// This resolves only documented image/PDF + structured-output models.
+ // A new candidate is NOT activated automatically without a zero-charge pilot.
+const GEMINI_MODEL = resolveGeminiModel(Deno.env.get("GEMINI_MODEL"));
 
 const PRODUCTION_ORIGIN = "https://accountinglms.github.io";
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
