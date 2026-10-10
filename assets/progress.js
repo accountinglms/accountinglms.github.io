@@ -221,7 +221,7 @@ async function bootstrap(){
     restGet('profiles','select=id,display_name,avatar_path')
   ]);
   const me=profiles.find(p=>p.id===session.user.id);const name=me?.display_name||session.user.user_metadata?.display_name||session.user.email?.split('@')[0]||'Member';
-  $('#portal-user-name').textContent=name;$('#portal-avatar').textContent=initials(name);
+  $('#portal-user-name').textContent=name;
   paintAvatar($('#portal-avatar'),me,name).catch(()=>{});
   activeSubjectId=new URLSearchParams(location.search).get('subject');
   if(!subjects.some(s=>s.id===activeSubjectId))activeSubjectId=subjects.find(s=>subjectAttempts(s.id).length)?.id||subjects[0]?.id||null;

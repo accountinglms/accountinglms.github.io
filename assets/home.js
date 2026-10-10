@@ -49,7 +49,7 @@ function unreadState(){
 function renderHeader(){
   const name=currentName();
   setText('#portal-user-name',name);
-  setText('#portal-avatar',initials(name));
+  // paintAvatar owns this node; rewriting initials would detach its decoded image.
   paintAvatar($('#portal-avatar'),profiles.find(p=>p.id===session.user.id),name).catch(()=>{});
   const humanName = name.trim().replace(/[_.-]+/g,' ');
   const looksLikeHandle = /[0-9]/.test(humanName) || humanName.length>28 || humanName.includes('@');
