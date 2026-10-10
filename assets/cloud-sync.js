@@ -494,9 +494,9 @@
     async function loadDatabaseCatalog() {
         try {
             const [subjects, chapters, exercises, questions] = await Promise.all([
-                restGet('subjects', 'select=*&is_active=eq.true&order=sort_order.asc'),
-                restGet('chapters', 'select=*&is_active=eq.true&order=sort_order.asc'),
-                restGet('exercises', 'select=*&is_active=eq.true&order=sort_order.asc'),
+                restGet('subjects', 'select=*&is_active=eq.true&deleted_at=is.null&order=sort_order.asc'),
+                restGet('chapters', 'select=*&is_active=eq.true&deleted_at=is.null&order=sort_order.asc'),
+                restGet('exercises', 'select=*&is_active=eq.true&deleted_at=is.null&order=sort_order.asc'),
                 restGet('questions', 'select=*&status=eq.published&order=sort_order.asc')
             ]);
             const catalog = { subjects, chapters, exercises, questions, cached_at: Date.now() };

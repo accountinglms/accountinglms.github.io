@@ -156,10 +156,15 @@ async function translateCurrentLesson() {
   try {
     await ensureSession();
     [subjects, chapters, lessons] = await Promise.all([
-      restGet('subjects','select=*&is_active=eq.true&order=sort_order.asc'),
-      restGet('chapters','select=*&is_active=eq.true&order=sort_order.asc'),
+      restGet('subjects','select=*&is_active=eq.true&deleted_at=is.null&order=sort_order.asc'),
+      restGet('chapters','select=*&is_active=eq.true&deleted_at=is.null&order=sort_order.asc'),
       restGet('lessons','select=*&status=eq.published&order=sort_order.asc')
     ]);
+
+    const subjectIds=new Set(subjects.map(item=>item.id));
+    chapters=chapters.filter(item=>subjectIds.has(item.subject_id));
+    const chapterIds=new Set(chapters.map(item=>item.id));
+    lessons=lessons.filter(item=>chapterIds.has(item.chapter_id));
 
     const sidebar = document.querySelector('#sidebar');
     if (!lessons.length) {

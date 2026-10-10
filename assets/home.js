@@ -232,10 +232,10 @@ async function bootstrap(){
       subjects,chapters,lessons,exercises,attempts,progress,announcements,announcementReads,
       groups,memberships,chatReads,messages,profiles,unreadCounts
     ]=await Promise.all([
-      restGet('subjects','select=*&is_active=eq.true&order=sort_order.asc'),
-      restGet('chapters','select=*&is_active=eq.true&order=sort_order.asc'),
+      restGet('subjects','select=*&is_active=eq.true&deleted_at=is.null&order=sort_order.asc'),
+      restGet('chapters','select=*&is_active=eq.true&deleted_at=is.null&order=sort_order.asc'),
       restGet('lessons','select=id,chapter_id,title,summary,status,sort_order&status=eq.published&order=sort_order.asc'),
-      restGet('exercises','select=id,chapter_id,title,question_count,sort_order&is_active=eq.true&order=sort_order.asc'),
+      restGet('exercises','select=id,chapter_id,title,question_count,sort_order&is_active=eq.true&deleted_at=is.null&order=sort_order.asc'),
       restGet('exercise_attempts',`select=exercise_id,score,total_questions,accuracy,completed_at,bookmarked_count,context_snapshot&user_id=eq.${encodeURIComponent(session.user.id)}&order=completed_at.desc&limit=100`),
       restGet('user_progress',`select=exercise_id,bookmarks,updated_at&user_id=eq.${encodeURIComponent(session.user.id)}`),
       restGet('announcements','select=*&status=eq.published&order=published_at.desc.nullslast,created_at.desc&limit=20'),
