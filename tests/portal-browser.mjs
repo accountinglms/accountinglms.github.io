@@ -625,8 +625,8 @@ async function testAvatarUpload(browser){
      await assertAvatar('#portal-avatar','Community after profile update');
    }
  }
- assert((await page.locator('#member-list img.lms-avatar-photo').count())>0,
-  'Community member list must also use stored profile avatar_path');
+ await page.waitForFunction(()=>[...document.querySelectorAll('#member-list img.lms-avatar-photo')]
+   .some(img=>img.complete&&img.naturalWidth>0),null,{timeout:12000});
  await context.close();
 }
 
