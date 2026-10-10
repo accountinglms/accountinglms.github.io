@@ -1,4 +1,9 @@
 // Keep quota failures distinct from server failures; never retry a daily quota in a loop.
+/**
+ * @param {number} status
+ * @param {any} data
+ * @param {string|null} [retryAfterHeader]
+ */
 export function geminiFailure(status, data, retryAfterHeader = null) {
   const details = Array.isArray(data?.error?.details) ? data.error.details : [];
   const violations = details.flatMap(item => Array.isArray(item.violations) ? item.violations : []);
