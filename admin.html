@@ -95,6 +95,12 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
 .aiBtn{width:100%;min-height:46px;border:1px solid #4d83a5;background:linear-gradient(135deg,#1f75aa,#2c9c7d);color:#fff;border-radius:11px;padding:0 16px;font-weight:850;cursor:pointer;box-shadow:0 10px 26px rgba(21,104,147,.18)}
 .aiBtn:disabled{opacity:.5;cursor:wait}
 .importActions{display:grid;gap:8px}
+.importFiles{display:grid;gap:6px;margin-top:12px;font-size:.78rem}
+.importFile{display:flex;align-items:center;gap:8px;padding:9px;border:1px solid #294455;border-radius:8px;min-width:0}
+.importFileName{flex:1;min-width:0;overflow-wrap:anywhere}
+.importFile small{display:block;color:#96aabd;margin-top:4px}
+.importFile button{flex-shrink:0;padding:6px 8px}
+.importProgress{color:#b6d6f0;font-size:.8rem;line-height:1.5;margin-top:8px}
 .importRecovery{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px;padding:12px;border:1px solid #2f6d53;border-radius:10px;background:#0d241b;font-size:.8rem;color:#a3e4c3}
 .importRecovery p{flex:1;min-width:200px;margin:0;line-height:1.5}
 .savedImports{margin-top:16px;padding-top:14px;border-top:1px solid #294154}
@@ -217,11 +223,13 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
       <div class="aiWorkspace">
         <div class="uploadZone">
           <label class="fileDrop">
-            <input id="import-file" type="file" accept=".png,.jpg,.jpeg,.webp,.pdf,.txt,image/png,image/jpeg,image/webp,application/pdf,text/plain">
+            <input id="import-file" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.txt,image/png,image/jpeg,image/webp,application/pdf,text/plain">
             <div class="dropIcon">＋</div>
-            <strong id="import-file-name">Chọn ảnh, PDF hoặc TXT</strong>
-            <span id="import-file-meta">Ảnh, PDF hoặc TXT · tối đa 4 MB mỗi file</span>
+            <strong id="import-file-name">Chọn một hoặc nhiều ảnh, PDF, TXT</strong>
+            <span id="import-file-meta">Tối đa 20 tệp · 4 MB mỗi tệp · 12 MB cả lượt</span>
           </label>
+          <div id="import-file-list" class="importFiles"></div>
+          <div id="import-progress" class="importProgress" role="status" aria-live="polite"></div>
 
           <div class="importTargetRow">
             <label class="field">
@@ -291,6 +299,7 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
 
       <div id="import-recovery" class="importRecovery hidden" aria-live="polite">
         <p id="import-recovery-text"></p>
+        <label id="manual-source-row" class="field hidden"><span>Tệp dùng để nhập thủ công</span><select id="manual-import-source"></select></label>
         <button id="download-import-source" type="button" class="ghost">Tải tệp nguồn</button>
         <button id="continue-manual-import" type="button" class="ghost">Nhập thủ công</button>
       </div>

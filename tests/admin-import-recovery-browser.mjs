@@ -15,7 +15,8 @@ const aiResult={title:'Revenue practice',questions:[{question_type:'single',prom
   options:['GBP 12,000','GBP 4,000'],correct_answer:1,confidence:1,verification_status:'source_only',
   explanation_en:'(GBP 12,000 / 6 months) * 2 months = GBP 4,000.'}],lesson:null,warnings:[],model_name:'mock-free'};
 const drafts=new Map(),sources=new Map(),objects=new Map(),questions=[],lessons=[];
-let uploads=0,aiCalls=0,failReadyPatch=false;
+let uploads=0,aiCalls=0,failReadyPatch=false,failNextAI=false,failUploadAt=0;
+const routeInputs=[];
 
 const browser=await engine.launch({headless:true});
 try{
@@ -43,7 +44,9 @@ try{
     }
     if(path.startsWith('/storage/v1/object/content-imports/')){
       // WebKit does not expose File upload bodies; both uploaded fixtures contain sourceText.
-      uploads++;objects.set(decodeURIComponent(path.split('/content-imports/')[1]),req.postData()??sourceText);return json(route,{Key:path});
+      uploads++;
+      if(uploads===failUploadAt){failUploadAt=0;return json(route,{message:'Temporary upload failure'},500)}
+      objects.set(decodeURIComponent(path.split('/content-imports/')[1]),req.postData()??sourceText);return json(route,{Key:path});
     }
     if(path==='/rest/v1/content_sources'){
       assert.equal(method,'POST');const row={...req.postDataJSON(),id:'source-'+(sources.size+1)};
@@ -65,14 +68,24 @@ try{
       }
       const row={...drafts.get(id),...body};drafts.set(id,row);return json(route,[row]);
     }
-    if(path==='/functions/v1/icaew-ai-route')return json(route,{error:'AI hết hạn mức. Hãy chọn nơi lưu thủ công.',code:'AI_QUOTA_EXCEEDED'},429);
+    if(path==='/functions/v1/icaew-ai-route'){
+      routeInputs.push(req.postDataJSON());
+      return json(route,{error:'AI hết hạn mức. Hãy chọn nơi lưu thủ công.',code:'AI_QUOTA_EXCEEDED'},429);
+    }
     if(path==='/functions/v1/icaew-ai-import'){
       aiCalls++;
       const payload=req.postDataJSON();
-      const persisted=[...drafts.values()].find(d=>sources.get(d.source_id)?.storage_key===payload.storagePath&&d.payload.destination.target_type===payload.targetType);
+      const files=payload.files||[payload];
+      const persisted=[...drafts.values()].find(d=>sources.get(d.source_id)?.storage_key===files[0].storagePath&&d.payload.destination.target_type===payload.targetType);
       assert.ok(persisted,'AI request ran before the draft was saved');
-      if(aiCalls===1)return json(route,{error:'AI đang chạm hạn mức.',code:'AI_QUOTA_EXCEEDED',quota_scope:'minute',retry_after_seconds:2},429);
-      return json(route,aiResult);
+      assert.equal(persisted.payload.files.length,files.length,'Draft omitted some selected files');
+      files.forEach((f,i)=>{
+        const saved=persisted.payload.files[i];assert.equal(saved.storagePath,f.storagePath);
+        assert.equal(sources.get(saved.sourceId).storage_key,f.storagePath,'AI ran before all sources were saved');
+      });
+      if(aiCalls===1||failNextAI){failNextAI=false;return json(route,{error:'AI đang chạm hạn mức.',code:'AI_QUOTA_EXCEEDED',quota_scope:'minute',retry_after_seconds:2},429)}
+      const result=payload.files?{...aiResult,title:'Combined image questions',processed_files:files.map((_,i)=>i+1),questions:files.map((f,i)=>({...aiResult.questions[0],prompt:'Question from '+f.fileName,source_file:i+1,source_files:i===0&&files.length>1?[1,2]:[i+1]}))}:aiResult;
+      return json(route,result);
     }
     throw new Error('Unexpected request: '+method+' '+path);
   });
@@ -140,8 +153,63 @@ try{
   assert.equal(aiCalls,3);await page.click('#ai-generate');await page.waitForSelector('.importCard');
   assert.equal(aiCalls,3,'Retrying a draft save made another Gemini request');assert.equal(drafts.size,3);assert.equal(uploads,2);
   assert.equal(drafts.get('draft-3').payload.processing.state,'ready');
+  // One selection creates one draft containing all images, in the chosen order.
+  const image=(name)=>({name,mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/mocAAAAASUVORK5CYII=','base64')});
+  await page.setInputFiles('#import-file',[image('page-1.png'),image('page-2.png'),image('page-3.png')]);
+  assert.equal(await page.locator('.importFile').count(),3);
+  await page.click('[data-move-source="2"][data-direction="-1"]');
+  assert.match(await page.locator('.importFileName').nth(1).innerText(),/page-3.png/);
+  await page.click('#ai-route');
+  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('chọn nơi lưu thủ công'));
+  assert.equal(routeInputs.at(-1).files.length,3,'Routing used only the first selected image');
+  assert.deepEqual(routeInputs.at(-1).files.map(f=>f.fileName),['page-1.png','page-3.png','page-2.png']);
+  assert.equal(uploads,5);
+  await confirm();failNextAI=true;await page.click('#ai-generate');
+  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('được giữ lại'));
+  assert.equal(aiCalls,4);assert.equal(drafts.size,4);assert.equal(sources.size,5);assert.equal(uploads,5);
+  assert.equal(drafts.get('draft-4').payload.files.length,3);assert.ok(drafts.get('draft-4').payload.files.every(f=>f.sourceId));
+  await open();await page.click('[data-resume-import="draft-4"]');
+  assert.equal(await page.locator('.importFile').count(),3);
+  const imageDownloadEvent=page.waitForEvent('download');await page.click('[data-download-source="2"]');
+  assert.equal((await imageDownloadEvent).suggestedFilename(),'page-2.png');
+  await page.waitForFunction(()=>!document.querySelector('#ai-generate').disabled);await page.click('#ai-generate');
+  await page.waitForFunction(()=>document.querySelectorAll('.importCard').length===3);
+  assert.equal(aiCalls,5);assert.equal(uploads,5);assert.equal(drafts.size,4);
+  assert.match(await page.locator('#import-progress').innerText(),/3 tệp · 3 câu/);
+  await open();await page.click('[data-resume-import="draft-4"]');
+  assert.equal(await page.locator('.importCard').count(),3,'Ready batch lost questions after reload');
+  await page.click('#publish-imported');
+  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã publish AI question'));
+  const published=questions.filter(q=>q.metadata.import_draft_id==='draft-4');
+  assert.equal(published.length,3);assert.deepEqual(published.map(q=>q.source_id),['source-3','source-4','source-5']);
+  assert.deepEqual(published[0].metadata.source_ids,['source-3','source-4'],'Question spanning two images lost provenance');
+  assert.equal(drafts.get('draft-4').payload.files.length,3,'Publishing discarded the source manifest');
+
+  // A network failure in the second upload preserves the first and can resume after reload.
+  await page.setInputFiles('#import-file',[image('retry-1.png'),image('retry-2.png')]);await confirm();
+  failUploadAt=uploads+2;await page.click('#ai-generate');
+  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('được giữ lại'));
+  assert.equal(uploads,7);assert.equal(aiCalls,5);assert.equal(drafts.size,5);assert.equal(sources.size,6);
+  assert.equal(drafts.get('draft-5').payload.files.filter(f=>f.sourceId).length,1);
+  await open();await page.click('[data-resume-import="draft-5"]');
+  assert.equal(await page.isDisabled('#ai-generate'),true,'Missing original file was silently skipped');
+  await page.setInputFiles('#import-file',image('retry-2.png'));
+  assert.equal(await page.locator('.importFile').count(),2,'Re-selecting the missing file discarded the saved first image');
+  await page.click('#ai-generate');await page.waitForFunction(()=>document.querySelectorAll('.importCard').length===2);
+  assert.equal(uploads,8,'Previously saved image was uploaded again');assert.equal(aiCalls,6);
+  assert.equal(drafts.size,5);assert.equal(sources.size,7);assert.equal(drafts.get('draft-5').payload.processing.state,'ready');
+
+  // Existing single-file drafts still reopen without a batch manifest.
+  const legacy=drafts.get('draft-1');delete legacy.payload.files;
+  await open();await page.click('[data-resume-import="draft-1"]');
+  assert.equal(await page.locator('.importFile').count(),1);assert.equal(await page.locator('.importCard').count(),1);
+
+  // Reject an oversized selection before any upload or AI call.
+  await page.setInputFiles('#import-file',Array.from({length:21},(_,i)=>image('too-many-'+i+'.png')));
+  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Tối đa 20 tệp'));
+  assert.equal(uploads,8);assert.equal(aiCalls,6);
   await page.setViewportSize({width:390,height:844});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'Recovery UI overflowed a phone viewport');
-  console.log(`PASS ${browserName}: draft before AI, quota recovery, reload/resume, source reuse, manual save, and failed-save retry.`);
+  console.log(`PASS ${browserName}: draft before AI, quota recovery, reload/resume, source reuse, manual save, multi-image extraction/provenance, partial-upload resume, and failed-save retry.`);
   await context.close();
 }finally{await browser.close()}

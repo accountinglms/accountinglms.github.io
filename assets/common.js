@@ -720,7 +720,7 @@ export async function callQuestionTranslate({question, options, target_language=
   };
 }
 
-export async function callAiRoute({storagePath, fileName, mimeType, targetType}) {
+export async function callAiRoute({storagePath, fileName, mimeType, files, targetType}) {
   const session = await ensureSession();
   const res = await fetch(`${SUPABASE_URL}/functions/v1/icaew-ai-route`, {
     method: 'POST',
@@ -729,7 +729,7 @@ export async function callAiRoute({storagePath, fileName, mimeType, targetType})
       Authorization: `Bearer ${session.access_token}`,
       'content-type': 'application/json'
     },
-    body: JSON.stringify({ storagePath, fileName, mimeType, targetType })
+    body: JSON.stringify({ storagePath, fileName, mimeType, files, targetType })
   });
   const text = await res.text();
   let data = null;
@@ -738,7 +738,7 @@ export async function callAiRoute({storagePath, fileName, mimeType, targetType})
   return data;
 }
 
-export async function callAiImport({storagePath, fileName, mimeType, targetType, subjectTitle, chapterTitle, exerciseTitle}) {
+export async function callAiImport({storagePath, fileName, mimeType, files, targetType, subjectTitle, chapterTitle, exerciseTitle}) {
   const session = await ensureSession();
   const res = await fetch(`${SUPABASE_URL}/functions/v1/icaew-ai-import`, {
     method: 'POST',
@@ -747,7 +747,7 @@ export async function callAiImport({storagePath, fileName, mimeType, targetType,
       Authorization: `Bearer ${session.access_token}`,
       'content-type': 'application/json'
     },
-    body: JSON.stringify({ storagePath, fileName, mimeType, targetType, subjectTitle, chapterTitle, exerciseTitle })
+    body: JSON.stringify({ storagePath, fileName, mimeType, files, targetType, subjectTitle, chapterTitle, exerciseTitle })
   });
   const text = await res.text();
   let data = null;

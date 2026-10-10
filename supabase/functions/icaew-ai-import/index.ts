@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { hasUnsafeMarkup } from "../_shared/text-safety.js";
 import { geminiFailure } from "../_shared/gemini-errors.js";
+import { loadImportSources, ImportSourceError } from "../_shared/import-sources.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -15,15 +16,6 @@ const GEMINI_MODEL =
     : "gemini-3.5-flash-lite";
 
 const PRODUCTION_ORIGIN = "https://accountinglms.github.io";
-const MAX_FILE_BYTES = 4 * 1024 * 1024;
-const ALLOWED_MIME = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "application/pdf",
-  "text/plain",
-]);
-
 function originAllowed(req: Request) {
   const origin = req.headers.get("origin");
   return !origin || origin === PRODUCTION_ORIGIN;
@@ -75,28 +67,6 @@ function stripFence(text: string) {
     .replace(/\s*\`\`\`$/, "");
 }
 
-function begins(bytes: Uint8Array, values: number[]) {
-  return values.every((value, index) => bytes[index] === value);
-}
-
-function detectedMime(bytes: Uint8Array) {
-  if (bytes.length >= 8 && begins(bytes, [0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a])) return "image/png";
-  if (bytes.length >= 3 && begins(bytes, [0xff,0xd8,0xff])) return "image/jpeg";
-  if (
-    bytes.length >= 12 &&
-    String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
-    String.fromCharCode(...bytes.slice(8, 12)) === "WEBP"
-  ) return "image/webp";
-  if (bytes.length >= 5 && String.fromCharCode(...bytes.slice(0, 5)) === "%PDF-") return "application/pdf";
-  try {
-    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-    if (!text.includes("\u0000")) return "text/plain";
-  } catch {
-    // Not valid UTF-8 text.
-  }
-  return null;
-}
-
 function safeText(value: unknown, field: string, max = 20_000, required = false) {
   if (value == null) {
     if (required) throw new Error(field + " is required");
@@ -112,7 +82,7 @@ if (hasUnsafeMarkup(text)) {
   return text;
 }
 
-function validateQuestion(raw: any, index: number) {
+function validateQuestion(raw: any, index: number, fileCount = 1) {
   if (!raw || typeof raw !== "object") throw new Error(`questions[${index}] must be an object`);
   const type = raw.question_type;
   if (!["single", "multiple", "tf"].includes(type)) throw new Error(`questions[${index}].question_type is invalid`);
@@ -163,6 +133,10 @@ function validateQuestion(raw: any, index: number) {
     throw new Error(`questions[${index}].source_page is invalid`);
   }
 
+  const sourceFile = raw.source_file == null && fileCount === 1 ? 1 : raw.source_file;
+  if (!Number.isInteger(sourceFile) || sourceFile < 1 || sourceFile > fileCount) throw new Error(`questions[${index}].source_file is invalid`);
+  const sourceFiles: number[] = raw.source_files == null ? [sourceFile] : raw.source_files;
+  if (!Array.isArray(sourceFiles) || !sourceFiles.length || sourceFiles.length > fileCount || !sourceFiles.includes(sourceFile) || sourceFiles.some(v => !Number.isInteger(v) || v < 1 || v > fileCount) || new Set(sourceFiles).size !== sourceFiles.length) throw new Error(`questions[${index}].source_files is invalid`);
   return {
     question_type: type,
     prompt,
@@ -179,19 +153,23 @@ function validateQuestion(raw: any, index: number) {
       : "needs_review",
     verification_note: safeText(raw.verification_note, `questions[${index}].verification_note`, 5_000),
     source_page: sourcePage,
+    source_file: sourceFile,
+    source_files: sourceFiles,
     confidence,
     review_note: safeText(raw.review_note, `questions[${index}].review_note`, 5_000),
   };
 }
 
-function validateOutput(raw: any, targetType: string) {
+function validateOutput(raw: any, targetType: string, fileCount = 1) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("AI output must be an object");
   const title = safeText(raw.title, "title", 300, true)!;
 
   if (!Array.isArray(raw.questions) || raw.questions.length > 150) {
     throw new Error("questions must be an array with at most 150 items");
   }
-  const questions = raw.questions.map(validateQuestion);
+  const questions = raw.questions.map((q: any, i: number) => validateQuestion(q, i, fileCount));
+  const processedFiles: number[] = raw.processed_files == null && fileCount === 1 ? [1] : raw.processed_files;
+  if (!Array.isArray(processedFiles) || processedFiles.length !== fileCount || new Set(processedFiles).size !== fileCount || processedFiles.some(v => !Number.isInteger(v) || v < 1 || v > fileCount)) throw new Error("processed_files must account for every uploaded file");
 
   let lesson = null;
   if (raw.lesson != null) {
@@ -219,7 +197,7 @@ function validateOutput(raw: any, targetType: string) {
     ? raw.warnings.slice(0, 50).map((w: unknown, i: number) => safeText(w, `warnings[${i}]`, 1_000, true)!)
     : [];
 
-  return { title, questions, lesson, warnings };
+  return { title, questions, lesson, warnings, processed_files: processedFiles };
 }
 
 Deno.serve(async (req: Request) => {
@@ -243,56 +221,15 @@ Deno.serve(async (req: Request) => {
     }
 
     const input = await req.json();
-    const storagePath = safeText(input?.storagePath, "storagePath", 500, true)!;
-    const fileName = safeText(input?.fileName, "fileName", 300, true)!;
-    const mimeType = safeText(input?.mimeType, "mimeType", 100, true)!;
     const targetType = input?.targetType;
-
-    if (!["questions", "lesson"].includes(targetType) || !ALLOWED_MIME.has(mimeType)) {
-      return json(req, { error: "Invalid input" }, 400);
-    }
-    if (!storagePath.startsWith(String(user.id) + "/")) {
-      return json(req, { error: "SOURCE_OWNERSHIP_MISMATCH" }, 403);
-    }
+    if (!["questions","lesson"].includes(targetType)) return json(req, {error:"INVALID_INPUT"}, 400);
+    const sources = await loadImportSources(input, String(user.id), {url:SUPABASE_URL,anonKey:SUPABASE_ANON_KEY,token,fetch});
 
     const subjectTitle = safeText(input?.subjectTitle, "subjectTitle", 300, true)!;
     const chapterTitle = safeText(input?.chapterTitle, "chapterTitle", 300, true)!;
     const exerciseTitle = targetType === "questions"
       ? safeText(input?.exerciseTitle, "exerciseTitle", 300, true)!
       : safeText(input?.exerciseTitle || "", "exerciseTitle", 300, false)!;
-
-    const objectPath = storagePath.split("/").map(encodeURIComponent).join("/");
-    const fileRes = await fetch(
-      SUPABASE_URL + "/storage/v1/object/authenticated/content-imports/" + objectPath,
-      {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: "Bearer " + token,
-        },
-      },
-    );
-
-    if (!fileRes.ok) return json(req, { error: "Không đọc được file nguồn từ Supabase Storage." }, 400);
-
-    const bytes = new Uint8Array(await fileRes.arrayBuffer());
-    if (bytes.byteLength > MAX_FILE_BYTES) {
-      return json(req, { error: "AI Import v1 hỗ trợ tối đa 4 MB mỗi file." }, 413);
-    }
-
-    const actualMime = detectedMime(bytes);
-    if (!actualMime || actualMime !== mimeType) {
-      return json(req, {
-        error: "FILE_SIGNATURE_MISMATCH",
-        expected: mimeType,
-        detected: actualMime,
-      }, 415);
-    }
-
-    let binary = "";
-    for (let i = 0; i < bytes.length; i += 32768) {
-      binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + 32768, bytes.length)));
-    }
-    const base64 = btoa(binary);
 
     const instructions = [
       "You are a strict extraction engine for an accounting and finance LMS.",
@@ -314,9 +251,11 @@ Deno.serve(async (req: Request) => {
       "If current guidance differs from legacy syllabus wording, preserve the source answer and explain the difference in verification_note rather than silently rewriting the source.",
       "If an explanation/example/reference is generated rather than explicitly present in the source, say so in review_note.",
       "Return exactly this top-level JSON shape:",
-      "{\"title\":string,\"questions\":array,\"lesson\":object|null,\"warnings\":string[]}",
+      "{\"title\":string,\"questions\":array,\"lesson\":object|null,\"warnings\":string[],\"processed_files\":number[]}",
+      "processed_files must list EVERY SOURCE_FILE number (1-based), including files containing only continuations, answer keys, or no questions. Do not silently skip any file. Add a warning identifying any unreadable or irrelevant file.",
+      "For each question, source_file is the 1-based SOURCE_FILE where it starts; source_files lists all SOURCE_FILE numbers needed for its question/options/answer key. source_page is the page within that file (1 for an image). Preserve question order across all files.",
       "Each question must be:",
-      "{\"question_type\":\"single\"|\"multiple\"|\"tf\",\"prompt\":string,\"options\":string[],\"correct_answer\":number|number[]|boolean[],\"required_selections\":number|null,\"explanation_en\":string|null,\"explanation_vi\":string|null,\"practical_example_en\":string|null,\"practical_example_vi\":string|null,\"standard_reference\":string|null,\"verification_status\":\"verified\"|\"needs_review\"|\"conflict\"|\"source_only\",\"verification_note\":string|null,\"source_page\":number|null,\"confidence\":number,\"review_note\":string|null}",
+      "{\"question_type\":\"single\"|\"multiple\"|\"tf\",\"prompt\":string,\"options\":string[],\"correct_answer\":number|number[]|boolean[],\"required_selections\":number|null,\"explanation_en\":string|null,\"explanation_vi\":string|null,\"practical_example_en\":string|null,\"practical_example_vi\":string|null,\"standard_reference\":string|null,\"verification_status\":\"verified\"|\"needs_review\"|\"conflict\"|\"source_only\",\"verification_note\":string|null,\"source_page\":number|null,\"source_file\":number,\"source_files\":number[],\"confidence\":number,\"review_note\":string|null}",
       targetType === "lesson"
         ? "Primary task: create lesson {title,summary,content_markdown,content_markdown_vi,standard_references,verification_status,verification_note}; preserve source structure in content_markdown and create a faithful Vietnamese rendering in content_markdown_vi. Also extract explicit questions if present."
         : "Primary task: extract explicit questions and answer keys; lesson must be null.",
@@ -324,15 +263,10 @@ Deno.serve(async (req: Request) => {
       "Target chapter: " + chapterTitle,
       "Target exercise: " + exerciseTitle,
       "If the source is clearly unrelated to the target subject/chapter/exercise, add the exact warning SOURCE_CONTEXT_MISMATCH to warnings.",
-      "Source file: " + fileName,
+      "Read ALL " + sources.files.length + " source files together in the numbered order below. A question may continue on the next image; combine its wording and options and do not duplicate it. Answer keys may appear in later files.",
     ].join("\n");
 
-    const parts: any[] = [{ text: instructions }];
-    if (mimeType.startsWith("image/") || mimeType === "application/pdf") {
-      parts.push({ inlineData: { mimeType, data: base64 } });
-    } else {
-      parts.push({ text: new TextDecoder().decode(bytes) });
-    }
+    const parts: any[] = [{text:instructions}, ...sources.parts];
 
     let aiRes: Response | null = null;
     let aiBody: any = null;
@@ -374,6 +308,7 @@ Deno.serve(async (req: Request) => {
       return json(req, failure.body, failure.status);
     }
 
+    if (aiBody?.candidates?.[0]?.finishReason === "MAX_TOKENS") return json(req, {error:"Bộ câu hỏi quá dài cho một lượt AI. Hãy chia thành các nhóm ảnh nhỏ hơn; bản nháp và nguồn vẫn được giữ.",code:"AI_OUTPUT_TRUNCATED"}, 502);
     const text = (aiBody?.candidates?.[0]?.content?.parts || [])
       .map((p: any) => p?.text || "")
       .join("\n");
@@ -382,7 +317,7 @@ Deno.serve(async (req: Request) => {
 
     try {
       const parsed = JSON.parse(stripFence(text));
-      const validated = validateOutput(parsed, targetType);
+      const validated = validateOutput(parsed, targetType, sources.files.length);
       // A model can overstate its own verification. Enforce the actual request capabilities.
       for (const item of [...validated.questions, ...(validated.lesson ? [validated.lesson] : [])]) {
         const wasVerified = item.verification_status === "verified";
@@ -405,6 +340,7 @@ Deno.serve(async (req: Request) => {
       }, 502);
     }
   } catch (error) {
+    if (error instanceof ImportSourceError) return json(req, {error:error.message}, error.status);
     console.error(error);
     return json(req, {
       error: error instanceof Error ? error.message : "Import failed",

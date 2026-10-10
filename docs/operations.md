@@ -11,18 +11,24 @@
 
 ## AI Import
 
-Supported v1 inputs:
+Supported inputs:
 
 - PNG / JPG / WEBP
 - PDF
 - TXT
-- up to 4 MB per file
+- select 1–20 files together, up to 4 MB per file and 12 MB in total
 
 Flow:
 
 `Upload → Save source and draft → Gemini extraction → Human review → Publish`
 
 The import request does not enable Google Search: that tool is unavailable on the project's Gemini 3.5 Flash-Lite free API tier. Extraction still handles images, PDF and TXT. Generated explanations and standard references require review; the server never labels an ungrounded response `verified`.
+
+All selected files are sent together in one extraction request and produce one combined draft. The numbered file list allows reordering before saving. Gemini can join a question continued on the next image and read an answer key from a later file. The server requires a complete `processed_files` list and validates each question's source file numbers; a truncated response fails explicitly instead of saving a partial result. For very long question banks, split the input into smaller groups.
+
+Each file has its own `content_sources` row. The draft's `payload.files` manifest retains all Storage paths and source IDs; `source_id` is the first source for compatibility with older drafts. Published questions point to the file where they start and retain every contributing source in `metadata.source_ids`. Lessons retain the entire source list in `content_json.source_ids`. Publishing preserves the draft's manifest and destination.
+
+Upload progress is saved after each file. If a later upload fails, reopen the draft and choose only the missing files with their original names and sizes; files already saved are reused. AI stays disabled while a missing file is unavailable. Every source download requires the editor session, and the server checks ownership, file signatures and individual/aggregate size limits before calling Gemini. Old single-file drafts still reopen normally.
 
 If Gemini returns quota error 429, the draft and source remain saved. Retry uses the same storage object and draft. Admin shows the provider's retry delay when supplied and does not automatically retry daily quotas. Open **Bản nháp đã lưu → Tiếp tục** after reloading the page. **Lưu bản nháp không dùng AI** and **Nhập thủ công** work without Gemini; manual items retain the source link. **Tải tệp nguồn** requires the editor's session.
 
