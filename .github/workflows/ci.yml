@@ -53,6 +53,9 @@ jobs:
       - name: Subject cover classification and artwork tests
         run: node tests/subject-cover.test.mjs
 
+      - name: Formula preservation and active markup regression tests
+        run: node tests/text-safety.test.mjs
+
       - name: Edge Function typecheck
         run: |
           deno check supabase/functions/icaew-ai-import/index.ts
@@ -163,3 +166,4 @@ jobs:
         if: always()
         run: |
           if [ -f /tmp/icaew-browser-http.pid ]; then kill $(cat /tmp/icaew-browser-http.pid) || true; fi
+

@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { hasUnsafeMarkup } from "../_shared/text-safety.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -50,7 +51,7 @@ function safeText(value: unknown, field: string, max: number, allowEmpty = false
   const text = value.trim();
   if (!allowEmpty && !text) throw new Error(field + " is required");
   if (text.length > max) throw new Error(field + " is too long");
-  if (/<\s*(script|iframe|object|embed|svg|math|style|link|meta)\b|on[a-z]+\s*=|javascript:/i.test(text)) {
+if (hasUnsafeMarkup(text)) {
     throw new Error(field + " contains unsafe markup");
   }
   return text;
@@ -277,3 +278,4 @@ Deno.serve(async (req: Request) => {
     }, 400);
   }
 });
+
