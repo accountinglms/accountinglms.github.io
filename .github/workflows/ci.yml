@@ -53,6 +53,9 @@ jobs:
       - name: Subject cover classification and artwork tests
         run: node tests/subject-cover.test.mjs
 
+      - name: Zero-charge Gemini model selection and import payload pilot
+        run: node tests/ai-free-model-policy.test.mjs
+
       - name: Edge Function typecheck
         run: |
           deno check supabase/functions/icaew-ai-import/index.ts

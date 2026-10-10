@@ -1,16 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { resolveGeminiModel, freeTierSafeToolConfig } from "../_shared/gemini-free-tier-policy.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
-const configuredModel = Deno.env.get("GEMINI_MODEL") || "";
-const GEMINI_MODEL =
-  configuredModel &&
-  configuredModel !== "gemini-2.5-flash" &&
-  configuredModel !== "gemini-3.8-flash" &&
-  configuredModel !== "gemini-3.7-flash"
-    ? configuredModel
-    : "gemini-3.5-flash-lite";
+// This resolves only documented image/PDF + structured-output models.
+ // A new candidate is NOT activated automatically without a zero-charge pilot.
+const GEMINI_MODEL = resolveGeminiModel(Deno.env.get("GEMINI_MODEL"));
 
 const PRODUCTION_ORIGIN = "https://accountinglms.github.io";
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
@@ -303,7 +299,7 @@ Deno.serve(async (req: Request) => {
       "multiple: correct_answer is an array of zero-based option indexes.",
       "tf: options are statements and correct_answer is a same-length boolean array.",
       "Treat the uploaded source as authoritative for the ORIGINAL wording and any EXPLICIT answer key. Never silently replace an explicit source answer with a web-derived answer.",
-      "For accounting, finance, sustainability and professional-ethics content, verify definitions and explanations against CURRENT authoritative guidance when possible.",
+      "For accounting, finance, sustainability and professional-ethics content, cross-check source wording, calculations and explicit answer keys; do not pretend external reference material was retrieved.",
       "When grounding, prefer official domains such as ifrs.org, icaew.com, ethicsboard.org, frc.org.uk and gov.uk. Do not treat blogs, forums or study-answer sites as authoritative.",
       "For each question, produce a concise but technically precise EN and VI explanation using current standard terminology where relevant.",
       "Also produce one practical business/workplace example in EN and VI showing what the concept means in a real entity, transaction, control or decision.",
@@ -312,6 +308,7 @@ Deno.serve(async (req: Request) => {
       "If the source does not contain an answer key, you may infer a likely answer only for a draft; verification_status MUST be needs_review and verification_note must explicitly say the answer was inferred.",
       "If current guidance differs from legacy syllabus wording, preserve the source answer and explain the difference in verification_note rather than silently rewriting the source.",
       "If an explanation/example/reference is generated rather than explicitly present in the source, say so in review_note.",
+      "NEVER set verification_status=verified unless there is direct primary-source evidence inside the uploaded material. Do not fabricate external verification or paragraph citations. For explicit answer keys with no external evidence use source_only; inferred answers must be needs_review.",
       "Return exactly this top-level JSON shape:",
       "{\"title\":string,\"questions\":array,\"lesson\":object|null,\"warnings\":string[]}",
       "Each question must be:",
@@ -349,7 +346,7 @@ Deno.serve(async (req: Request) => {
           },
           body: JSON.stringify({
             contents: [{ role: "user", parts }],
-            tools: [{ google_search: {} }],
+            ...freeTierSafeToolConfig(GEMINI_MODEL),
             generationConfig: {
               responseMimeType: "application/json",
               temperature: 0.1,
