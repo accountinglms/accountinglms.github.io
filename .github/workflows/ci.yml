@@ -1,0 +1,193 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Security and static integrity checks
+        run: node scripts/ci-check.mjs
+
+      - name: JavaScript syntax checks
+        run: |
+          node --check assets/theme-init.js
+          node --check assets/learner-core.js
+          node --check assets/cloud-sync.js
+          node --check assets/calculator.js
+          node --check assets/calculator-pro.js
+          node --check assets/translation.js
+          node --check assets/common.js
+          node --check assets/score-model.js
+          node --check assets/subject-cover.js
+          node --check assets/account.js
+          node --check assets/admin.js
+          node --check assets/lessons.js
+          node --check assets/diagnostics.js
+          node --check assets/history.js
+          node --check assets/home.js
+          node --check assets/community.js
+          node --check assets/progress.js
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Learning score unit tests
+        run: node tests/score-model.test.mjs
+
+      - name: Subject cover classification and artwork tests
+        run: node tests/subject-cover.test.mjs
+
+      - name: Course deletion previews and restore rules
+        run: node tests/content-management.test.mjs
+
+      - name: Formula preservation and active markup regression tests
+        run: node tests/text-safety.test.mjs
+
+      - name: AI provider quota and free-tier regression tests
+        run: node tests/ai-import-provider.test.mjs
+
+      - name: Edge Function typecheck
+        run: |
+          deno check supabase/functions/icaew-ai-import/index.ts
+          deno check supabase/functions/icaew-ai-route/index.ts
+          deno check supabase/functions/icaew-question-translate/index.ts
+          deno check supabase/functions/icaew-translate/index.ts
+
+      - name: Static site smoke test
+        run: |
+          python3 -m http.server 4173 >/tmp/icaew-http.log 2>&1 &
+          SERVER_PID=$!
+          trap "kill $SERVER_PID" EXIT
+          sleep 1
+          curl --fail --silent http://127.0.0.1:4173/ >/dev/null
+          curl --fail --silent http://127.0.0.1:4173/home.html >/dev/null
+          curl --fail --silent http://127.0.0.1:4173/community.html >/dev/null
+          curl --fail --silent http://127.0.0.1:4173/progress.html >/dev/null
+          curl --fail --silent http://127.0.0.1:4173/account.html >/dev/null
+          curl --fail --silent http://127.0.0.1:4173/admin.html >/dev/null
+          curl --fail --silent http://127.0.0.1:4173/lessons.html >/dev/null
+          curl --fail --silent http://127.0.0.1:4173/diagnostics.html >/dev/null
+
+
+  browser-session:
+    name: Session UX (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    needs: validate
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.56.1 @axe-core/playwright@4.13.0
+          npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Start local HTTPS LMS
+        run: |
+          openssl req -x509 -newkey rsa:2048 -nodes             -keyout /tmp/icaew-test-key.pem             -out /tmp/icaew-test-cert.pem             -days 1 -subj "/CN=127.0.0.1"
+          python3 tests/https-server.py >/tmp/icaew-browser-https.log 2>&1 &
+          echo $! > /tmp/icaew-browser-http.pid
+          sleep 1
+          curl --insecure --fail --silent https://127.0.0.1:4173/ >/dev/null
+
+      - name: Run session UX browser suite
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/session-browser.mjs
+
+      - name: Run audited explanation browser test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/explanation-browser.mjs
+
+      - name: Run Admin AI-first layout test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/admin-layout-browser.mjs
+
+      - name: Run Admin AI routing test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/admin-routing-browser.mjs
+
+      - name: Run Admin import recovery test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/admin-import-recovery-browser.mjs
+
+      - name: Run owner-only course deletion and restore test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/admin-content-management-browser.mjs
+
+      - name: Audit accessibility and responsive page states
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/ux-audit-browser.mjs
+
+      - name: Run auth boot/no-flash test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/auth-boot-browser.mjs
+
+      - name: Run attempt history browser test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/attempt-history-browser.mjs
+
+      - name: Run integrated calculator browser test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/calculator-browser.mjs
+
+      - name: Run member portal browser test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/portal-browser.mjs
+
+      - name: Verify account-isolated offline data
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/account-isolation-browser.mjs
+
+      - name: Stop local LMS
+        if: always()
+        run: |
+          if [ -f /tmp/icaew-browser-http.pid ]; then kill $(cat /tmp/icaew-browser-http.pid) || true; fi
+
