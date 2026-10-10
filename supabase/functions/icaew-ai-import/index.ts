@@ -318,6 +318,9 @@ Deno.serve(async (req: Request) => {
     try {
       const parsed = JSON.parse(stripFence(text));
       const validated = validateOutput(parsed, targetType, sources.files.length);
+      for (const question of validated.questions) {
+        if (sources.files[question.source_file - 1].mimeType.startsWith("image/")) question.source_page = 1;
+      }
       // A model can overstate its own verification. Enforce the actual request capabilities.
       for (const item of [...validated.questions, ...(validated.lesson ? [validated.lesson] : [])]) {
         const wasVerified = item.verification_status === "verified";

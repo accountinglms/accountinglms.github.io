@@ -170,6 +170,9 @@ try{
   assert.equal(drafts.get('draft-4').payload.files.length,3);assert.ok(drafts.get('draft-4').payload.files.every(f=>f.sourceId));
   await open();await page.click('[data-resume-import="draft-4"]');
   assert.equal(await page.locator('.importFile').count(),3);
+  await page.setViewportSize({width:390,height:844});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'Multi-image recovery overflowed a phone viewport');
+  await page.setViewportSize({width:1280,height:900});
   const imageDownloadEvent=page.waitForEvent('download');await page.click('[data-download-source="2"]');
   assert.equal((await imageDownloadEvent).suggestedFilename(),'page-2.png');
   await page.waitForFunction(()=>!document.querySelector('#ai-generate').disabled);await page.click('#ai-generate');

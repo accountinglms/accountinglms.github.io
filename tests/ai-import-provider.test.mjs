@@ -101,7 +101,7 @@ const downloads=[];
 const storage=(url,init)=>{downloads.push(url);assert.equal(init.headers.Authorization,'Bearer editor-token');return new Response(png)};
 const batchOutput={...output,processed_files:[1,2,3],questions:[
   {...question,source_file:1,source_files:[1,2],source_page:1},
-  {...question,prompt:'Question on page 3',source_file:3,source_files:[3],source_page:1}
+  {...question,prompt:'Question on page 3',source_file:3,source_files:[3],source_page:3}
 ]};
 const batch=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess(batchOutput)}],{storage});
 const batchResponse=await batch.call({...input,files:imageFiles}),batchData=await batchResponse.json();
@@ -110,6 +110,7 @@ const parts=batch.requests[0].contents[0].parts;
 assert.equal(parts.filter(p=>p.inlineData).length,3,'Only the first image reached Gemini');
 assert.deepEqual(parts.filter(p=>p.text?.startsWith('SOURCE_FILE')).map(p=>p.text.match(/^SOURCE_FILE (\d)/)[1]),['1','2','3']);
 assert.deepEqual(batchData.questions[0].source_files,[1,2]);assert.equal(batchData.questions[1].source_file,3);
+assert.equal(batchData.questions[1].source_page,1,'Image position was confused with a page inside that image file');
 for(const invalidOutput of [
   {...batchOutput,processed_files:[1]},
   {...batchOutput,questions:[{...question,source_file:4}]},
