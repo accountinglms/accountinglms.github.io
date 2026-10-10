@@ -91,6 +91,8 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
 .field>span{font-size:.75rem;color:#94aabe;font-weight:700}
 .field small{font-size:.7rem;color:#657b8d;line-height:1.45}
 .field input,.field select,.field textarea,.inline input{width:100%;border:1px solid #294154;background:#0a141e;color:#e8eef5;border-radius:10px;padding:10px 11px;outline:none}
+/* WebKit's native select decoration can overflow for long catalog titles. */
+.field select{appearance:none;-webkit-appearance:none;overflow:hidden;text-overflow:ellipsis;padding-right:30px;background-image:url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"%3E%3Cpath d="M1 1l5 5 5-5" fill="none" stroke="%237890a3" stroke-width="2"/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 10px center;background-size:12px 8px}
 .field input:focus,.field select:focus,.field textarea:focus,.inline input:focus{border-color:#4b8db5;box-shadow:0 0 0 3px rgba(73,143,185,.1)}
 .field textarea{resize:vertical;line-height:1.5}
 .aiBtn{width:100%;min-height:46px;border:1px solid #4d83a5;background:linear-gradient(135deg,#1f75aa,#2c9c7d);color:#fff;border-radius:11px;padding:0 16px;font-weight:850;cursor:pointer;box-shadow:0 10px 26px rgba(21,104,147,.18)}
