@@ -126,12 +126,16 @@ async function installMock(context){
         state.avatarFiles.set(path,req.postDataBuffer()||webpSample);
         return json(route,{Key:path},201);
       }
-      if(method==='GET'){
-        const buffer=state.avatarFiles.get(path);
-        return buffer?route.fulfill({status:200,headers:{...cors(),'content-type':'image/webp'},body:buffer})
-          :json(route,{message:'File not found'},404);
-      }
+      if(method==='GET')return json(route,{message:'Private avatars require the authenticated download endpoint'},403);
       if(method==='DELETE'){state.avatarFiles.delete(path);return json(route,{});}
+    }
+    if(path.startsWith('/storage/v1/object/authenticated/profile-avatars/')){
+      if(method!=='GET'||!req.headers().authorization?.startsWith('Bearer '))
+        return json(route,{message:'Authentication required'},401);
+      const storagePath=path.replace('/object/authenticated/','/object/');
+      const buffer=state.avatarFiles.get(storagePath);
+      return buffer?route.fulfill({status:200,headers:{...cors(),'content-type':'image/webp'},body:buffer})
+        :json(route,{message:'File not found'},404);
     }
     if(path.startsWith('/storage/v1/object/chat-files/')){
       state.mutations.file++;
@@ -593,10 +597,12 @@ async function testAvatarUpload(browser){
  assert(state.profiles[0].avatar_path?.startsWith(user.id+'/'),'Avatar must be stored in the account storage folder');
  assert(state.avatarFiles.size===1,'Avatar upload must reach private Supabase Storage');
  await page.waitForFunction(()=>document.querySelector('#profile-avatar')?.classList.contains('has-avatar-image'),null,{timeout:10000});
+ assert((await page.locator('#profile-avatar').evaluate(el=>getComputedStyle(el).backgroundImage)).includes('blob:'),
+   'Account theme must not cover the loaded avatar image with its fallback gradient');
  await page.goto(baseURL+'/home.html',{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>document.querySelector('#portal-avatar')?.classList.contains('has-avatar-image'),null,{timeout:10000});
- assert((await page.locator('#portal-avatar').evaluate(el=>getComputedStyle(el).backgroundImage)).startsWith('url('),
-  'Saved avatar should hydrate across member pages');
+ assert((await page.locator('#portal-avatar').evaluate(el=>getComputedStyle(el).backgroundImage)).includes('blob:'),
+  'Saved private avatar should render across member pages');
  await context.close();
 }
 

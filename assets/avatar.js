@@ -8,7 +8,7 @@ const MAX_CACHE=90;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const pathPattern=/^([0-9a-f-]{36})\/([0-9a-f-]{36})\.(webp|jpg)$/i;
 function validPath(path){const m=pathPattern.exec(String(path||''));return Boolean(m&&uuid.test(m[1])&&uuid.test(m[2]));}
-function urlFor(path){return '/storage/v1/object/'+BUCKET+'/'+path.split('/').map(encodeURIComponent).join('/');}
+function urlFor(path,{authenticated=false}={}){return '/storage/v1/object/'+(authenticated?'authenticated/':'')+BUCKET+'/'+path.split('/').map(encodeURIComponent).join('/');}
 export function escapeAvatar(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 export function initialsFor(name){
  return String(name||'U').trim().split(/\s+/).filter(Boolean).map(x=>x[0]).slice(0,2).join('').toUpperCase()||'U';
@@ -22,7 +22,7 @@ async function readAvatar(path){
  if(!validPath(path))throw new Error('Invalid avatar reference.');
  if(!cache.has(path)){
   const task=(async()=>{
-   const res=await authedFetch(urlFor(path));
+   const res=await authedFetch(urlFor(path,{authenticated:true}));
    if(!res.ok)throw new Error('Avatar unavailable');
    const blob=await res.blob();
    if(blob.size>3145728||blob.size<12)throw new Error('Invalid avatar size');

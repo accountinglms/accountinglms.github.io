@@ -819,8 +819,11 @@ body.page-account .card{
 }
 body.page-account .avatar{
   border-radius:50%!important;
-  background:linear-gradient(145deg,var(--vg-cobalt-deep),var(--vg-cobalt))!important;
   box-shadow:none!important;
+}
+/* Keep the Van Gogh fallback gradient, but never let it cover a loaded photo. */
+body.page-account .avatar:not(.has-avatar-image){
+  background:linear-gradient(145deg,var(--vg-cobalt-deep),var(--vg-cobalt))!important;
 }
 body.page-account .roleLine{color:var(--vg-gold)!important}
 body.page-account .profileCard h1,
