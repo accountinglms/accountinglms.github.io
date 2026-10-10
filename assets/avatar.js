@@ -49,22 +49,42 @@ export async function paintAvatar(node,profile,name){
  const display=String(name??profile?.display_name??'');
  const token=path||'initials:'+display;
  node.dataset.avatarToken=token;
+ // Do not depend on CSS background-image: mobile Safari and theme overrides
+ // can leave an apparently empty circle even when the private fetch succeeds.
+ node.style.backgroundImage='';
  if(!path){
   node.classList.remove('has-avatar-image');
-  node.style.backgroundImage='';
+  delete node.dataset.avatarError;
+  delete node.dataset.avatarRenderedPath;
   node.textContent=initialsFor(display);
   return;
  }
- if(!node.classList.contains('has-avatar-image'))node.textContent=initialsFor(display);
+ const existing=node.querySelector('img.lms-avatar-photo');
+ if(existing&&node.dataset.avatarRenderedPath===path&&existing.complete&&existing.naturalWidth>0)return;
+ node.classList.remove('has-avatar-image');
+ delete node.dataset.avatarRenderedPath;
+ node.textContent=initialsFor(display);
  try{
   const url=await readAvatar(path);
   if(!node.isConnected||node.dataset.avatarToken!==token)return;
-  node.style.backgroundImage='url("'+url+'")';
-  node.classList.add('has-avatar-image');node.textContent='';
+  const photo=new Image();
+  photo.className='lms-avatar-photo';
+  photo.alt='';
+  photo.decoding='async';
+  photo.src=url;
+  try{await photo.decode();}
+  catch(error){if(!photo.complete||photo.naturalWidth===0)throw error;}
+  if(!photo.naturalWidth||!photo.naturalHeight)throw new Error('Unable to decode avatar image');
+  if(!node.isConnected||node.dataset.avatarToken!==token)return;
+  node.replaceChildren(photo);
+  node.dataset.avatarRenderedPath=path;
+  delete node.dataset.avatarError;
+  node.classList.add('has-avatar-image');
  }catch(error){
   if(node.dataset.avatarToken!==token)return;
   node.dataset.avatarError=String(error?.message||error).slice(0,180);
-  node.classList.remove('has-avatar-image');node.style.backgroundImage='';
+  node.classList.remove('has-avatar-image');
+  delete node.dataset.avatarRenderedPath;
   node.textContent=initialsFor(display);
  }
 }

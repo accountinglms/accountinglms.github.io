@@ -233,7 +233,7 @@ async function refreshCore({keepCurrent=true}={}){
     restGet('chat_group_members','select=group_id,user_id,role,joined_at'),
     restGet('chat_reads',`select=*&user_id=eq.${encodeURIComponent(session.user.id)}`),
     restGet('chat_messages','select=id,group_id,sender_id,body,attachment_name,created_at&order=created_at.desc&limit=500'),
-    restGet('profiles','select=id,display_name'),
+    restGet('profiles','select=id,display_name,avatar_path'),
     restGet('announcements','select=id,status,published_at,created_at&status=eq.published&order=published_at.desc.nullslast&limit=50'),
     restGet('announcement_reads',`select=announcement_id,read_at&user_id=eq.${encodeURIComponent(session.user.id)}`),
     restRpc('get_portal_unread_counts')
