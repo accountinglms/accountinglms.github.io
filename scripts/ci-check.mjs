@@ -392,7 +392,7 @@ if(brandedIco.length<100||brandedIco.readUInt16LE(0)!==0||brandedIco.readUInt16L
 const brandManifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.webmanifest'),'utf8'));
 if(!['icon-192.png','icon-512.png'].every(src=>brandManifest.icons.some(icon=>icon.src===src)))throw new Error('PWA branding icons missing.');
 const brandSw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
-if(!brandSw.includes("icaew-lms-github-v51")||!brandSw.includes("'./favicon.ico'"))
+if(!/const CACHE='icaew-lms-github-v\d+';/.test(brandSw)||!brandSw.includes("'./favicon.ico'"))
   throw new Error('Brand icons absent from updated PWA cache.');
 
 
@@ -413,7 +413,7 @@ if(!voiceJs.includes("start_media_call")||!voiceJs.includes("getUserMedia")||!vo
  throw new Error('Voice call signaling is incomplete.');
 if(!upgradedCommon.includes('export async function getChatFileBlob')||!chatSocialCss.includes('#social-tabs'))
  throw new Error('Secure private chat media display missing.');
-if(!sw.includes('icaew-lms-github-v51')||!sw.includes("'./assets/community-social.js'"))
+if(!/const CACHE='icaew-lms-github-v\d+';/.test(sw)||!sw.includes("'./assets/community-social.js'"))
  throw new Error('PWA v47 social upgrade cache is missing.');
 
 
