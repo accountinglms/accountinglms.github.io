@@ -103,7 +103,7 @@ jobs:
 
       - name: Install Playwright
         run: |
-          npm install --no-save playwright@1.56.1
+          npm install --no-save playwright@1.56.1 @axe-core/playwright@4.13.0
           npx playwright install --with-deps ${{ matrix.browser }}
 
       - name: Start local HTTPS LMS
@@ -149,6 +149,12 @@ jobs:
           BROWSER: ${{ matrix.browser }}
           TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/admin-content-management-browser.mjs
+
+      - name: Audit accessibility and responsive page states
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/ux-audit-browser.mjs
 
       - name: Run auth boot/no-flash test
         env:
