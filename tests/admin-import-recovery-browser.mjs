@@ -42,7 +42,8 @@ try{
       return route.fulfill({status:200,contentType:'text/plain',headers:cors,body:objects.get(key)});
     }
     if(path.startsWith('/storage/v1/object/content-imports/')){
-      uploads++;objects.set(decodeURIComponent(path.split('/content-imports/')[1]),req.postData());return json(route,{Key:path});
+      // WebKit does not expose File upload bodies; both uploaded fixtures contain sourceText.
+      uploads++;objects.set(decodeURIComponent(path.split('/content-imports/')[1]),req.postData()??sourceText);return json(route,{Key:path});
     }
     if(path==='/rest/v1/content_sources'){
       assert.equal(method,'POST');const row={...req.postDataJSON(),id:'source-'+(sources.size+1)};
