@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { hasUnsafeMarkup } from "../_shared/text-safety.js";
 import { geminiFailure } from "../_shared/gemini-errors.js";
+import { loadImportSources, ImportSourceError } from "../_shared/import-sources.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -15,15 +16,6 @@ const GEMINI_MODEL =
     : "gemini-3.5-flash-lite";
 
 const PRODUCTION_ORIGIN = "https://accountinglms.github.io";
-const MAX_FILE_BYTES = 4 * 1024 * 1024;
-const ALLOWED_MIME = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "application/pdf",
-  "text/plain",
-]);
-
 function originAllowed(req: Request) {
   const origin = req.headers.get("origin");
   return !origin || origin === PRODUCTION_ORIGIN;
@@ -99,36 +91,6 @@ function stripFence(text: string) {
   return text.trim()
     .replace(/^\`\`\`(?:json)?\s*/i, "")
     .replace(/\s*\`\`\`$/, "");
-}
-
-function begins(bytes: Uint8Array, values: number[]) {
-  return values.every((value, index) => bytes[index] === value);
-}
-
-function detectedMime(bytes: Uint8Array) {
-  if (bytes.length >= 8 && begins(bytes, [0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a])) return "image/png";
-  if (bytes.length >= 3 && begins(bytes, [0xff,0xd8,0xff])) return "image/jpeg";
-  if (
-    bytes.length >= 12 &&
-    String.fromCharCode(...bytes.slice(0,4)) === "RIFF" &&
-    String.fromCharCode(...bytes.slice(8,12)) === "WEBP"
-  ) return "image/webp";
-  if (bytes.length >= 5 && String.fromCharCode(...bytes.slice(0,5)) === "%PDF-") return "application/pdf";
-  try {
-    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-    if (!text.includes("\u0000")) return "text/plain";
-  } catch {
-    // not utf-8 text
-  }
-  return null;
-}
-
-function toBase64(bytes: Uint8Array) {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 32768) {
-    binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + 32768, bytes.length)));
-  }
-  return btoa(binary);
 }
 
 function validateSuggestion(raw: any, catalog: {
@@ -228,17 +190,9 @@ Deno.serve(async (req: Request) => {
     if (!GEMINI_API_KEY) return json(req, { error: "AI_NOT_CONFIGURED" }, 503);
 
     const input = await req.json();
-    const storagePath = safeText(input?.storagePath, "storagePath", 500, true);
-    const fileName = safeText(input?.fileName, "fileName", 300, true);
-    const mimeType = safeText(input?.mimeType, "mimeType", 100, true);
     const targetType = input?.targetType;
-
-    if (!["questions","lesson"].includes(targetType) || !ALLOWED_MIME.has(mimeType)) {
-      return json(req, { error: "INVALID_INPUT" }, 400);
-    }
-    if (!storagePath.startsWith(String(user.id) + "/")) {
-      return json(req, { error: "SOURCE_OWNERSHIP_MISMATCH" }, 403);
-    }
+    if (!["questions","lesson"].includes(targetType)) return json(req, {error:"INVALID_INPUT"}, 400);
+    const sources = await loadImportSources(input, String(user.id), {url:SUPABASE_URL,anonKey:SUPABASE_ANON_KEY,token,fetch});
 
     const [subjects, chapters, exercises] = await Promise.all([
       restRows(token, "subjects", "id,title,is_active,sort_order"),
@@ -251,23 +205,6 @@ Deno.serve(async (req: Request) => {
       chapters: chapters.filter((x: any) => x.is_active !== false),
       exercises: exercises.filter((x: any) => x.is_active !== false),
     };
-
-    const objectPath = storagePath.split("/").map(encodeURIComponent).join("/");
-    const fileRes = await fetch(
-      SUPABASE_URL + "/storage/v1/object/authenticated/content-imports/" + objectPath,
-      {
-        headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + token },
-      },
-    );
-    if (!fileRes.ok) return json(req, { error: "SOURCE_READ_FAILED" }, 400);
-
-    const bytes = new Uint8Array(await fileRes.arrayBuffer());
-    if (bytes.byteLength > MAX_FILE_BYTES) return json(req, { error: "FILE_TOO_LARGE" }, 413);
-
-    const actualMime = detectedMime(bytes);
-    if (!actualMime || actualMime !== mimeType) {
-      return json(req, { error: "FILE_SIGNATURE_MISMATCH", expected: mimeType, detected: actualMime }, 415);
-    }
 
     const catalogPayload = {
       subjects: activeCatalog.subjects.map((s: any) => ({ id:s.id, title:s.title })),
@@ -297,15 +234,10 @@ Deno.serve(async (req: Request) => {
       targetType === "questions"
         ? 'exercise must be {"match_id":string|null,"suggested_title":string|null,"reason":string}.'
         : "exercise must be null because Lesson / Notes are stored at Chapter level.",
-      "Source file: " + fileName,
+      "Read ALL " + sources.files.length + " source files together in the numbered order below. A question may continue on the next image; combine its wording and options and do not duplicate it. Answer keys may appear in later files.",
     ].join("\n");
 
-    const parts: any[] = [{ text: instructions }];
-    if (mimeType.startsWith("image/") || mimeType === "application/pdf") {
-      parts.push({ inlineData: { mimeType, data: toBase64(bytes) } });
-    } else {
-      parts.push({ text: new TextDecoder().decode(bytes) });
-    }
+    const parts: any[] = [{text:instructions}, ...sources.parts];
 
     const aiRes = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/" +
@@ -357,6 +289,7 @@ Deno.serve(async (req: Request) => {
       provider:"gemini",
     });
   } catch (error) {
+    if (error instanceof ImportSourceError) return json(req, {error:error.message}, error.status);
     console.error(error);
     return json(req, {
       error:error instanceof Error ? error.message : "ROUTING_FAILED",
