@@ -1,3 +1,4 @@
+import {activateFocusScope} from './focus-scope.js';
 import {paintAvatar} from './avatar.js';
 import {ensureSession,restGet,restRpc,restPatch,restUpsert,restInsert} from './common.js';
 const $=s=>document.querySelector(s);
@@ -76,6 +77,8 @@ function initFiles(){
  drop.addEventListener('drop',e=>{e.preventDefault();depth=0;zone.hidden=true;const file=e.dataTransfer?.files?.[0];if(file)document.dispatchEvent(new CustomEvent('lms:attach-file',{detail:{file}}));});
  $('#message-input')?.addEventListener('paste',e=>{const f=[...(e.clipboardData?.files||[])].find(x=>x.type.startsWith('image/'));if(f){e.preventDefault();document.dispatchEvent(new CustomEvent('lms:attach-file',{detail:{file:f}}));}});
 }
+let profileScope=null;
+function closeProfile(){ $('#community-profile-dialog').hidden=true;profileScope?.();profileScope=null; }
 async function openProfile(uid){
  if(!session||!uid)return;
  try{
@@ -89,15 +92,16 @@ async function openProfile(uid){
   await paintAvatar($('#profile-avatar'),p,p.display_name||'');
   document.dispatchEvent(new CustomEvent('lms:open-member-profile',{detail:{userId:uid}}));
   $('#profile-colors').hidden=!mine;$('#profile-save').hidden=!mine;$('#profile-report').hidden=mine;$('#profile-block').hidden=mine;
+  if(!profileScope)profileScope=activateFocusScope(d,{onEscape:closeProfile});
  }catch(error){toast('Không thể mở hồ sơ.');}
 }
 function initProfiles(){
- $('#profile-close')?.addEventListener('click',()=>$('#community-profile-dialog').hidden=true);
+ $('#profile-close')?.addEventListener('click',closeProfile);
  $('#profile-save')?.addEventListener('click',async()=>{
   const name=$('#profile-name').value.normalize('NFC').trim(),bio=$('#profile-bio').value.normalize('NFC').trim();
   if(name.length<2||name.length>70){toast('Tên dài từ 2 đến 70 ký tự.');return;}
   try{await restPatch('profiles','id=eq.'+encodeURIComponent(session.user.id),{display_name:name,bio:bio.slice(0,180),avatar_color:$('#community-profile-dialog').dataset.color||'#36548a'});
-    $('#community-profile-dialog').hidden=true;toast('Đã lưu hồ sơ.');document.dispatchEvent(new CustomEvent('lms:refresh-chat'));
+    closeProfile();toast('Đã lưu hồ sơ.');document.dispatchEvent(new CustomEvent('lms:refresh-chat'));
   }catch(e){toast('Không lưu được hồ sơ.');}
  });
  $('#profile-colors')?.addEventListener('click',e=>{const b=e.target.closest('[data-avatar-color]');if(b){$('#community-profile-dialog').dataset.color=b.dataset.avatarColor;$('#profile-avatar').style.backgroundColor=b.dataset.avatarColor;}});
@@ -106,7 +110,7 @@ function initProfiles(){
   try{await restInsert('social_reports',{reporter_id:session.user.id,subject_id:$('#community-profile-dialog').dataset.user,reason});toast('Đã gửi báo cáo.');}catch{toast('Không gửi được báo cáo.');}
  });
  $('#profile-block')?.addEventListener('click',async()=>{if(!confirm('Chặn và huỷ kết bạn với thành viên này?'))return;
- try{await restRpc('set_member_block',{p_member:$('#community-profile-dialog').dataset.user,p_block:true});toast('Đã chặn tài khoản.');$('#community-profile-dialog').hidden=true;}catch{toast('Không thể chặn tài khoản.');}
+ try{await restRpc('set_member_block',{p_member:$('#community-profile-dialog').dataset.user,p_block:true});toast('Đã chặn tài khoản.');closeProfile();}catch{toast('Không thể chặn tài khoản.');}
  });
  document.addEventListener('click',e=>{const b=e.target.closest('[data-profile-user]');if(b)openProfile(b.dataset.profileUser);});
  $('#community-profile-open')?.addEventListener('click',()=>openProfile(session.user.id));

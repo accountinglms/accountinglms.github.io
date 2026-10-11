@@ -1,5 +1,5 @@
 import {paintAvatar} from './avatar.js';
-import { ensureSession,getMyAccess,restGet } from './common.js';
+import { ensureSession,getMyAccess,restGet,restRpc,isRetryableError } from './common.js';
 import {examScore,weightedScores,assessmentConfidence} from './score-model.js';
 
 const $=s=>document.querySelector(s);
@@ -184,7 +184,7 @@ function renderAssessment(subject,rows,rd,stats){
 }
 function render(){
   const subject=subjects.find(s=>s.id===activeSubjectId)||subjects[0];
-  if(!subject)return;
+  if(!subject){$('#progress-content').innerHTML='<div class="empty-compact">Chưa có môn học để phân tích. <a href="home.html">Về trang chủ</a></div>';return;}
   const rows=subjectAttempts(subject.id).sort((a,b)=>Date.parse(a.completed_at)-Date.parse(b.completed_at));
   const rd=readiness(subject,rows);
   const stats=chapterStats(subject.id,rows);
@@ -196,30 +196,28 @@ function render(){
 }
 async function renderNotifications(){
   try{
-    const [groups,memberships,reads,msgs,anns,annReads]=await Promise.all([
-      restGet('chat_groups','select=id'),
-      restGet('chat_group_members',`select=group_id,user_id&user_id=eq.${encodeURIComponent(session.user.id)}`),
-      restGet('chat_reads',`select=group_id,last_read_at&user_id=eq.${encodeURIComponent(session.user.id)}`),
-      restGet('chat_messages','select=group_id,sender_id,created_at&order=created_at.desc&limit=500'),
+    const [counts,anns,annReads]=await Promise.all([
+      restRpc('get_portal_unread_counts'),
       restGet('announcements','select=id&status=eq.published'),
       restGet('announcement_reads',`select=announcement_id&user_id=eq.${encodeURIComponent(session.user.id)}`)
     ]);
-    const joined=new Set(memberships.map(m=>m.group_id)),readMap=new Map(reads.map(r=>[r.group_id,Date.parse(r.last_read_at||0)||0]));
-    const chat=msgs.filter(m=>joined.has(m.group_id)&&m.sender_id!==session.user.id&&(Date.parse(m.created_at||0)||0)>(readMap.get(m.group_id)||0)).length;
+    const chat=counts.reduce((sum,row)=>sum+(Number(row.unread_count)||0),0);
     const readAnn=new Set(annReads.map(r=>r.announcement_id));const admin=anns.filter(a=>!readAnn.has(a.id)).length;const total=chat+admin;
     const badge=$('#global-notification-count');badge.hidden=!total;badge.textContent=total>99?'99+':String(total);
   }catch{}
 }
 async function bootstrap(){
-  try{session=await ensureSession();access=await getMyAccess(session,true);}
-  catch{location.replace('index.html?returnTo='+encodeURIComponent(location.pathname.split('/').pop()+location.search));return;}
+  try{session=await ensureSession();access=await getMyAccess(session);}
+  catch(error){if(isRetryableError(error))throw error;location.replace('index.html?returnTo='+encodeURIComponent(location.pathname.split('/').pop()+location.search));return;}
   [subjects,chapters,exercises,attempts,profiles]=await Promise.all([
-    restGet('subjects','select=*&is_active=eq.true&order=sort_order.asc'),
-    restGet('chapters','select=*&is_active=eq.true&order=sort_order.asc'),
-    restGet('exercises','select=id,chapter_id,title,question_count&is_active=eq.true'),
-    restGet('exercise_attempts',`select=*&user_id=eq.${encodeURIComponent(session.user.id)}&order=completed_at.asc&limit=500`),
+    restGet('subjects','select=*&is_active=eq.true&deleted_at=is.null&order=sort_order.asc'),
+    restGet('chapters','select=*&is_active=eq.true&deleted_at=is.null&order=sort_order.asc'),
+    restGet('exercises','select=id,chapter_id,title,question_count&is_active=eq.true&deleted_at=is.null'),
+    restGet('exercise_attempts',`select=exercise_id,score,total_questions,accuracy,completed_at,bookmarked_count,context_snapshot&user_id=eq.${encodeURIComponent(session.user.id)}&order=completed_at.desc&limit=500`),
     restGet('profiles','select=id,display_name,avatar_path')
   ]);
+  chapters=chapters.filter(c=>subjects.some(s=>s.id===c.subject_id));
+  exercises=exercises.filter(e=>chapters.some(c=>c.id===e.chapter_id));
   const me=profiles.find(p=>p.id===session.user.id);const name=me?.display_name||session.user.user_metadata?.display_name||session.user.email?.split('@')[0]||'Member';
   $('#portal-user-name').textContent=name;
   paintAvatar($('#portal-avatar'),me,name).catch(()=>{});
@@ -234,4 +232,4 @@ $('#subject-switch').addEventListener('click',e=>{
   const url=new URL(location.href);url.searchParams.set('subject',activeSubjectId);history.replaceState(null,'',url);
   render();
 });
-bootstrap().catch(error=>{$('#progress-loading').textContent='Không tải được dữ liệu tiến độ: '+(error.message||'Lỗi');});
+bootstrap().catch(error=>{$('#progress-loading').innerHTML='Không tải được dữ liệu tiến độ: '+esc(error.message||'Lỗi')+' <button class="btn" id="retry-progress" type="button">Thử lại</button>';$('#retry-progress').addEventListener('click',()=>location.reload());});

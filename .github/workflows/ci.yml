@@ -32,6 +32,7 @@ jobs:
           node --check assets/calculator-pro.js
           node --check assets/translation.js
           node --check assets/common.js
+          node --check assets/focus-scope.js
           node --check assets/score-model.js
           node --check assets/subject-cover.js
           node --check assets/account.js
@@ -46,6 +47,9 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+
+      - name: Session network resilience and account race tests
+        run: node tests/auth-network.test.mjs
 
       - name: Learning score unit tests
         run: node tests/score-model.test.mjs
@@ -149,6 +153,12 @@ jobs:
           BROWSER: ${{ matrix.browser }}
           TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/admin-content-management-browser.mjs
+
+      - name: Run interaction and partial-outage regressions
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/ux-regression-browser.mjs
 
       - name: Audit accessibility and responsive page states
         env:

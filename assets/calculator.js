@@ -1211,7 +1211,9 @@
     lastPosition = pos;
   }
 
-  function openCalculator() {
+  let calculatorReturnFocus=null;
+  function openCalculator(launcher) {
+    calculatorReturnFocus=launcher||document.activeElement;
     panel.hidden = false;
     panel.classList.add('is-open');
     requestAnimationFrame(() => {
@@ -1234,13 +1236,14 @@
   function closeCalculator() {
     panel.hidden = true;
     panel.classList.remove('is-open');
-    launchers[0]?.focus({ preventScroll: true });
+    const target=calculatorReturnFocus?.isConnected&&!calculatorReturnFocus.closest('[inert]')&&calculatorReturnFocus.getClientRects().length?calculatorReturnFocus:launchers.find(button=>button.getClientRects().length&&!button.closest('[inert]'));
+    target?.focus({preventScroll:true});
   }
 
   launchers.forEach(button => {
     button.addEventListener('click', event => {
       event.preventDefault();
-      if (panel.hidden) openCalculator();
+      if (panel.hidden) openCalculator(event.currentTarget);
       else closeCalculator();
     });
   });
@@ -1376,7 +1379,7 @@
 
     const active = document.activeElement;
     const editable = active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName);
-    if (editable || activeMode !== 'calculate') return;
+    if (!panel.contains(active) || editable || activeMode !== 'calculate') return;
 
     let handled = true;
     if (/^[0-9]$/.test(event.key)) insert(event.key);

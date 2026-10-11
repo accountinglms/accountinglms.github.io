@@ -1,7 +1,10 @@
 const SUPABASE_URL = 'https://uangiwgznukuicrfnohq.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_FRBwRP7TAmiu02eRF9l49g_tCa4DsGJ';
 const AUTH_KEY = 'icaew-lms-auth-v2';
-let accessCache = { userId: null, checkedAt: 0, value: null };
+let accessCache = { userId: null, token: null, checkedAt: 0, value: null };
+const accessRequests = new Map();
+const validationRequests = new Map();
+const refreshRequests = new Map();
 let authValidation = { token: null, checkedAt: 0 };
 const ACCESS_CACHE_MS = 60_000;
 const AUTH_VALIDATION_MS = 5 * 60_000;
@@ -17,12 +20,16 @@ export function loadSession() {
 }
 
 export function saveSession(session) {
+  if (loadSession()?.access_token !== session?.access_token) {
+    clearAccessCache();
+    clearAuthValidation();
+  }
   if (!session) localStorage.removeItem(AUTH_KEY);
   else localStorage.setItem(AUTH_KEY, JSON.stringify(session));
 }
 
 function clearAccessCache() {
-  accessCache = { userId: null, checkedAt: 0, value: null };
+  accessCache = { userId: null, token: null, checkedAt: 0, value: null };
 }
 
 function clearAuthValidation() {
@@ -47,104 +54,156 @@ function makeSessionExpiredError() {
   return error;
 }
 
+function networkError(message = 'Kết nối đang gián đoạn. Hãy kiểm tra mạng và thử lại.', cause) {
+  const error = new Error(message, { cause });
+  error.code = 'NETWORK_ERROR';
+  error.retryable = true;
+  return error;
+}
+
+export function isRetryableError(error) {
+  return error?.retryable === true || error?.code === 'NETWORK_ERROR';
+}
+
+export async function fetchWithTimeout(url, init = {}, timeoutMs = 15_000) {
+  const controller = new AbortController();
+  const abort = () => controller.abort(init.signal?.reason);
+  if (init.signal?.aborted) abort();
+  else init.signal?.addEventListener('abort', abort, { once: true });
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (cause) {
+    if (init.signal?.aborted) throw cause;
+    throw networkError(controller.signal.aborted
+      ? 'Kết nối mất quá nhiều thời gian. Hãy thử lại.' : undefined, cause);
+  } finally {
+    clearTimeout(timer);
+    init.signal?.removeEventListener('abort', abort);
+  }
+}
+
+function responseError(response, text, fallback) {
+  let body;
+  try { body = JSON.parse(text); } catch { body = null; }
+  const error = response.status === 429 || response.status >= 500
+    ? networkError('Máy chủ đang bận hoặc tạm thời không phản hồi. Hãy thử lại sau ít phút.')
+    : new Error(body?.msg || body?.message || body?.error_description || body?.error || fallback);
+  error.status = response.status;
+  error.body = body;
+  if (!error.code && body?.code) error.code = body.code;
+  return error;
+}
+
+function currentSessionFor(session) {
+  const current = loadSession();
+  if (current?.user?.id === session?.user?.id && current?.access_token === session?.access_token) return current;
+  const error = new Error('Phiên đăng nhập đã thay đổi. Hãy mở lại trang.');
+  error.code = 'SESSION_CHANGED';
+  throw error;
+}
+
+function expireSession(session) {
+  // A late response from an old account must never clear the current account.
+  if (loadSession()?.access_token === session?.access_token) saveSession(null);
+  return makeSessionExpiredError();
+}
+
+function singleFlight(requests, key, request) {
+  if (!requests.has(key)) {
+    const pending = request().finally(() => {
+      if (requests.get(key) === pending) requests.delete(key);
+    });
+    requests.set(key, pending);
+  }
+  return requests.get(key);
+}
+
 export async function getMyAccess(session, force = false) {
   if (!session?.access_token || !session?.user?.id) throw new Error('Bạn chưa đăng nhập ICAEW LMS.');
+  currentSessionFor(session);
   const now = Date.now();
-  if (!force && accessCache.userId === session.user.id && accessCache.value && now - accessCache.checkedAt < ACCESS_CACHE_MS) {
+  if (!force && accessCache.token === session.access_token && accessCache.value && now - accessCache.checkedAt < ACCESS_CACHE_MS) {
     return accessCache.value;
   }
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_my_access`, {
-    method: 'POST',
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${session.access_token}`,
-      'content-type': 'application/json'
-    },
-    body: '{}'
+  return singleFlight(accessRequests, session.access_token, async () => {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/rpc/get_my_access`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${session.access_token}`, 'content-type': 'application/json' },
+      body: '{}'
+    });
+    const text = await res.text();
+    if (!res.ok) throw responseError(res, text, 'Không kiểm tra được quyền truy cập.');
+    const value = text ? JSON.parse(text) : null;
+    currentSessionFor(session);
+    if (!value || value.allowed !== true) throw new Error('Tài khoản này không được cấp quyền.');
+    accessCache = { userId: session.user.id, token: session.access_token, checkedAt: Date.now(), value };
+    return value;
   });
-  const text = await res.text();
-  if (!res.ok) throw new Error(text || 'Không kiểm tra được quyền truy cập.');
-  const value = text ? JSON.parse(text) : null;
-  if (!value || value.allowed !== true) throw new Error('Tài khoản này không được cấp quyền.');
-  accessCache = { userId: session.user.id, checkedAt: now, value };
-  return value;
 }
 
 export async function refreshSession(session) {
-  if (!session?.refresh_token) {
-    saveSession(null);
-    clearAccessCache();
-    clearAuthValidation();
-    throw makeSessionExpiredError();
-  }
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-    method: 'POST',
-    headers: { apikey: SUPABASE_KEY, 'content-type': 'application/json' },
-    body: JSON.stringify({ refresh_token: session.refresh_token })
+  const current = loadSession();
+  if (current && session && current.user.id === session.user.id && current.access_token !== session.access_token) return current;
+  currentSessionFor(session);
+  if (!session?.refresh_token) throw expireSession(session);
+  return singleFlight(refreshRequests, session.refresh_token, async () => {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, 'content-type': 'application/json' },
+      body: JSON.stringify({ refresh_token: session.refresh_token })
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      const error = responseError(res, text, 'Không làm mới được phiên đăng nhập.');
+      if (isRetryableError(error)) throw error;
+      throw expireSession(session);
+    }
+    const data = text ? JSON.parse(text) : null;
+    if (!data?.access_token || (data.user?.id && data.user.id !== session.user.id)) {
+      throw networkError('Phản hồi đăng nhập chưa hợp lệ. Hãy thử lại.');
+    }
+    // Logout and account switching may happen while this request is in flight.
+    const latest = loadSession();
+    if (latest?.user?.id === session.user.id && latest.access_token !== session.access_token) return latest;
+    currentSessionFor(session);
+    const next = {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token || session.refresh_token,
+      expires_at: data.expires_at || Math.floor(Date.now()/1000) + Number(data.expires_in || 3600),
+      token_type: data.token_type || 'bearer',
+      user: data.user || session.user
+    };
+    saveSession(next);
+    return next;
   });
-  const text = await res.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = { message: text }; }
-  if (!res.ok) {
-    saveSession(null);
-    clearAccessCache();
-    clearAuthValidation();
-    throw makeSessionExpiredError();
-  }
-  const next = {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token || session.refresh_token,
-    expires_at: data.expires_at || Math.floor(Date.now()/1000) + Number(data.expires_in || 3600),
-    token_type: data.token_type || 'bearer',
-    user: data.user || session.user
-  };
-  clearAccessCache();
-  clearAuthValidation();
-  saveSession(next);
-  return next;
 }
 
 async function validateAuthSession(session, retry = true) {
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${session.access_token}`
-    }
-  });
-  const text = await res.text();
-  let body = null;
-  try { body = text ? JSON.parse(text) : null; } catch { body = { message: text }; }
-
-  if (res.ok) {
-    authValidation = { token: session.access_token, checkedAt: Date.now() };
-    if (body?.id && session.user?.id === body.id) {
+  return singleFlight(validationRequests, session.access_token + ':' + retry, async () => {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${session.access_token}` }
+    });
+    const text = await res.text();
+    if (res.ok) {
+      const body = text ? JSON.parse(text) : null;
+      currentSessionFor(session);
+      if (!body?.id) throw networkError('Chưa kiểm tra được tài khoản. Hãy thử lại.');
+      if (body.id !== session.user.id) throw expireSession(session);
       const next = { ...session, user: body };
       saveSession(next);
+      authValidation = { token: session.access_token, checkedAt: Date.now() };
       return next;
     }
-    return session;
-  }
-
-  const error = new Error(body?.msg || body?.message || body?.error_description || body?.error || 'Phiên đăng nhập không còn hợp lệ.');
-  error.status = res.status;
-  error.body = body;
-
-  if (retry && session.refresh_token) {
-    try {
+    const error = responseError(res, text, 'Không kiểm tra được phiên đăng nhập.');
+    if (isRetryableError(error)) throw error;
+    if (res.status !== 401 && res.status !== 403 && !isStaleSessionError(error)) throw error;
+    if (retry && session.refresh_token) {
       const next = await refreshSession(session);
-      return await validateAuthSession(next, false);
-    } catch (_) {
-      saveSession(null);
-      clearAccessCache();
-      clearAuthValidation();
-      throw makeSessionExpiredError();
+      return validateAuthSession(next, false);
     }
-  }
-
-  saveSession(null);
-  clearAccessCache();
-  clearAuthValidation();
-  throw makeSessionExpiredError();
+    throw expireSession(session);
+  });
 }
 
 export async function ensureBaseSession({ validate = true } = {}) {
@@ -190,7 +249,7 @@ export async function authUpdatePassword(password) {
   const next=String(password||'');
   if(next.length<8||next.length>128)throw new Error('Mật khẩu phải dài từ 8 đến 128 ký tự.');
   const session=await ensureSession();
-  const res=await fetch(`${SUPABASE_URL}/auth/v1/user`,{
+  const res=await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/user`,{
     method:'PUT',
     headers:{
       apikey:SUPABASE_KEY,
@@ -213,9 +272,10 @@ export async function authSignOut(scope = 'local') {
   if (!allowedScopes.has(scope)) throw new Error('Phạm vi đăng xuất không hợp lệ.');
 
   const session = loadSession();
+  if (scope !== 'others') saveSession(null);
   if (session?.access_token) {
     try {
-      await fetch(`${SUPABASE_URL}/auth/v1/logout?scope=${encodeURIComponent(scope)}`, {
+      await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/logout?scope=${encodeURIComponent(scope)}`, {
         method: 'POST',
         headers: {
           apikey: SUPABASE_KEY,
@@ -227,16 +287,11 @@ export async function authSignOut(scope = 'local') {
     }
   }
 
-  if (scope !== 'others') {
-    saveSession(null);
-    clearAccessCache();
-    clearAuthValidation();
-  }
 }
 
 export async function authMfaEnrollTotp(friendlyName = 'Authenticator') {
   const session = await ensureBaseSession();
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/factors`, {
+  const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/factors`, {
     method: 'POST',
     headers: {
       apikey: SUPABASE_KEY,
@@ -256,7 +311,7 @@ export async function authMfaEnrollTotp(friendlyName = 'Authenticator') {
 
 export async function authMfaChallenge(factorId) {
   const session = await ensureBaseSession();
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/factors/${encodeURIComponent(factorId)}/challenge`, {
+  const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/factors/${encodeURIComponent(factorId)}/challenge`, {
     method: 'POST',
     headers: {
       apikey: SUPABASE_KEY,
@@ -272,7 +327,7 @@ export async function authMfaChallenge(factorId) {
 
 export async function authMfaVerify(factorId, challengeId, code) {
   const session = await ensureBaseSession();
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/factors/${encodeURIComponent(factorId)}/verify`, {
+  const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/factors/${encodeURIComponent(factorId)}/verify`, {
     method: 'POST',
     headers: {
       apikey: SUPABASE_KEY,
@@ -301,7 +356,7 @@ export async function authMfaVerify(factorId, challengeId, code) {
 
 export async function authMfaUnenroll(factorId) {
   const session = await ensureBaseSession();
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/factors/${encodeURIComponent(factorId)}`, {
+  const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/factors/${encodeURIComponent(factorId)}`, {
     method: 'DELETE',
     headers: {
       apikey: SUPABASE_KEY,
@@ -319,7 +374,7 @@ export async function authedFetch(path, init = {}, retry = true) {
   const headers = new Headers(init.headers || {});
   headers.set('apikey', SUPABASE_KEY);
   headers.set('Authorization', `Bearer ${session.access_token}`);
-  const res = await fetch(`${SUPABASE_URL}${path}`, { ...init, headers });
+  const res = await fetchWithTimeout(`${SUPABASE_URL}${path}`, { ...init, headers });
   if (res.status === 401 && retry && session.refresh_token) {
     session = await refreshSession(session);
     return authedFetch(path, init, false);
@@ -330,7 +385,7 @@ export async function authedFetch(path, init = {}, retry = true) {
 export async function restGet(table, query = 'select=*') {
   const res = await authedFetch(`/rest/v1/${table}?${query}`);
   const text = await res.text();
-  if (!res.ok) throw new Error(text || `Không đọc được ${table}.`);
+  if (!res.ok) throw responseError(res, text, `Không đọc được ${table}.`);
   return text ? JSON.parse(text) : [];
 }
 
@@ -341,7 +396,7 @@ export async function restInsert(table, payload) {
     body: JSON.stringify(payload)
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(text || `Không tạo được ${table}.`);
+  if (!res.ok) throw responseError(res, text, `Không tạo được ${table}.`);
   return text ? JSON.parse(text) : [];
 }
 
@@ -352,7 +407,7 @@ export async function restPatch(table, query, payload) {
     body: JSON.stringify(payload)
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(text || `Không cập nhật được ${table}.`);
+  if (!res.ok) throw responseError(res, text, `Không cập nhật được ${table}.`);
   return text ? JSON.parse(text) : [];
 }
 
@@ -362,7 +417,7 @@ export async function restDelete(table, query) {
     headers: { Prefer: 'return=representation' }
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(text || `Không xoá được ${table}.`);
+  if (!res.ok) throw responseError(res, text, `Không xoá được ${table}.`);
   return text ? JSON.parse(text) : [];
 }
 
@@ -371,7 +426,7 @@ export async function restRpc(name, payload={}) {
     method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)
   });
   const result=await res.text();
-  if(!res.ok)throw new Error(result||`Không đọc được báo cáo ${name}`);
+  if(!res.ok)throw responseError(res,result,`Không đọc được báo cáo ${name}`);
   return result?JSON.parse(result):[];
 }
 
@@ -383,7 +438,7 @@ export async function restUpsert(table, payload, onConflict) {
     body:JSON.stringify(payload)
   });
   const text=await res.text();
-  if(!res.ok) throw new Error(text || `Không đồng bộ được ${table}.`);
+  if(!res.ok) throw responseError(res, text, `Không đồng bộ được ${table}.`);
   return text?JSON.parse(text):[];
 }
 

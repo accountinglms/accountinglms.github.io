@@ -18,8 +18,8 @@ async function load(){
   ]);
   const progress=data[0],prefs=data[1],probes=data[2],exercises=data[3];
   const latest=progress[0]?.updated_at||null;
-  const dbOk=exercises.length>0;
-  $('#cloud-checks').innerHTML=row('Cơ sở dữ liệu',dbOk?'Kết nối thành công':'Không có dữ liệu',dbOk?'pass':'fail',dbOk?'OK':'Lỗi')+row('Bản ghi tiến độ',String(progress.length),'pass','OK')+row('Cập nhật tiến độ gần nhất',fmt(latest),latest?'pass':'warn',latest?'OK':'Chưa có')+row('Bài tập gần nhất',prefs[0]?.last_exercise_id||'—',prefs[0]?.last_exercise_id?'pass':'warn',prefs[0]?.last_exercise_id?'OK':'Chưa có')+row('Danh mục câu hỏi',exercises.map(e=>e.id+': '+e.question_count).join(' · '),'pass','OK');
+  const dbOk=true;
+  $('#cloud-checks').innerHTML=row('Cơ sở dữ liệu',exercises.length?'Kết nối thành công':'Kết nối thành công · danh mục còn trống',dbOk?'pass':'fail',dbOk?'OK':'Lỗi')+row('Bản ghi tiến độ',String(progress.length),'pass','OK')+row('Cập nhật tiến độ gần nhất',fmt(latest),latest?'pass':'warn',latest?'OK':'Chưa có')+row('Bài tập gần nhất',prefs[0]?.last_exercise_id||'—',prefs[0]?.last_exercise_id?'pass':'warn',prefs[0]?.last_exercise_id?'OK':'Chưa có')+row('Danh mục câu hỏi',exercises.map(e=>e.id+': '+e.question_count).join(' · '),'pass','OK');
   const p=probes[0];
   $('#probe-token').textContent=p?.probe_token||'—';
   $('#probe-meta').textContent=p?'Đã tạo: '+fmt(p.created_at):'Chưa có mã kiểm tra.';

@@ -34,6 +34,7 @@ const required = [
   'assets/calculator-pro.js',
   'assets/translation.js',
   'assets/common.js',
+  'assets/focus-scope.js',
   'assets/score-model.js',
   'assets/subject-cover.js',
   'assets/account.js',

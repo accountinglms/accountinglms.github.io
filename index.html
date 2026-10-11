@@ -233,7 +233,7 @@
 </div>
 
 <!-- Mobile Navigation -->
-<div class="mobile-topbar" id="mobile-topbar">
+<div class="mobile-topbar" id="mobile-topbar" data-auth-content inert>
     <button class="mobile-menu-btn" id="mobile-menu-btn" type="button" aria-label="Mở menu môn học" aria-controls="sidebar" aria-expanded="false">☰</button>
     <div class="mobile-topbar-copy">
         <span class="mobile-topbar-title" id="mobile-section-title">ICAEW LMS</span>
@@ -244,10 +244,10 @@
     </button>
     <button class="mobile-theme-btn" id="mobile-theme-toggle" type="button" aria-label="Đổi giao diện sáng tối" title="Đổi giao diện sáng/tối">☀︎</button>
 </div>
-<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<div class="sidebar-overlay" id="sidebar-overlay" data-auth-content inert></div>
 
 <!-- Left Sidebar Navigation -->
-<div class="sidebar" id="sidebar" aria-label="Điều hướng Accounting LMS">
+<div class="sidebar" id="sidebar" data-auth-content inert aria-label="Điều hướng Accounting LMS">
     <div class="sidebar-header">
         <div class="sidebar-header-title"><strong>Accounting LMS</strong><span>KHÔNG GIAN LÀM BÀI</span></div>
         <div class="sidebar-header-actions">
@@ -272,14 +272,14 @@
 </div>
 
 <!-- Internal sync endpoints: deliberately not part of the learning interface. -->
-<div class="cloud-account cloud-account-service" id="cloud-account" hidden aria-hidden="true">
+<div class="cloud-account cloud-account-service" id="cloud-account" data-auth-content inert hidden aria-hidden="true">
     <span id="cloud-user-email"></span>
     <span id="cloud-sync-label"></span>
     <span id="cloud-dot"></span>
 </div>
 
 <!-- Main Content Area -->
-<div class="main-area" id="main-area">
+<div class="main-area" id="main-area" data-auth-content inert>
     <section class="empty-state learner-start" id="empty-state" aria-labelledby="learner-start-title">
         <div class="learner-start-inner">
             <div class="learner-start-symbol" aria-hidden="true">▤</div>

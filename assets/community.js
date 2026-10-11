@@ -1,3 +1,4 @@
+import {activateFocusScope} from './focus-scope.js';
 import {paintAvatar,hydrateAvatars,avatarMark} from './avatar.js';
 import {
   ensureSession,getMyAccess,restGet,restInsert,restDelete,restUpsert,restRpc,restPatch,
@@ -309,8 +310,15 @@ async function toggleReaction(messageId,emoji){
   else await restInsert('chat_message_reactions',{message_id:Number(messageId),user_id:session.user.id,emoji});
   await loadCurrentMessages();
 }
-function openGroupModal(){ $('#group-modal').hidden=false; }
-function closeModal(id){const el=document.getElementById(id);if(el)el.hidden=true;}
+const modalScopes=new Map();
+function openModal(id){
+  const el=document.getElementById(id);
+  if(!el.hidden)return;
+  el.hidden=false;
+  modalScopes.set(id,activateFocusScope(el,{onEscape:()=>closeModal(id)}));
+}
+function openGroupModal(){openModal('group-modal');}
+function closeModal(id){const el=document.getElementById(id);if(el)el.hidden=true;modalScopes.get(id)?.();modalScopes.delete(id);}
 function renderInviteList(){
   const root=$('#invite-list');
   const members=new Set(memberships.filter(m=>m.group_id===currentGroupId).map(m=>m.user_id));
@@ -385,6 +393,8 @@ document.querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('c
 $('#group-form').addEventListener('submit',async e=>{
   e.preventDefault();
   const form=e.currentTarget;
+  const button=form.querySelector('[type=submit]');
+  if(button.disabled)return;button.disabled=true;
   try{
     const groupId=await restRpc('create_study_group',{
       p_name:$('#group-name').value.trim(),p_description:$('#group-description').value.trim(),
@@ -394,8 +404,9 @@ $('#group-form').addEventListener('submit',async e=>{
     await refreshCore({keepCurrent:false});
     if(groupId)await selectGroup(groupId);
   }catch(error){alert(error.message||'Không tạo được nhóm.');}
+  finally{button.disabled=false;}
 });
-$('#invite-member-btn').addEventListener('click',()=>{renderInviteList();$('#invite-modal').hidden=false;});
+$('#invite-member-btn').addEventListener('click',()=>{renderInviteList();openModal('invite-modal');});
 $('#invite-list').addEventListener('click',async e=>{
   const b=e.target.closest('.invite-user');if(!b)return;b.disabled=true;
   try{await restInsert('chat_group_members',{group_id:currentGroupId,user_id:b.dataset.user,role:'member'});await refreshCore();renderMembers();renderInviteList();}
