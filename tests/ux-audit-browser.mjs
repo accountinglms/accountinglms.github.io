@@ -24,13 +24,14 @@ const scenarios=[
   ['admin-expanded','admin.html','#app:not(.hidden)',true],
   ['community-group','community.html','.chat-group',true],
   ['community-profile','community.html','.chat-group',true],
-  ['quiz-menu','index.html?exercise=ex1','#quiz-container',true]
+  ['quiz-menu','index.html?exercise=ex1','#quiz-container',true],
+  ['community-info','community.html','.chat-group',true]
 ];
 
 try{
   for(const [width,theme] of [320,390,820,1440].flatMap(width=>['light','dark'].map(theme=>[width,theme]))){
     for(const [name,url,ready,signedIn] of scenarios){
-      if(name==='quiz-menu'&&width>900)continue;
+      if(name==='quiz-menu'&&width>900||name==='community-info'&&width>1130)continue;
       const context=await browser.newContext({ignoreHTTPSErrors:true,serviceWorkers:'block',viewport:{width,height:900}});
       await installFakeWebSocket(context);
       const data=await installMock(context);
@@ -43,8 +44,8 @@ try{
       await context.addInitScript(({theme,session,signedIn})=>{
         localStorage.setItem('icaewLMSTheme_v1',theme);
         if(signedIn)localStorage.setItem('icaew-lms-auth-v2',JSON.stringify(session));
-        window.__uxMetrics={cls:0,lcp:null};
-        try{new PerformanceObserver(list=>{for(const e of list.getEntries())if(!e.hadRecentInput)window.__uxMetrics.cls+=e.value;}).observe({type:'layout-shift',buffered:true});}catch{}
+        window.__uxMetrics={cls:0,lcp:null,shifts:[]};
+        try{new PerformanceObserver(list=>{for(const e of list.getEntries())if(!e.hadRecentInput){window.__uxMetrics.cls+=e.value;if(window.__uxMetrics.shifts.length<5)window.__uxMetrics.shifts.push({value:e.value,sources:e.sources?.map(s=>({node:s.node?.id||s.node?.getAttribute?.('class')||s.node?.tagName,from:{x:s.previousRect.x,y:s.previousRect.y,width:s.previousRect.width,height:s.previousRect.height},to:{x:s.currentRect.x,y:s.currentRect.y,width:s.currentRect.width,height:s.currentRect.height}}))});}}).observe({type:'layout-shift',buffered:true});}catch{}
         try{new PerformanceObserver(list=>{window.__uxMetrics.lcp=list.getEntries().at(-1)?.startTime||null;}).observe({type:'largest-contentful-paint',buffered:true});}catch{}
       },{theme,session,signedIn});
       const page=await context.newPage(),errors=[];
@@ -71,6 +72,11 @@ try{
             await page.locator('#social-people-list [data-profile-user]').first().click();
           }
           await page.waitForFunction(()=>document.querySelector('#community-profile-dialog').contains(document.activeElement));
+        }
+        if(name==='community-info'){
+          await page.locator('#chat-more-btn').click();
+          await page.locator('[data-chat-menu="info"]').click();
+          await page.waitForFunction(()=>document.querySelector('#community-info').contains(document.activeElement));
         }
         if(name==='quiz-menu')await page.locator('#mobile-menu-btn').click();
         result.readyMs=Date.now()-started;
@@ -102,6 +108,6 @@ try{
   }
 }finally{await browser.close();}
 const failures=report.filter(r=>r.failure||r.errors.length||r.layout?.scrollWidth>r.width+1||
-  r.violations?.some(v=>v.impact==='critical'||v.impact==='serious'));
+  r.violations?.length);
 console.log('UX_SUMMARY '+JSON.stringify({browser:browserName,cases:report.length,failures:failures.length}));
 if(enforce&&failures.length)throw new Error('UX audit found '+failures.length+' failing page states.');

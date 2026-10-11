@@ -75,11 +75,29 @@ try{
     await page.keyboard.press('Escape');
     assert(await page.locator('#community-profile-open').evaluate(el=>el===document.activeElement));
     await page.setViewportSize({width:390,height:850});
+    await page.waitForFunction(()=>document.querySelector('#chat-sidebar').inert,{},{timeout:2000});
     assert(await page.locator('#chat-sidebar').evaluate(el=>el.inert));
     await page.locator('#mobile-chat-menu').click();
     assert(await page.locator('#community-mobile-close').evaluate(el=>el===document.activeElement));
     await page.keyboard.press('Escape');
     assert(await page.locator('#mobile-chat-menu').evaluate(el=>el===document.activeElement),'Mobile chat drawer must restore focus');
+    assert(await page.locator('#community-info').evaluate(el=>el.inert));
+    await page.locator('#chat-more-btn').click();await page.locator('[data-chat-menu="info"]').click();
+    assert(await page.locator('#community-info-close').evaluate(el=>el===document.activeElement));
+    await page.keyboard.press('Escape');
+    assert(await page.locator('#chat-more-btn').evaluate(el=>el===document.activeElement),'Info panel must restore a visible launcher');
+    assert(await page.locator('#community-info').evaluate(el=>el.inert));
+    await context.close();
+  }
+  {
+    const {context,page}=await fixture(320);
+    await context.route('**/rest/v1/chat_messages?**',async route=>{await new Promise(resolve=>setTimeout(resolve,250));await route.fallback();});
+    await page.goto(baseURL+'/community.html',{waitUntil:'domcontentloaded'});
+    await page.waitForSelector('.chat-group');
+    await page.locator('#mobile-chat-menu').click();
+    await page.waitForSelector('.message-row');
+    assert(await page.locator('#chat-sidebar').evaluate(el=>el.classList.contains('open')),'Initial room loading must preserve a drawer the user already opened');
+    await page.keyboard.press('Escape');
     await context.close();
   }
   console.log('PASS '+browserName+': partial outage, retry, archived continuation, rapid submit, drawer, calculator and modal keyboard regression');

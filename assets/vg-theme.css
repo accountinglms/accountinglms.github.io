@@ -1807,3 +1807,11 @@ body.page-admin .empty,
 body.page-admin .safetyHead>div>div:nth-child(2){color:var(--vg-muted)!important}
 body.page-admin .cloud{color:var(--vg-success)!important}
 body.page-progress .priority{font-size:11px}
+
+/* Keep loading surfaces stable and honour hidden even when a component uses grid/flex. */
+[hidden]:not([hidden="until-found"]){display:none!important}
+body.auth-pending [data-auth-content],
+body.page-learner:has(#auth-gate:not(.hidden)) [data-auth-content]{visibility:hidden!important}
+
+body.page-admin .structure-note{color:var(--vg-muted)!important;border-color:var(--vg-line-strong)!important}
+body.page-admin .structure-note strong{color:var(--vg-ink)!important}

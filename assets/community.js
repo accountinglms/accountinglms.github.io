@@ -200,7 +200,7 @@ async function loadCurrentMessages({older=false}={}){
     if(!older&&document.visibilityState==='visible')await markCurrentRead().catch(()=>{});
   }finally{loadingOlder=false;}
 }
-async function selectGroup(id){
+async function selectGroup(id,{closeDrawer=true}={}){
   currentGroupId=id;
   replyTo=null;editingId=null;updateComposeBanner();
   const g=currentGroup();
@@ -224,7 +224,7 @@ async function selectGroup(id){
   document.dispatchEvent(new CustomEvent('lms:room',{detail:{groupId:g.id,kind:g.kind,peerId:other}}));
   renderGroups();renderMembers();setComposerState();
   await loadCurrentMessages();
-  closeChatDrawer();
+  if(closeDrawer)closeChatDrawer();
 }
 async function refreshCore({keepCurrent=true}={}){
   const [
@@ -332,7 +332,7 @@ async function bootstrap(){
   const requested=new URLSearchParams(location.search).get('group');
   const myGroups=groups.filter(g=>myMembership(g.id));
   const first=(requested&&groups.some(g=>g.id===requested)?requested:null)||myGroups[0]?.id||groups[0]?.id||null;
-  if(first)await selectGroup(first);
+  if(first)await selectGroup(first,{closeDrawer:false});
   realtime=createRealtimeClient(session,[
     {table:'chat_messages',event:'*'},
     {table:'chat_message_reactions',event:'*'},

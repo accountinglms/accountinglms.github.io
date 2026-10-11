@@ -132,13 +132,30 @@ function initNotifications(){
 document.addEventListener('lms:room',e=>{room=e.detail;typingLast=0;$('#typing-indicator').hidden=true;$('#chat-search-panel').hidden=true;$('#room-search-btn').hidden=false;$('#community-room-profile').hidden=room?.kind!=='direct';pollTyping();});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){pollTyping();notifications();}});
 window.addEventListener('beforeunload',()=>{clearInterval(typingTimer);clearInterval(notiTimer);clearTimeout(searchTimer);});
+const infoMobile=window.matchMedia('(max-width:1130px)');
+let infoScope=null;
+function closeInfoPanel(){
+ const panel=$('#community-info');panel.classList.remove('open');
+ infoScope?.();infoScope=null;
+ panel.removeAttribute('role');panel.removeAttribute('aria-modal');panel.inert=infoMobile.matches;
+ $('#community-mobile-info').setAttribute('aria-expanded','false');
+}
+function openInfoPanel(){
+ const panel=$('#community-info');
+ if(!infoMobile.matches)return;
+ panel.inert=false;panel.classList.add('open');panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');
+ $('#community-mobile-info').setAttribute('aria-expanded','true');
+ infoScope=activateFocusScope(panel,{onEscape:closeInfoPanel,initialFocus:$('#community-info-close'),returnFocus:$('#chat-more-btn')});
+}
+infoMobile.addEventListener('change',closeInfoPanel);
+$('#community-info').inert=infoMobile.matches;
 async function init(){
  session=await ensureSession();
  initPicker();initSearch();initFiles();initProfiles();initNotifications();
  $('#message-input')?.addEventListener('input',()=>typing());
  typingTimer=setInterval(pollTyping,3600);
- $('#community-mobile-info')?.addEventListener('click',()=>$('#community-info').classList.toggle('open'));
- $('#community-info-close')?.addEventListener('click',()=>$('#community-info').classList.remove('open'));
+ $('#community-mobile-info')?.addEventListener('click',()=>infoScope?closeInfoPanel():openInfoPanel());
+ $('#community-info-close')?.addEventListener('click',closeInfoPanel);
  // Older history is loaded explicitly to avoid scroll/re-render race conditions.
  await notifications();
 }

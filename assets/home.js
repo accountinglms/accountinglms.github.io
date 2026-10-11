@@ -231,7 +231,7 @@ async function bootstrap(){
   if(loading)return;
   loading=true;
   realtime?.stop();
-  loadNotice('Đang tải dữ liệu…');
+  if(!$('#home-load-status').hidden)loadNotice('Đang tải lại dữ liệu…');
   try{
     session=await ensureSession();
     access=await getMyAccess(session);

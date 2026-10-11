@@ -4,8 +4,8 @@ const selector='a[href],button,input,select,textarea,[tabindex]';
 const visible=element=>element?.isConnected&&element.getClientRects().length&&!element.closest('[inert]')&&getComputedStyle(element).visibility!=='hidden';
 const focusable=root=>[...root.querySelectorAll(selector)].filter(el=>!el.disabled&&el.tabIndex>=0&&visible(el));
 
-export function activateFocusScope(root,{onEscape,initialFocus}={}){
-  const previous=document.activeElement;
+export function activateFocusScope(root,{onEscape,initialFocus,returnFocus}={}){
+  const previous=returnFocus||document.activeElement;
   const inertStates=new Map();
   for(let branch=root;branch&&branch!==document.body;branch=branch.parentElement){
     inertStates.set(branch,branch.inert);
