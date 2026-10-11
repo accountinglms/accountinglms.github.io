@@ -96,7 +96,7 @@ See `docs/operations.md` for operating and recovery procedures.
 
 ## Recoverable course deletion v57
 
-Select the subject, chapter and optional exercise in **Nơi lưu nội dung**, then open **Cấu trúc khóa học** and choose the corresponding **Xoá** button. The confirmation shows the exact path, creation date and affected content counts. Use **Mục đã xoá → Khôi phục** to undo. Restore a deleted parent before its deleted children. Hiding remains available for temporary visibility changes.
+Select the subject, chapter and optional exercise in **Nơi lưu nội dung**. Each selector has its own **Ẩn / Hiện** and owner-only **Xoá** buttons directly below it. The header's **Quản lý mục** link jumps to these controls without scrolling through the question bank. The confirmation shows the exact path, creation date and affected content counts. Use **Mục đã xoá → Khôi phục** in the same panel to undo. Restore a deleted parent before its deleted children. **Cấu trúc khóa học** still contains the creation tools.
 
 The migration `owner_course_delete_restore` is applied to production. `supabase/tests/course-deletion.sql` verifies real database authorization and mutation behavior inside a transaction that is rolled back. Browser CI covers owner/non-owner controls, failed/cancelled deletion, restore, duplicate-title reuse, import destination invalidation and phone/tablet widths.
 

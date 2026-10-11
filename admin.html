@@ -53,8 +53,18 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
 .destination{padding:16px;border:1px solid #284355;background:#0a151f;border-radius:14px}
 .destinationHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}
 .destinationHead strong{font-size:.86rem}
+.destinationHint{margin:0 0 14px;color:var(--vg-muted,#94aabe);font-size:.76rem;line-height:1.6}
+.destination{scroll-margin-top:16px}
 .cloud{color:#6bd6a0;font-size:.7rem}
 .destinationGrid{display:grid;gap:10px}
+.destinationItem{padding-bottom:14px;border-bottom:1px solid var(--vg-line,#284355);min-width:0}
+.destinationItem:last-child{padding-bottom:0;border-bottom:0}
+.destinationSelection{margin:8px 0; font-size:.72rem}
+.destinationItemActions button{flex:1;min-height:44px;padding:9px 8px;font-size:.76rem}
+.destinationTrash{margin-top:14px}
+.destinationTrash .toolBody{padding:12px}
+.destinationTrash .trashItem{flex-wrap:wrap}
+.destinationTrash .trashItem>div{flex:1 1 150px}
 .destinationActionRow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .routeBtn,.confirmDestinationBtn{min-height:40px;border-radius:10px;padding:8px 10px;font-weight:800;font-size:.74rem;cursor:pointer}
 .routeBtn{border:1px solid #3f6f90;background:#102a3c;color:#9ed8f7}
@@ -217,9 +227,10 @@ body.page-admin button.deleteItem{color:var(--vg-danger,#db7d79)!important;borde
       </div>
       <div class="topActions">
         <button id="refresh" class="ghost">↻ Làm mới</button>
+        <a class="link primaryLink" href="#content-destination">Quản lý mục</a>
         <a class="link" href="lessons.html">Bài học</a>
         <a class="link" href="diagnostics.html">Kiểm tra hệ thống</a>
-        <a class="link primaryLink" href="home.html">← Trang chủ</a>
+        <a class="link" href="home.html">← Trang chủ</a>
       </div>
     </header>
 
@@ -266,36 +277,45 @@ body.page-admin button.deleteItem{color:var(--vg-danger,#db7d79)!important;borde
           </div>
         </div>
 
-        <aside class="destination">
+        <aside id="content-destination" class="destination" aria-label="Nơi lưu và quản lý nội dung">
           <div class="destinationHead">
             <strong>Nơi lưu nội dung</strong>
             <span class="cloud">● Đã kết nối</span>
           </div>
+          <p class="destinationHint">Chọn mục để nhập nội dung. Các nút ẩn và xoá nằm ngay bên dưới từng mục.</p>
 
           <div class="destinationGrid">
-            <div class="destinationFieldRow">
-              <label class="field"><span>Môn học · bắt buộc</span><select id="subject"></select></label>
-              <button id="quick-add-subject" class="quickAdd" type="button" aria-label="Tạo Subject mới" title="Tạo Subject mới">＋</button>
-            </div>
-            <form id="quick-subject-form" class="inlineCreate">
-              <input id="quick-subject-title" placeholder="Tên môn học mới">
-              <button type="submit">Tạo</button>
-            </form>
-            <div class="subject-cover-preview subject-cover-preview-quick" id="subject-cover-preview-quick" hidden>
-              <img id="subject-cover-image-quick" alt="Xem trước ảnh môn học mới" width="720" height="440">
-              <div><strong>Cover được tạo tự động</strong><span id="subject-cover-label-quick">Không gọi API tạo ảnh</span></div>
+            <div class="destinationItem">
+              <div class="destinationFieldRow">
+                <label class="field"><span>Môn học · bắt buộc</span><select id="subject"></select></label>
+                <button id="quick-add-subject" class="quickAdd" type="button" aria-label="Tạo Subject mới" title="Tạo Subject mới">＋</button>
+              </div>
+              <form id="quick-subject-form" class="inlineCreate">
+                <input id="quick-subject-title" placeholder="Tên môn học mới">
+                <button type="submit">Tạo</button>
+              </form>
+              <div class="subject-cover-preview subject-cover-preview-quick" id="subject-cover-preview-quick" hidden>
+                <img id="subject-cover-image-quick" alt="Xem trước ảnh môn học mới" width="720" height="440">
+                <div><strong>Cover được tạo tự động</strong><span id="subject-cover-label-quick">Không gọi API tạo ảnh</span></div>
+              </div>
+              <p id="subject-selection" class="structureSelection destinationSelection">Chọn môn học để quản lý.</p>
+              <div class="structureActions destinationItemActions" role="group" aria-label="Quản lý môn học đang chọn"><button id="toggle-subject" type="button" class="ghost miniToggle" disabled>Ẩn môn</button><button id="delete-subject" type="button" class="ghost miniToggle deleteItem hidden" disabled>Xoá môn học</button></div>
             </div>
 
-            <div class="destinationFieldRow">
-              <label class="field"><span>Chương · bắt buộc</span><select id="chapter"></select></label>
-              <button id="quick-add-chapter" class="quickAdd" type="button" aria-label="Tạo Chapter mới" title="Tạo Chapter mới">＋</button>
+            <div class="destinationItem">
+              <div class="destinationFieldRow">
+                <label class="field"><span>Chương · bắt buộc</span><select id="chapter"></select></label>
+                <button id="quick-add-chapter" class="quickAdd" type="button" aria-label="Tạo Chapter mới" title="Tạo Chapter mới">＋</button>
+              </div>
+              <form id="quick-chapter-form" class="inlineCreate">
+                <input id="quick-chapter-title" placeholder="Tên chương mới">
+                <button type="submit">Tạo</button>
+              </form>
+              <p id="chapter-selection" class="structureSelection destinationSelection">Chọn chương để quản lý.</p>
+              <div class="structureActions destinationItemActions" role="group" aria-label="Quản lý chương đang chọn"><button id="toggle-chapter" type="button" class="ghost miniToggle" disabled>Ẩn chương</button><button id="delete-chapter" type="button" class="ghost miniToggle deleteItem hidden" disabled>Xoá chương</button></div>
             </div>
-            <form id="quick-chapter-form" class="inlineCreate">
-              <input id="quick-chapter-title" placeholder="Tên chương mới">
-              <button type="submit">Tạo</button>
-            </form>
 
-            <div id="exercise-destination-row">
+            <div id="exercise-destination-row" class="destinationItem">
               <div class="destinationFieldRow">
                 <label class="field"><span>Bài tập · bắt buộc với câu hỏi</span><select id="exercise"></select></label>
                 <button id="quick-add-exercise" class="quickAdd" type="button" aria-label="Tạo Exercise mới" title="Tạo Exercise mới">＋</button>
@@ -304,8 +324,15 @@ body.page-admin button.deleteItem{color:var(--vg-danger,#db7d79)!important;borde
                 <input id="quick-exercise-title" placeholder="Tên bài tập mới">
                 <button type="submit">Tạo</button>
               </form>
+              <p id="exercise-selection" class="structureSelection destinationSelection">Chọn bài tập để quản lý.</p>
+              <div class="structureActions destinationItemActions" role="group" aria-label="Quản lý bài tập đang chọn"><button id="toggle-exercise" type="button" class="ghost miniToggle" disabled>Ẩn bài tập</button><button id="delete-exercise" type="button" class="ghost miniToggle deleteItem hidden" disabled>Xoá bài tập</button></div>
             </div>
           </div>
+
+          <details id="content-trash" class="toolDetails destinationTrash hidden">
+            <summary><span class="summaryCopy"><span>Mục đã xoá</span></span></summary>
+            <div class="toolBody"><p class="structureSelection">Chỉ hai admin chủ có quyền xoá và khôi phục. Nội dung và lịch sử làm bài được giữ. Khi khôi phục mục cha, các mục bên trong sẽ xuất hiện lại.</p><div id="content-trash-list" class="trashList"></div></div>
+          </details>
 
           <div class="destinationActionRow">
             <button id="ai-route" class="routeBtn" type="button">Gợi ý nơi lưu</button>
@@ -344,7 +371,7 @@ body.page-admin button.deleteItem{color:var(--vg-danger,#db7d79)!important;borde
     <div class="toolStack">
       <details class="toolDetails">
         <summary>
-          <span class="summaryCopy"><span>Cấu trúc khóa học</span><small>Tạo, ẩn hoặc xoá mục đang chọn</small></span>
+          <span class="summaryCopy"><span>Cấu trúc khóa học</span><small>Tạo môn học, chương và bài tập mới</small></span>
         </summary>
         <div class="toolBody">
           <div class="structureGrid">
@@ -358,8 +385,6 @@ body.page-admin button.deleteItem{color:var(--vg-danger,#db7d79)!important;borde
                 <img id="subject-cover-image-main" alt="Xem trước ảnh môn học được tạo tự động" width="720" height="440">
                 <div><strong>Ảnh đại diện tự động</strong><span id="subject-cover-label-main">Theo tên và chủ đề môn học · miễn phí</span></div>
               </div>
-              <p id="subject-selection" class="structureSelection">Chọn môn học ở phần Nơi lưu nội dung.</p>
-              <div class="structureActions"><button id="toggle-subject" type="button" class="ghost miniToggle">Ẩn môn</button><button id="delete-subject" type="button" class="ghost miniToggle deleteItem hidden" disabled>Xoá môn học</button></div>
             </section>
             <section class="structureBlock">
               <h3>Chương</h3>
@@ -367,8 +392,6 @@ body.page-admin button.deleteItem{color:var(--vg-danger,#db7d79)!important;borde
                 <input id="chapter-new" placeholder="Tên chương mới">
                 <button aria-label="Thêm chương">＋</button>
               </form>
-              <p id="chapter-selection" class="structureSelection">Chọn chương ở phần Nơi lưu nội dung.</p>
-              <div class="structureActions"><button id="toggle-chapter" type="button" class="ghost miniToggle">Ẩn chương</button><button id="delete-chapter" type="button" class="ghost miniToggle deleteItem hidden" disabled>Xoá chương</button></div>
             </section>
             <section class="structureBlock">
               <h3>Bài tập</h3>
@@ -376,19 +399,12 @@ body.page-admin button.deleteItem{color:var(--vg-danger,#db7d79)!important;borde
                 <input id="exercise-new" placeholder="Tên bài tập mới">
                 <button aria-label="Thêm bài tập">＋</button>
               </form>
-              <p id="exercise-selection" class="structureSelection">Chọn bài tập ở phần Nơi lưu nội dung.</p>
-              <div class="structureActions"><button id="toggle-exercise" type="button" class="ghost miniToggle">Ẩn bài tập</button><button id="delete-exercise" type="button" class="ghost miniToggle deleteItem hidden" disabled>Xoá bài tập</button></div>
             </section>
           </div>
           <div class="structure-note" style="margin-top:12px;padding:11px 12px;border:1px dashed #2f536c;border-radius:10px;color:#7f98aa;font-size:.74rem;line-height:1.45">
             <strong style="color:#cfe7f7">Lưu trực tiếp trên hệ thống</strong> · Nội dung được cập nhật ngay sau khi lưu; không cần build lại website khi thêm môn học, chương, bài tập, câu hỏi hoặc bài học.
           </div>
         </div>
-      </details>
-
-      <details id="content-trash" class="toolDetails hidden">
-        <summary><span class="summaryCopy"><span>Mục đã xoá</span><small>Chỉ hai admin chủ có quyền xoá và khôi phục</small></span></summary>
-        <div class="toolBody"><p class="structureSelection">Xoá sẽ bỏ mục khỏi danh sách học. Nội dung và lịch sử làm bài được giữ để khôi phục. Các mục bên trong sẽ xuất hiện lại khi khôi phục mục cha.</p><div id="content-trash-list" class="trashList"></div></div>
       </details>
 
       <details class="toolDetails">

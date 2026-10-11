@@ -1735,6 +1735,13 @@ body.page-admin .step{color:var(--vg-gold-text)!important}
 body.page-admin .sectionHead p,
 body.page-admin #question-list,
 body.page-diagnostics .steps{color:var(--vg-muted)!important}
+body.page-admin .questionCard,
+body.page-admin .importCard{background:var(--vg-paper-2)!important;border-color:var(--vg-line)!important;color:var(--vg-ink)!important}
+body.page-admin .questionCard .meta,
+body.page-admin .importCard .meta{color:var(--vg-muted)!important}
+body.page-admin .badge{color:var(--vg-cobalt-deep)!important;border-color:var(--vg-line-strong)!important}
+body.page-admin .badge.published{color:var(--vg-success)!important;border-color:var(--vg-success)!important}
+body.page-admin .badge.draft{color:var(--vg-gold-text)!important;border-color:var(--vg-gold-text)!important}
 body.page-account input::placeholder,
 body.page-admin input::placeholder,
 body.page-admin textarea::placeholder{color:var(--vg-muted);opacity:1}

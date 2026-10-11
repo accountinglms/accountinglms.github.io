@@ -294,8 +294,8 @@ function renderStructure(){
   const bs=$('#toggle-subject'),bc=$('#toggle-chapter'),be=$('#toggle-exercise');
   bs.disabled=!sv||importBusy||structureBusy;bc.disabled=!cv||importBusy||structureBusy;be.disabled=!ev||importBusy||structureBusy;
   bs.textContent=sv?.is_active?'Ẩn môn':'Hiện môn';
-  bc.textContent=cv?.is_active?'Ẩn chapter':'Hiện chapter';
-  be.textContent=ev?.is_active?'Ẩn exercise':'Hiện exercise';
+  bc.textContent=cv?.is_active?'Ẩn chương':'Hiện chương';
+  be.textContent=ev?.is_active?'Ẩn bài tập':'Hiện bài tập';
   renderContentTrash();
   updateImportTargetUI();
 }
