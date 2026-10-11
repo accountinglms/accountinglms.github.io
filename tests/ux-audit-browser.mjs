@@ -74,8 +74,10 @@ try{
           await page.waitForFunction(()=>document.querySelector('#community-profile-dialog').contains(document.activeElement));
         }
         if(name==='community-info'){
-          await page.locator('#chat-more-btn').click();
-          await page.locator('[data-chat-menu="info"]').click();
+          if(await page.locator('#chat-more-btn').isVisible()){
+            await page.locator('#chat-more-btn').click();
+            await page.locator('[data-chat-menu="info"]').click();
+          }else await page.locator('#community-mobile-info').click();
           await page.waitForFunction(()=>document.querySelector('#community-info').contains(document.activeElement));
         }
         if(name==='quiz-menu')await page.locator('#mobile-menu-btn').click();

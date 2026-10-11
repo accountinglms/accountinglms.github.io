@@ -87,6 +87,12 @@ try{
     await page.keyboard.press('Escape');
     assert(await page.locator('#chat-more-btn').evaluate(el=>el===document.activeElement),'Info panel must restore a visible launcher');
     assert(await page.locator('#community-info').evaluate(el=>el.inert));
+    await page.setViewportSize({width:820,height:850});
+    await page.locator('#community-mobile-info').click();
+    assert(await page.locator('#community-info-close').evaluate(el=>el===document.activeElement));
+    await page.keyboard.press('Escape');
+    assert(await page.locator('#community-mobile-info').evaluate(el=>el===document.activeElement),'Tablet info panel must restore its visible information button');
+    assert(await page.locator('#community-info').evaluate(el=>el.inert));
     await context.close();
   }
   {

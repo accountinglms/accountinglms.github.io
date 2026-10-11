@@ -145,7 +145,9 @@ function openInfoPanel(){
  if(!infoMobile.matches)return;
  panel.inert=false;panel.classList.add('open');panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');
  $('#community-mobile-info').setAttribute('aria-expanded','true');
- infoScope=activateFocusScope(panel,{onEscape:closeInfoPanel,initialFocus:$('#community-info-close'),returnFocus:$('#chat-more-btn')});
+ const moreButton=$('#chat-more-btn');
+ const launcher=moreButton.getClientRects().length?moreButton:$('#community-mobile-info');
+ infoScope=activateFocusScope(panel,{onEscape:closeInfoPanel,initialFocus:$('#community-info-close'),returnFocus:launcher});
 }
 infoMobile.addEventListener('change',closeInfoPanel);
 $('#community-info').inert=infoMobile.matches;
