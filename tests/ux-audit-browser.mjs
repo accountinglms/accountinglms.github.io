@@ -19,12 +19,18 @@ const scenarios=[
   ['progress','progress.html','#progress-content:not([hidden])',true],
   ['account','account.html','#profile-form',true],
   ['admin','admin.html','#app:not(.hidden)',true],
-  ['diagnostics','diagnostics.html','#app:not(.hidden)',true]
+  ['diagnostics','diagnostics.html','#app:not(.hidden)',true],
+  ['home-expanded','home.html','#subject-catalog .subject-row',true],
+  ['admin-expanded','admin.html','#app:not(.hidden)',true],
+  ['community-group','community.html','.chat-group',true],
+  ['community-profile','community.html','.chat-group',true],
+  ['quiz-menu','index.html?exercise=ex1','#quiz-container',true]
 ];
 
 try{
   for(const [width,theme] of [[320,'light'],[390,'dark'],[820,'light'],[1440,'dark']]){
     for(const [name,url,ready,signedIn] of scenarios){
+      if(name==='quiz-menu'&&width>900)continue;
       const context=await browser.newContext({ignoreHTTPSErrors:true,serviceWorkers:'block',viewport:{width,height:900}});
       await installFakeWebSocket(context);
       const data=await installMock(context);
@@ -49,7 +55,18 @@ try{
         await page.goto(baseURL+'/'+url,{waitUntil:'domcontentloaded'});
         await page.waitForSelector(ready,{timeout:12000});
         if(signedIn&&name==='account')await page.waitForFunction(()=>document.querySelector('#display-name').value.length>0);
-        if(name==='community')await page.waitForSelector('#message-input');
+        if(name.startsWith('community'))await page.waitForSelector('#message-input');
+        if(name==='home-expanded'||name==='admin-expanded')await page.evaluate(()=>document.querySelectorAll('details').forEach(el=>el.open=true));
+        if(name==='community-group'){
+          if(width<=760)await page.locator('#mobile-chat-menu').click();
+          await page.locator('#create-group-btn').click();
+          await page.waitForSelector('#group-modal:not([hidden])');
+        }
+        if(name==='community-profile'){
+          await page.locator('#community-profile-open').click();
+          await page.waitForFunction(()=>document.querySelector('#community-profile-dialog').contains(document.activeElement));
+        }
+        if(name==='quiz-menu')await page.locator('#mobile-menu-btn').click();
         result.readyMs=Date.now()-started;
         await page.evaluate(()=>document.fonts.ready);
         result.layout=await page.evaluate(()=>{
@@ -65,7 +82,7 @@ try{
         });
         const axe=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();
         result.violations=axe.violations.map(v=>({id:v.id,impact:v.impact,count:v.nodes.length,
-          nodes:v.nodes.slice(0,8).map(n=>({target:n.target,summary:n.failureSummary,
+          nodes:v.nodes.slice(0,20).map(n=>({target:n.target,summary:n.failureSummary,
             data:n.any.map(c=>c.data).filter(Boolean)}))}));
         if(browserName==='chromium'&&((name==='home'&&width===320)||(name==='community'&&width===390)||(name==='login'&&width===320))){
           const shot=await page.screenshot({type:'jpeg',quality:48,fullPage:false});

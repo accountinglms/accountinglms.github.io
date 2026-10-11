@@ -21,7 +21,7 @@ try{
     assert((await page.locator('#home-load-status').innerText()).includes('chưa tải'));
     assert(!(await page.locator('[data-continue-exercise]').getAttribute('href')).includes('archived-exercise'));
     failing=false;await page.locator('.retry-home').click();
-    await page.waitForSelector('#home-load-status[hidden]');
+    await page.waitForSelector('#home-load-status',{state:'hidden'});
     await page.fill('#feedback-subject','UX regression');await page.fill('#feedback-message','One submission only.');
     await page.locator('#feedback-form').evaluate(form=>{form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));});
     await page.waitForFunction(()=>document.querySelector('#feedback-status').textContent.includes('Đã gửi'));
@@ -63,6 +63,15 @@ try{
     assert(await page.locator('#create-group-btn').evaluate(el=>el===document.activeElement));
     await page.locator('#community-profile-open').click();
     await page.waitForFunction(()=>document.querySelector('#community-profile-dialog').contains(document.activeElement));
+    const imageBase64=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=200;c.height=200;c.getContext('2d').fillRect(0,0,200,200);return c.toDataURL('image/png').split(',')[1];});
+    const chooserPromise=page.waitForEvent('filechooser');
+    await page.locator('#avatar-editor-trigger').click();
+    const chooser=await chooserPromise;
+    await chooser.setFiles({name:'nested.png',mimeType:'image/png',buffer:Buffer.from(imageBase64,'base64')});
+    await page.waitForFunction(()=>document.querySelector('#avatar-edit-dialog').contains(document.activeElement));
+    await page.keyboard.press('Escape');
+    assert(await page.locator('#community-profile-dialog').evaluate(el=>!el.hidden),'Escape in the cropper must preserve the parent profile');
+    assert(await page.locator('#avatar-editor-trigger').evaluate(el=>el===document.activeElement),'Nested dialog must restore focus within its parent');
     await page.keyboard.press('Escape');
     assert(await page.locator('#community-profile-open').evaluate(el=>el===document.activeElement));
     await context.close();

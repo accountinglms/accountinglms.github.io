@@ -99,7 +99,7 @@
                 <label class="field"><span>Tiêu đề</span><input id="feedback-subject" maxlength="160" required placeholder="Mô tả ngắn vấn đề"></label>
               </div>
               <label class="field"><span>Nội dung</span><textarea id="feedback-message" maxlength="5000" required placeholder="Nêu rõ bạn gặp gì hoặc muốn cải thiện điều gì…"></textarea></label>
-              <div class="form-actions"><span class="form-status" id="feedback-status"></span><button class="btn primary" type="submit">Gửi tới admin</button></div>
+              <div class="form-actions"><span class="form-status" id="feedback-status" role="status"></span><button class="btn primary" type="submit">Gửi tới admin</button></div>
             </form>
             <div class="feedback-list" id="my-feedback" style="margin-top:14px"></div>
           </div>
@@ -124,7 +124,7 @@
                 <label class="field"><span>Loại</span><select id="announcement-kind"><option value="update">Update</option><option value="maintenance">Bảo trì</option><option value="exam">Kỳ thi</option><option value="resource">Tài liệu</option><option value="general">Chung</option></select></label>
               </div>
               <label class="field"><span>Nội dung thông báo</span><textarea id="announcement-body" maxlength="5000" required placeholder="Nêu thay đổi, thời gian áp dụng và ảnh hưởng tới thành viên."></textarea></label>
-              <div class="form-actions"><span class="form-status" id="announcement-status"></span><button class="btn primary" type="submit">Đăng thông báo</button></div>
+              <div class="form-actions"><span class="form-status" id="announcement-status" role="status"></span><button class="btn primary" type="submit">Đăng thông báo</button></div>
             </form>
             <div style="height:1px;background:var(--portal-line);margin:18px 0"></div>
             <div class="feedback-list" id="admin-feedback"><div class="empty-compact">Đang tải góp ý thành viên…</div></div>

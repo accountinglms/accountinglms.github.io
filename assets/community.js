@@ -326,7 +326,7 @@ function renderInviteList(){
   root.innerHTML=available.length?available.map(p=>`<div class="member"><span class="portal-avatar">${esc(initials(p.display_name||'M'))}</span><div style="flex:1"><strong>${esc(p.display_name||'Member')}</strong><span>${esc(p.id.slice(0,8))}</span></div><button class="btn invite-user" type="button" data-user="${p.id}">Thêm</button></div>`).join(''):'<div class="empty-compact">Tất cả members đã ở trong nhóm.</div>';
 }
 async function bootstrap(){
-  try{session=await ensureSession();access=await getMyAccess(session,true);}
+  try{session=await ensureSession();access=await getMyAccess(session);}
   catch{location.replace('index.html?returnTo='+encodeURIComponent(location.pathname.split('/').pop()+location.search));return;}
   await refreshCore({keepCurrent:false});
   const requested=new URLSearchParams(location.search).get('group');

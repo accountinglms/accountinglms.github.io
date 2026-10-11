@@ -8,6 +8,8 @@ export function activateFocusScope(root,{onEscape,initialFocus}={}){
   const previous=document.activeElement;
   const inertStates=new Map();
   for(let branch=root;branch&&branch!==document.body;branch=branch.parentElement){
+    inertStates.set(branch,branch.inert);
+    branch.inert=false;
     for(const sibling of branch.parentElement?.children||[]){
       if(sibling===branch)continue;
       inertStates.set(sibling,sibling.inert);

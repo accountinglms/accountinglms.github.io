@@ -161,6 +161,7 @@ jobs:
         run: node tests/ux-regression-browser.mjs
 
       - name: Audit accessibility and responsive page states
+        if: ${{ !cancelled() }}
         env:
           BROWSER: ${{ matrix.browser }}
           TEST_BASE_URL: https://127.0.0.1:4173

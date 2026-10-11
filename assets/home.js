@@ -225,7 +225,7 @@ function renderSubjectLevelAdmin(){
 function loadNotice(message){
   const notice=$('#home-load-status');
   notice.hidden=!message;
-  notice.innerHTML=message?`<span>${esc(message)}</span> <button class="btn retry-home" type="button">Thử lại</button>`:'';
+  notice.innerHTML=message?`<span>${esc(message)}</span> <button class="btn retry-home" type="button" ${loading?'disabled':''}>Thử lại</button>`:'';
 }
 async function bootstrap(){
   if(loading)return;
@@ -281,6 +281,7 @@ async function bootstrap(){
     await loadAdminFeedback().catch(console.error);
   }
   loading=false;
+  const retry=$('.retry-home');if(retry)retry.disabled=false;
   realtime=createRealtimeClient(session,[
     {table:'chat_messages',event:'INSERT'},
     {table:'announcements',event:'*'},
