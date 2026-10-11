@@ -1817,6 +1817,38 @@ body.page-progress .priority{font-size:11px}
 
 /* Keep loading surfaces stable and honour hidden even when a component uses grid/flex. */
 [hidden]:not([hidden="until-found"]){display:none!important}
+.app-update-banner{
+  position:fixed;
+  z-index:21000;
+  right:16px;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 88px);
+  width:min(420px,calc(100vw - 32px));
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:12px;
+  padding:14px;
+  border:1px solid var(--vg-line-strong);
+  border-radius:10px;
+  background:var(--vg-paper);
+  color:var(--vg-ink);
+  box-shadow:var(--vg-shadow);
+  font-family:var(--vg-ui);
+  font-size:14px;
+}
+.app-update-banner>span{flex:1 1 150px;font-weight:700}
+.app-update-actions{display:flex;gap:8px;flex-wrap:wrap}
+.app-update-actions button{
+  min-height:44px;
+  padding:9px 12px;
+  border:1px solid var(--vg-line-strong);
+  border-radius:7px;
+  background:var(--vg-paper-2);
+  color:var(--vg-ink);
+  cursor:pointer;
+  font:700 13px var(--vg-ui);
+}
+.app-update-actions .app-update-apply{background:var(--vg-cobalt-deep);border-color:var(--vg-cobalt-deep);color:var(--vg-button-ink)}
 body.auth-pending [data-auth-content],
 body.page-learner:has(#auth-gate:not(.hidden)) [data-auth-content]{visibility:hidden!important}
 
