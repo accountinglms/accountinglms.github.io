@@ -1988,10 +1988,13 @@
         explanationBox.innerHTML = `
             <div class="explanation-toolbar">
                 <span class="explanation-result" style="color:${resultColor}">${resultText}</span>
-                <div class="explanation-lang">
-                    <button class="lang-btn" type="button" data-lang="eng" onclick="setExplanationLang('eng')">EN</button>
-                    <button class="lang-btn" type="button" data-lang="vie" onclick="setExplanationLang('vie')">VI</button>
-                    <button class="lang-btn" type="button" data-lang="both" onclick="setExplanationLang('both')">EN + VI</button>
+                <div class="explanation-controls">
+                    <div class="explanation-lang" role="group" aria-label="Ngôn ngữ giải thích">
+                        <button class="lang-btn" type="button" data-lang="eng" onclick="setExplanationLang('eng')">EN</button>
+                        <button class="lang-btn" type="button" data-lang="vie" onclick="setExplanationLang('vie')">VI</button>
+                        <button class="lang-btn" type="button" data-lang="both" onclick="setExplanationLang('both')">EN + VI</button>
+                    </div>
+                    <button class="example-toggle" id="explanation-example-toggle" type="button" aria-expanded="false" aria-controls="eng-example-card vie-example-card" hidden>Ví dụ</button>
                 </div>
             </div>
 
@@ -2022,8 +2025,7 @@
         const vieExp = document.getElementById('vie-exp');
         const engExample = document.getElementById('eng-example');
         const vieExample = document.getElementById('vie-example');
-        const engExampleCard = document.getElementById('eng-example-card');
-        const vieExampleCard = document.getElementById('vie-example-card');
+        const exampleToggle = document.getElementById('explanation-example-toggle');
         const reference = document.getElementById('standard-reference');
         const referenceText = document.getElementById('standard-reference-text');
 
@@ -2032,14 +2034,13 @@
 
         const cleanEngExample = safePlainText(exampleEng);
         const cleanVieExample = safePlainText(exampleVie);
-        if (engExample && cleanEngExample) {
-            engExample.textContent = cleanEngExample;
-            engExampleCard.hidden = false;
-        }
-        if (vieExample && cleanVieExample) {
-            vieExample.textContent = cleanVieExample;
-            vieExampleCard.hidden = false;
-        }
+        if (engExample) engExample.textContent = cleanEngExample;
+        if (vieExample) vieExample.textContent = cleanVieExample;
+        exampleToggle?.addEventListener('click', () => {
+            const expanded = exampleToggle.getAttribute('aria-expanded') === 'true';
+            exampleToggle.setAttribute('aria-expanded', String(!expanded));
+            applyExplanationExamples();
+        });
 
         const cleanReference = safePlainText(standardReference);
         if (reference && referenceText && cleanReference) {
@@ -2065,7 +2066,32 @@
         engBlock.style.display = (lang === 'eng' || lang === 'both') ? 'block' : 'none';
         vieBlock.style.display = (lang === 'vie' || lang === 'both') ? 'block' : 'none';
         engBlock.classList.toggle('with-divider', lang === 'both');
-        document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
+        explanationBox.querySelectorAll('.lang-btn').forEach(btn => {
+            const active = btn.dataset.lang === lang;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-pressed', String(active));
+        });
+        applyExplanationExamples();
+    }
+
+    function applyExplanationExamples() {
+        const toggle = document.getElementById('explanation-example-toggle');
+        if (!toggle) return;
+        const lang = uiPrefs.explanationLang || 'both';
+        const cards = ['eng', 'vie'].map(language => ({
+            card: document.getElementById(`${language}-example-card`),
+            available: (lang === language || lang === 'both') &&
+                Boolean(document.getElementById(`${language}-example`)?.textContent.trim())
+        }));
+        const available = cards.some(item => item.available);
+        const expanded = available && toggle.getAttribute('aria-expanded') === 'true';
+        toggle.hidden = !available;
+        toggle.setAttribute('aria-expanded', String(expanded));
+        toggle.textContent = expanded ? 'Ẩn ví dụ' : 'Ví dụ';
+        toggle.classList.toggle('active', expanded);
+        cards.forEach(({ card, available }) => {
+            if (card) card.hidden = !expanded || !available;
+        });
     }
 
     function nextQuestion() {
