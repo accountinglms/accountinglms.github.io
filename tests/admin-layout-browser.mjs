@@ -1,4 +1,5 @@
 import { chromium, webkit } from 'playwright';
+import AxeBuilder from '@axe-core/playwright';
 
 const browserName = process.env.BROWSER || 'chromium';
 const engine = browserName === 'webkit' ? webkit : chromium;
@@ -51,6 +52,7 @@ async function installMock(context){
     if(path==='/rest/v1/rpc/get_my_access'){
       return json(route,{allowed:true,editor:true,role:'owner',mfa_required:false,mfa_satisfied:true,aal:'aal2'});
     }
+    if(path==='/rest/v1/rpc/get_my_content_access') return json(route,{content_owner:true});
     if(path==='/rest/v1/subjects'){
       return json(route,[{id:'accounting_fundamental',title:'Accounting Fundamental',sort_order:0,is_active:true}]);
     }
@@ -58,14 +60,14 @@ async function installMock(context){
       return json(route,[{id:'c1',subject_id:'accounting_fundamental',title:'Chapter 1: Introduction to accounting',sort_order:0,is_active:true}]);
     }
     if(path==='/rest/v1/exercises'){
-      return json(route,[{id:'c1_s1',chapter_id:'c1',title:'Practice Questions (1-28)',sort_order:0,is_active:true,question_count:1}]);
+      return json(route,[{id:'c1_s1',chapter_id:'c1',title:'Practice Questions (1-28)',sort_order:0,is_active:true,question_count:28}]);
     }
     if(path==='/rest/v1/questions'){
-      return json(route,[{
-        id:'q1',exercise_id:'c1_s1',sort_order:0,question_type:'single',
+      return json(route,Array.from({length:28},(_,i)=>({
+        id:'q'+(i+1),exercise_id:'c1_s1',sort_order:i,question_type:'single',
         prompt:'Which item is capital expenditure?',options:['New machine','Annual servicing'],
         correct_answer:0,status:'published',verification_status:'verified',metadata:{legacy_migrated:true}
-      }]);
+      })));
     }
     if(path==='/rest/v1/lessons') return json(route,[]);
     if(path==='/rest/v1/content_audit_log') return json(route,[]);
@@ -84,8 +86,10 @@ function assert(condition,message){
 
 for(const viewport of [
   {name:'desktop',width:1440,height:900,isMobile:false},
-  {name:'phone',width:390,height:844,isMobile:true}
-]){
+  {name:'tablet',width:820,height:900,isMobile:false},
+  {name:'phone',width:390,height:844,isMobile:true},
+  {name:'small-phone',width:320,height:844,isMobile:true}
+].flatMap(viewport=>['light','dark'].map(theme=>({...viewport,theme})))){
   const browser=await engine.launch({headless:true});
   try{
     const context=await browser.newContext({
@@ -97,10 +101,14 @@ for(const viewport of [
     });
     await installMock(context);
     const page=await context.newPage();
+    const errors=[];
+    page.on('pageerror',error=>errors.push(error.message));
     await page.addInitScript(({key,value})=>localStorage.setItem(key,JSON.stringify(value)),{key:AUTH_KEY,value:session});
+    await page.addInitScript(theme=>localStorage.setItem('icaewLMSTheme_v1',theme),viewport.theme);
     await page.goto(baseURL+'/admin.html',{waitUntil:'domcontentloaded'});
     await page.waitForSelector('#app:not(.hidden)');
     await page.waitForFunction(()=>document.querySelector('#subject')?.options?.length>1);
+    await page.waitForSelector('#delete-subject:not(.hidden)');
 
     const result=await page.evaluate(()=> {
       const hero=document.querySelector('.aiHero');
@@ -140,7 +148,40 @@ for(const viewport of [
     assert(result.safetyPresent, `${viewport.name}: Activity & Safety was removed`);
     assert(!result.overflow, `${viewport.name}: Admin page has horizontal overflow`);
 
-    console.log(`PASS ${browserName} ${viewport.name}: AI-first Admin layout`);
+    for(const kind of ['subject','chapter','exercise']){
+      assert(await page.locator('#delete-'+kind).isDisabled(), `${kind}: blank destination enabled deletion`);
+    }
+    await page.selectOption('#subject','accounting_fundamental');
+    await page.selectOption('#chapter','c1');
+    await page.selectOption('#exercise','c1_s1');
+    assert(await page.locator('.questionCard').count()===28,'Long question bank fixture did not load');
+    await page.locator('a[href="#content-destination"]').click();
+    const management=await page.evaluate(()=>{
+      const bank=document.querySelector('#question-list').getBoundingClientRect();
+      const controls=['subject','chapter','exercise'].map(kind=>{
+        const select=document.getElementById(kind),button=document.getElementById('delete-'+kind);
+        const s=select.getBoundingClientRect(),b=button.getBoundingClientRect();
+        return {kind,enabled:!button.disabled,near:b.top>=s.bottom&&b.top-s.bottom<180,
+          beforeQuestions:b.bottom<bank.top,width:b.width,height:b.height,
+          hiddenInAccordion:!!button.closest('details:not([open])')};
+      });
+      return {controls,trashBeforeQuestions:document.getElementById('content-trash').getBoundingClientRect().bottom<bank.top,
+        overflow:document.documentElement.scrollWidth>innerWidth+1};
+    });
+    for(const control of management.controls){
+      assert(control.enabled&&control.near&&control.beforeQuestions&&!control.hiddenInAccordion,
+        `${viewport.name}: ${control.kind} deletion is hard to find: ${JSON.stringify(control)}`);
+      assert(control.width>=44&&control.height>=44,`${viewport.name}: ${control.kind} touch target is too small`);
+    }
+    assert(management.trashBeforeQuestions,'Trash is buried below the question bank');
+    assert(!management.overflow,'Selected course titles cause horizontal overflow');
+    const accessibility=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();
+    assert(accessibility.violations.length===0,`${viewport.name} ${viewport.theme}: ${JSON.stringify(accessibility.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})))}`);
+    if(process.env.ADMIN_LAYOUT_SCREENSHOT_DIR&&viewport.name==='phone'){
+      await page.locator('#content-destination').screenshot({path:process.env.ADMIN_LAYOUT_SCREENSHOT_DIR+'/'+browserName+'-'+viewport.theme+'.png'});
+    }
+    assert(errors.length===0,`Admin page errors: ${errors.join('; ')}`);
+    console.log(`PASS ${browserName} ${viewport.name} ${viewport.theme}: AI-first layout, nearby owner controls, 28 questions, touch targets and accessibility`);
     await context.close();
   } finally {
     await browser.close();

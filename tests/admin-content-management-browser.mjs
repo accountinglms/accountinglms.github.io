@@ -61,7 +61,6 @@ async function choose(page,chapter='c2',exercise=''){
   await page.selectOption('#subject','s');
   await page.selectOption('#chapter',chapter);
   if(exercise)await page.selectOption('#exercise',exercise);
-  await page.locator('details:has(#delete-chapter)').evaluate(el=>el.open=true);
 }
 
 const browser=await engine.launch({headless:true});
@@ -111,6 +110,7 @@ try{
     await page.waitForFunction(()=>[...document.querySelector('#chapter').options].some(x=>x.value==='c2'));
 
     // Creating the same title must reuse the selected node, including whitespace/case variants.
+    await page.locator('details:has(#chapter-form)').evaluate(el=>el.open=true);
     await page.fill('#chapter-new','  THE   ACCOUNTING EQUATION  ');
     await page.locator('#chapter-form button').click();
     await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Tên đã có'));
