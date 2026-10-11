@@ -28,6 +28,7 @@ const required = [
   'assets/vg-theme.css',
   'assets/calculator.css',
   'assets/theme-init.js',
+  'assets/app-update.js',
   'assets/learner-core.js',
   'assets/cloud-sync.js',
   'assets/calculator.js',

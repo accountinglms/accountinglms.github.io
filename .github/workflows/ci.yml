@@ -26,6 +26,7 @@ jobs:
       - name: JavaScript syntax checks
         run: |
           node --check assets/theme-init.js
+          node --check assets/app-update.js
           node --check assets/learner-core.js
           node --check assets/cloud-sync.js
           node --check assets/calculator.js
@@ -132,6 +133,12 @@ jobs:
           BROWSER: ${{ matrix.browser }}
           TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/explanation-browser.mjs
+
+      - name: Run Home Screen update browser test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/app-update-browser.mjs
 
       - name: Run Admin AI-first layout test
         env:
