@@ -84,6 +84,13 @@ try{
     await assert.rejects(api.ensureSession(),e=>e.code==='SESSION_EXPIRED');
     assert.equal(api.loadSession(),null,'User identity must match the saved session');
   }
+  {
+    const api=await setup();globalThis.fetch=async url=>String(url).includes('/auth/v1/user')?json(user):json({allowed:true,editor:true,mfa_required:false});
+    await api.ensureSession();
+    globalThis.localStorage.setItem(key,JSON.stringify({...fresh,user:{id:'member-b'}}));
+    await assert.rejects(api.ensureSession(),e=>e.code==='SESSION_EXPIRED');
+    assert.equal(api.loadSession(),null,'A changed local user ID must be verified rather than reuse cached identity');
+  }
   for(const scope of ['local','global','others']){
     const api=await setup();globalThis.fetch=async()=>json({message:'offline server'},503);
     if(scope==='local'){await api.authSignOut(scope);assert.equal(api.loadSession(),null);}

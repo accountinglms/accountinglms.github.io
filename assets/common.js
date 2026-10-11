@@ -5,7 +5,7 @@ let accessCache = { userId: null, token: null, checkedAt: 0, value: null };
 const accessRequests = new Map();
 const validationRequests = new Map();
 const refreshRequests = new Map();
-let authValidation = { token: null, checkedAt: 0 };
+let authValidation = { token: null, userId: null, checkedAt: 0 };
 const ACCESS_CACHE_MS = 60_000;
 const AUTH_VALIDATION_MS = 5 * 60_000;
 
@@ -20,7 +20,8 @@ export function loadSession() {
 }
 
 export function saveSession(session) {
-  if (loadSession()?.access_token !== session?.access_token) {
+  const previous=loadSession();
+  if (previous?.access_token !== session?.access_token || previous?.user?.id !== session?.user?.id) {
     clearAccessCache();
     clearAuthValidation();
   }
@@ -33,7 +34,7 @@ function clearAccessCache() {
 }
 
 function clearAuthValidation() {
-  authValidation = { token: null, checkedAt: 0 };
+  authValidation = { token: null, userId: null, checkedAt: 0 };
 }
 
 export function isStaleSessionError(error) {
@@ -123,7 +124,7 @@ export async function getMyAccess(session, force = false) {
   if (!session?.access_token || !session?.user?.id) throw new Error('Bạn chưa đăng nhập ICAEW LMS.');
   currentSessionFor(session);
   const now = Date.now();
-  if (!force && accessCache.token === session.access_token && accessCache.value && now - accessCache.checkedAt < ACCESS_CACHE_MS) {
+  if (!force && accessCache.userId === session.user.id && accessCache.token === session.access_token && accessCache.value && now - accessCache.checkedAt < ACCESS_CACHE_MS) {
     return accessCache.value;
   }
   return singleFlight(accessRequests, session.access_token, async () => {
@@ -192,7 +193,7 @@ async function validateAuthSession(session, retry = true) {
       if (body.id !== session.user.id) throw expireSession(session);
       const next = { ...session, user: body };
       saveSession(next);
-      authValidation = { token: session.access_token, checkedAt: Date.now() };
+      authValidation = { token: session.access_token, userId: body.id, checkedAt: Date.now() };
       return next;
     }
     const error = responseError(res, text, 'Không kiểm tra được phiên đăng nhập.');
@@ -214,7 +215,7 @@ export async function ensureBaseSession({ validate = true } = {}) {
 
   if (validate) {
     const needsValidation =
-      authValidation.token !== session.access_token ||
+      authValidation.token !== session.access_token || authValidation.userId !== session.user.id ||
       Date.now() - authValidation.checkedAt > AUTH_VALIDATION_MS;
     if (needsValidation) session = await validateAuthSession(session);
   }
