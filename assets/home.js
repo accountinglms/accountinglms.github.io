@@ -214,7 +214,7 @@ function renderSubjectLevelAdmin(){
   if(!root)return;
   root.innerHTML=subjects.map(subject=>`<div class="feedback-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
     <div><strong>${esc(subject.title)}</strong><small>ICAEW exam level</small></div>
-    <select class="subject-level-select" aria-label="Cấp thi của ${esc(subject.title)}" data-subject="${esc(subject.id)}" style="min-height:34px;border:1px solid var(--portal-line);border-radius:7px;background:var(--portal-bg);color:var(--portal-ink);padding:0 8px">
+    <select class="subject-level-select" aria-label="Cấp thi của ${esc(subject.title)}" data-subject="${esc(subject.id)}" style="min-height:44px;border:1px solid var(--portal-line);border-radius:7px;background:var(--portal-bg);color:var(--portal-ink);padding:0 8px">
       <option value="certificate" ${subject.exam_level==='certificate'?'selected':''}>Certificate</option>
       <option value="professional" ${subject.exam_level==='professional'?'selected':''}>Professional</option>
       <option value="advanced" ${subject.exam_level==='advanced'?'selected':''}>Advanced</option>
@@ -313,6 +313,7 @@ $('#feedback-form').addEventListener('submit',async event=>{
   form.dataset.submitting='true';
   const button=form.querySelector('[type=submit]');button.disabled=true;
   const status=$('#feedback-status');
+  if(!session){status.textContent='Chưa xác nhận được tài khoản. Hãy thử tải lại trang.';delete form.dataset.submitting;button.disabled=false;return;}
   status.textContent='Đang gửi…';
   try{
     await restInsert('feedback',{

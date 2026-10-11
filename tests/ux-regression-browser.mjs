@@ -74,6 +74,12 @@ try{
     assert(await page.locator('#avatar-editor-trigger').evaluate(el=>el===document.activeElement),'Nested dialog must restore focus within its parent');
     await page.keyboard.press('Escape');
     assert(await page.locator('#community-profile-open').evaluate(el=>el===document.activeElement));
+    await page.setViewportSize({width:390,height:850});
+    assert(await page.locator('#chat-sidebar').evaluate(el=>el.inert));
+    await page.locator('#mobile-chat-menu').click();
+    assert(await page.locator('#community-mobile-close').evaluate(el=>el===document.activeElement));
+    await page.keyboard.press('Escape');
+    assert(await page.locator('#mobile-chat-menu').evaluate(el=>el===document.activeElement),'Mobile chat drawer must restore focus');
     await context.close();
   }
   console.log('PASS '+browserName+': partial outage, retry, archived continuation, rapid submit, drawer, calculator and modal keyboard regression');

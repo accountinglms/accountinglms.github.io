@@ -268,25 +268,23 @@ export async function authUpdatePassword(password) {
 }
 
 export async function authSignOut(scope = 'local') {
-  const allowedScopes = new Set(['local', 'global', 'others']);
-  if (!allowedScopes.has(scope)) throw new Error('Phạm vi đăng xuất không hợp lệ.');
-
-  const session = loadSession();
-  if (scope !== 'others') saveSession(null);
-  if (session?.access_token) {
-    try {
-      await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/logout?scope=${encodeURIComponent(scope)}`, {
-        method: 'POST',
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${session.access_token}`
-        }
-      });
-    } catch (_) {
-      // Local cleanup still proceeds if the server session has already disappeared.
-    }
+  if (!['local','global','others'].includes(scope)) throw new Error('Phạm vi đăng xuất không hợp lệ.');
+  const session=loadSession();
+  if(scope==='local')saveSession(null);
+  if(!session?.access_token){
+    if(scope!=='local')throw new Error('Cần đăng nhập để thu hồi phiên trên các thiết bị khác.');
+    return;
   }
-
+  try{
+    const res=await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/logout?scope=${encodeURIComponent(scope)}`,{
+      method:'POST',headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${session.access_token}`}
+    });
+    if(!res.ok)throw responseError(res,await res.text(),'Chưa thu hồi được các phiên đăng nhập.');
+    if(scope==='global'&&loadSession()?.user?.id===session.user.id)saveSession(null);
+  }catch(error){
+    // Local sign-out always completes; remote revocation must be confirmed by the server.
+    if(scope!=='local')throw error;
+  }
 }
 
 export async function authMfaEnrollTotp(friendlyName = 'Authenticator') {

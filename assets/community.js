@@ -224,7 +224,7 @@ async function selectGroup(id){
   document.dispatchEvent(new CustomEvent('lms:room',{detail:{groupId:g.id,kind:g.kind,peerId:other}}));
   renderGroups();renderMembers();setComposerState();
   await loadCurrentMessages();
-  $('#chat-sidebar').classList.remove('open');
+  closeChatDrawer();
 }
 async function refreshCore({keepCurrent=true}={}){
   const [
@@ -436,7 +436,26 @@ document.addEventListener('lms:attach-file',e=>{
   $('#pending-file').hidden=false;$('#pending-file-name').textContent=file.name+' · '+fmtSize(file.size);
 });
 $('#compose-context-close')?.addEventListener('click',()=>{editingId=null;replyTo=null;updateComposeBanner();});
-$('#mobile-chat-menu').addEventListener('click',()=>$('#chat-sidebar').classList.toggle('open'));
+const chatMobile=window.matchMedia('(max-width:700px)');
+let chatDrawerScope=null;
+function closeChatDrawer(){
+  const drawer=$('#chat-sidebar');drawer.classList.remove('open');
+  chatDrawerScope?.();chatDrawerScope=null;
+  drawer.removeAttribute('role');drawer.removeAttribute('aria-modal');
+  drawer.inert=chatMobile.matches;
+  $('#mobile-chat-menu').setAttribute('aria-expanded','false');
+}
+function openChatDrawer(){
+  if(!chatMobile.matches||chatDrawerScope)return;
+  const drawer=$('#chat-sidebar');drawer.inert=false;drawer.classList.add('open');
+  drawer.setAttribute('role','dialog');drawer.setAttribute('aria-modal','true');
+  $('#mobile-chat-menu').setAttribute('aria-expanded','true');
+  chatDrawerScope=activateFocusScope(drawer,{onEscape:closeChatDrawer,initialFocus:$('#community-mobile-close')});
+}
+$('#mobile-chat-menu').addEventListener('click',()=>chatDrawerScope?closeChatDrawer():openChatDrawer());
+$('#community-mobile-close').addEventListener('click',closeChatDrawer);
+chatMobile.addEventListener('change',closeChatDrawer);
+$('#chat-sidebar').inert=chatMobile.matches;
 // Notification tray handled by community-experience.js.
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentGroupId)markCurrentRead().catch(()=>{});});
 window.addEventListener('beforeunload',()=>{realtime?.stop();for(const url of imageCache.values())URL.revokeObjectURL(url);imageCache.clear();});

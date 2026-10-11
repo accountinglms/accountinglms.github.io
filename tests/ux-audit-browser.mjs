@@ -28,7 +28,7 @@ const scenarios=[
 ];
 
 try{
-  for(const [width,theme] of [[320,'light'],[390,'dark'],[820,'light'],[1440,'dark']]){
+  for(const [width,theme] of [320,390,820,1440].flatMap(width=>['light','dark'].map(theme=>[width,theme]))){
     for(const [name,url,ready,signedIn] of scenarios){
       if(name==='quiz-menu'&&width>900)continue;
       const context=await browser.newContext({ignoreHTTPSErrors:true,serviceWorkers:'block',viewport:{width,height:900}});
@@ -54,16 +54,22 @@ try{
       try{
         await page.goto(baseURL+'/'+url,{waitUntil:'domcontentloaded'});
         await page.waitForSelector(ready,{timeout:12000});
+        if(signedIn&&url.startsWith('index.html'))await page.waitForFunction(()=>!document.body.classList.contains('auth-pending')&&document.querySelector('#auth-gate').classList.contains('hidden'));
         if(signedIn&&name==='account')await page.waitForFunction(()=>document.querySelector('#display-name').value.length>0);
         if(name.startsWith('community'))await page.waitForSelector('#message-input');
         if(name==='home-expanded'||name==='admin-expanded')await page.evaluate(()=>document.querySelectorAll('details').forEach(el=>el.open=true));
         if(name==='community-group'){
-          if(width<=760)await page.locator('#mobile-chat-menu').click();
+          if(width<=700)await page.locator('#mobile-chat-menu').click();
           await page.locator('#create-group-btn').click();
           await page.waitForSelector('#group-modal:not([hidden])');
         }
         if(name==='community-profile'){
-          await page.locator('#community-profile-open').click();
+          if(await page.locator('#community-profile-open').isVisible())await page.locator('#community-profile-open').click();
+          else{
+            if(width<=700)await page.locator('#mobile-chat-menu').click();
+            await page.locator('[data-social-tab="people"]').click();
+            await page.locator('#social-people-list [data-profile-user]').first().click();
+          }
           await page.waitForFunction(()=>document.querySelector('#community-profile-dialog').contains(document.activeElement));
         }
         if(name==='quiz-menu')await page.locator('#mobile-menu-btn').click();

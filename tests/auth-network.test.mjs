@@ -84,6 +84,15 @@ try{
     await assert.rejects(api.ensureSession(),e=>e.code==='SESSION_EXPIRED');
     assert.equal(api.loadSession(),null,'User identity must match the saved session');
   }
+  for(const scope of ['local','global','others']){
+    const api=await setup();globalThis.fetch=async()=>json({message:'offline server'},503);
+    if(scope==='local'){await api.authSignOut(scope);assert.equal(api.loadSession(),null);}
+    else{await assert.rejects(api.authSignOut(scope),e=>e.retryable);assert.equal(api.loadSession().access_token,fresh.access_token,'Unconfirmed remote logout must allow retry');}
+  }
+  {
+    const api=await setup();globalThis.fetch=async()=>new Response(null,{status:204});
+    await api.authSignOut('global');assert.equal(api.loadSession(),null);
+  }
   assert.equal(globalThis.localStorage.getItem(key),null);
   console.log('PASS auth network failures, revocation, request deduplication, MFA and account races ('+cases+' cases)');
 }finally{globalThis.fetch=originalFetch;globalThis.localStorage=originalStorage;}

@@ -51,6 +51,9 @@ jobs:
       - name: Session network resilience and account race tests
         run: node tests/auth-network.test.mjs
 
+      - name: Offline navigation and cache isolation tests
+        run: node tests/offline-navigation.test.mjs
+
       - name: Learning score unit tests
         run: node tests/score-model.test.mjs
 
@@ -163,6 +166,7 @@ jobs:
       - name: Audit accessibility and responsive page states
         if: ${{ !cancelled() }}
         env:
+          UX_AUDIT_ENFORCE: '1'
           BROWSER: ${{ matrix.browser }}
           TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/ux-audit-browser.mjs

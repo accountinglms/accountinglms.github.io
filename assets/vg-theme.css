@@ -14,11 +14,12 @@
   --vg-gold:#c9902e;
   --vg-gold-text:#83591b;
   --vg-button-ink:#fff;
+  --vg-focus:#244f85;
   --vg-gold-soft:#e5bd67;
   --vg-olive:#6f7850;
   --vg-success:#397354;
   --vg-danger:#a9514f;
-  --vg-warn:#9a6d29;
+  --vg-warn:#83591b;
   --vg-radius:10px;
   --vg-display:Georgia,"Times New Roman",serif;
   --vg-ui:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
@@ -39,6 +40,7 @@ html[data-theme="dark"]{
   --vg-gold:#d8a64c;
   --vg-gold-text:#d8a64c;
   --vg-button-ink:#0b1d32;
+  --vg-focus:#f0ce83;
   --vg-gold-soft:#f0ce83;
   --vg-olive:#9ea87b;
   --vg-success:#77b38f;
@@ -120,7 +122,7 @@ body.page-history :focus-visible,
 body.page-account :focus-visible,
 body.page-admin :focus-visible,
 body.page-diagnostics :focus-visible{
-  outline:2px solid var(--vg-gold)!important;
+  outline:2px solid var(--vg-focus)!important;
   outline-offset:2px!important;
 }
 body.page-home a,
@@ -603,7 +605,7 @@ html[data-theme="light"] body.page-learner{
   --vg-quiz-panel-2:#f0eadc;
   --vg-quiz-line:#d7cdb9;
   --vg-quiz-text:#1e2933;
-  --vg-quiz-muted:#6d756f;
+  --vg-quiz-muted:#5e685f;
   background:
     radial-gradient(80% 42% at 88% -12%,rgba(196,144,46,.10),transparent 65%),
     radial-gradient(60% 32% at 5% 0%,rgba(50,93,139,.10),transparent 70%),
@@ -1770,3 +1772,38 @@ body.page-account .securitySummary,
 body.page-account .setupBox,
 body.page-account .factor{background:var(--vg-paper-2)!important;color:var(--vg-muted)!important;border-color:var(--vg-line)!important}
 body.page-account .warningText{color:var(--vg-warn)!important}
+
+@media(max-width:760px){
+  body.page-home .portal-page-head p,
+  body.page-progress .portal-page-head p,
+  body.page-home .card-head p,
+  body.page-progress .card-head p{font-size:14px;line-height:1.6}
+  body.page-admin button,
+  body.page-history select,
+  body.page-lessons .translateLessonBtn{min-height:44px}
+}
+
+body.page-history #live-status>span,
+body.page-history .filtersLabel,
+body.page-history .field>span,
+body.page-history #result-count,
+body.page-history .refreshLabel,
+body.page-history .attemptHint{color:var(--vg-muted)!important}
+body.page-learner .subject-meta,
+body.page-learner .nav-legend{color:var(--vg-quiz-muted)!important}
+html[data-theme="light"] body.page-learner .section-item.active{color:var(--vg-cobalt-deep)!important}
+body.page-community #message-type{background:var(--vg-paper)!important;color:var(--vg-ink)!important}
+body.page-community #profile-save{color:var(--vg-button-ink)!important}
+body.page-admin .toolDetails,
+body.page-admin .toolDetails[open] summary,
+body.page-admin .structureBlock{background:var(--vg-paper-2)!important;border-color:var(--vg-line)!important}
+body.page-admin .toolDetails summary,
+body.page-admin .toolDetails summary::after,
+body.page-admin .structureBlock h3{color:var(--vg-cobalt-deep)!important}
+body.page-admin .field>span,
+body.page-admin .field small,
+body.page-admin .summaryCopy small,
+body.page-admin .empty,
+body.page-admin .safetyHead>div>div:nth-child(2){color:var(--vg-muted)!important}
+body.page-admin .cloud{color:var(--vg-success)!important}
+body.page-progress .priority{font-size:11px}

@@ -6,13 +6,23 @@ self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
   const url=new URL(event.request.url);
   if(url.origin!==location.origin)return;
-  event.respondWith(fetch(event.request).then(res=>{
+  // Only same-origin app resources enter this cache; authenticated API data never does.
+  const network=fetch(event.request).then(res=>{
     if(res.ok){const copy=res.clone();event.waitUntil(caches.open(CACHE).then(c=>c.put(event.request,copy)));}
     return res;
-  }).catch(async()=>{
-    const cached=await caches.match(event.request);
-    if(cached)return cached;
-    if(event.request.mode==='navigate')return (await caches.match('./home.html'))||(await caches.match('./index.html'))||Response.error();
-    return Response.error();
-  }));
+  });
+  event.waitUntil(network.then(()=>{},()=>{}));
+  event.respondWith((async()=>{
+    const cached=await caches.match(event.request,{ignoreSearch:event.request.mode==='navigate'});
+    let timer;
+    try{
+      const response=cached?await Promise.race([network,new Promise(resolve=>{timer=setTimeout(()=>resolve(cached),3000);})]):await network;
+      if(!response.ok&&cached)return cached;
+      return response;
+    }catch{
+      if(cached)return cached;
+      if(event.request.mode==='navigate')return (await caches.match('./home.html'))||(await caches.match('./index.html'))||Response.error();
+      return Response.error();
+    }finally{clearTimeout(timer);}
+  })());
 });

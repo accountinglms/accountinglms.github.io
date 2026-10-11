@@ -137,7 +137,6 @@ async function init(){
  initPicker();initSearch();initFiles();initProfiles();initNotifications();
  $('#message-input')?.addEventListener('input',()=>typing());
  typingTimer=setInterval(pollTyping,3600);
- $('#community-mobile-close')?.addEventListener('click',()=>$('#chat-sidebar').classList.remove('open'));
  $('#community-mobile-info')?.addEventListener('click',()=>$('#community-info').classList.toggle('open'));
  $('#community-info-close')?.addEventListener('click',()=>$('#community-info').classList.remove('open'));
  // Older history is loaded explicitly to avoid scroll/re-render race conditions.
