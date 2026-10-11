@@ -663,7 +663,7 @@ body.page-learner .action-bar{border-color:var(--vg-quiz-line)!important}
 body.page-learner .bookmark-btn{
   border-radius:7px!important;
   border-color:var(--vg-gold)!important;
-  color:var(--vg-gold-soft)!important;
+  color:var(--vg-gold-text)!important;
 }
 body.page-learner .bookmark-btn.active{
   background:color-mix(in srgb,var(--vg-gold) 18%,transparent)!important;
