@@ -1,8 +1,10 @@
+import {activateFocusScope} from './focus-scope.js';
 import {ensureSession,restGet} from './common.js';
 import {uploadAvatar,clearAvatar,paintAvatar,initialsFor} from './avatar.js';
 
 const $=s=>document.querySelector(s);
 let session=null,profile=null,image=null,originalURL=null,zoom=1,offsetX=0,offsetY=0,dragStart=null,busy=false;
+let avatarScope=null;
 const CROP_SIZE=400;
 function setStatus(msg,kind='info'){
  const el=$('#avatar-edit-status');if(el){el.textContent=msg;el.dataset.kind=kind;}
@@ -24,7 +26,7 @@ function unload(){
 }
 function close(){
  if(busy)return;
- $('#avatar-edit-dialog').hidden=true;
+ $('#avatar-edit-dialog').hidden=true;avatarScope?.();avatarScope=null;
  $('#avatar-source-input').value='';
  unload();setStatus('');
 }
@@ -43,6 +45,7 @@ async function choose(file){
  image=img;zoom=1;offsetX=0;offsetY=0;
  $('#avatar-zoom').value='1';
  $('#avatar-edit-dialog').hidden=false;
+ avatarScope?.();avatarScope=activateFocusScope($('#avatar-edit-dialog'),{onEscape:close});
  setStatus('Kéo ảnh để căn chỉnh · kéo thanh Zoom để phóng to.');
  preview();
 }
@@ -87,7 +90,7 @@ async function save(){
   const blob=await compress();
   const newPath=await uploadAvatar(blob,profile?.avatar_path);
   profile={...profile,avatar_path:newPath};
-  $('#avatar-edit-dialog').hidden=true;
+  $('#avatar-edit-dialog').hidden=true;avatarScope?.();avatarScope=null;
   unload();$('#avatar-source-input').value='';
   updateUI();emit();
   setStatus('');

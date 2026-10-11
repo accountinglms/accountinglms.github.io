@@ -320,11 +320,13 @@ $('#logout-current').addEventListener('click', async () => {
 $('#logout-all').addEventListener('click', async () => {
   if (!confirm('Đăng xuất tất cả thiết bị? Bạn sẽ cần đăng nhập lại và nhập mã Authenticator trên từng thiết bị.')) return;
   notice('Đang thu hồi tất cả phiên đăng nhập…');
+  const button=$('#logout-all');button.disabled=true;
   try {
     await authSignOut('global');
-  } finally {
     location.href = './?signed_out=all';
-  }
+  } catch(error) {
+    notice('Chưa đăng xuất tất cả thiết bị. '+error.message+' Bạn có thể thử lại.','error');
+  } finally {button.disabled=false;}
 });
 
 $('#factor-list').addEventListener('click', async event => {

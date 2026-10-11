@@ -1,3 +1,4 @@
+import {activateFocusScope} from './focus-scope.js';
 import {paintAvatar,hydrateAvatars,avatarMark} from './avatar.js';
 import {
   ensureSession,getMyAccess,restGet,restInsert,restDelete,restUpsert,restRpc,restPatch,
@@ -199,7 +200,7 @@ async function loadCurrentMessages({older=false}={}){
     if(!older&&document.visibilityState==='visible')await markCurrentRead().catch(()=>{});
   }finally{loadingOlder=false;}
 }
-async function selectGroup(id){
+async function selectGroup(id,{closeDrawer=true}={}){
   currentGroupId=id;
   replyTo=null;editingId=null;updateComposeBanner();
   const g=currentGroup();
@@ -223,7 +224,7 @@ async function selectGroup(id){
   document.dispatchEvent(new CustomEvent('lms:room',{detail:{groupId:g.id,kind:g.kind,peerId:other}}));
   renderGroups();renderMembers();setComposerState();
   await loadCurrentMessages();
-  $('#chat-sidebar').classList.remove('open');
+  if(closeDrawer)closeChatDrawer();
 }
 async function refreshCore({keepCurrent=true}={}){
   const [
@@ -309,8 +310,15 @@ async function toggleReaction(messageId,emoji){
   else await restInsert('chat_message_reactions',{message_id:Number(messageId),user_id:session.user.id,emoji});
   await loadCurrentMessages();
 }
-function openGroupModal(){ $('#group-modal').hidden=false; }
-function closeModal(id){const el=document.getElementById(id);if(el)el.hidden=true;}
+const modalScopes=new Map();
+function openModal(id){
+  const el=document.getElementById(id);
+  if(!el.hidden)return;
+  el.hidden=false;
+  modalScopes.set(id,activateFocusScope(el,{onEscape:()=>closeModal(id)}));
+}
+function openGroupModal(){openModal('group-modal');}
+function closeModal(id){const el=document.getElementById(id);if(el)el.hidden=true;modalScopes.get(id)?.();modalScopes.delete(id);}
 function renderInviteList(){
   const root=$('#invite-list');
   const members=new Set(memberships.filter(m=>m.group_id===currentGroupId).map(m=>m.user_id));
@@ -318,13 +326,13 @@ function renderInviteList(){
   root.innerHTML=available.length?available.map(p=>`<div class="member"><span class="portal-avatar">${esc(initials(p.display_name||'M'))}</span><div style="flex:1"><strong>${esc(p.display_name||'Member')}</strong><span>${esc(p.id.slice(0,8))}</span></div><button class="btn invite-user" type="button" data-user="${p.id}">Thêm</button></div>`).join(''):'<div class="empty-compact">Tất cả members đã ở trong nhóm.</div>';
 }
 async function bootstrap(){
-  try{session=await ensureSession();access=await getMyAccess(session,true);}
+  try{session=await ensureSession();access=await getMyAccess(session);}
   catch{location.replace('index.html?returnTo='+encodeURIComponent(location.pathname.split('/').pop()+location.search));return;}
   await refreshCore({keepCurrent:false});
   const requested=new URLSearchParams(location.search).get('group');
   const myGroups=groups.filter(g=>myMembership(g.id));
   const first=(requested&&groups.some(g=>g.id===requested)?requested:null)||myGroups[0]?.id||groups[0]?.id||null;
-  if(first)await selectGroup(first);
+  if(first)await selectGroup(first,{closeDrawer:false});
   realtime=createRealtimeClient(session,[
     {table:'chat_messages',event:'*'},
     {table:'chat_message_reactions',event:'*'},
@@ -385,6 +393,8 @@ document.querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('c
 $('#group-form').addEventListener('submit',async e=>{
   e.preventDefault();
   const form=e.currentTarget;
+  const button=form.querySelector('[type=submit]');
+  if(button.disabled)return;button.disabled=true;
   try{
     const groupId=await restRpc('create_study_group',{
       p_name:$('#group-name').value.trim(),p_description:$('#group-description').value.trim(),
@@ -394,8 +404,9 @@ $('#group-form').addEventListener('submit',async e=>{
     await refreshCore({keepCurrent:false});
     if(groupId)await selectGroup(groupId);
   }catch(error){alert(error.message||'Không tạo được nhóm.');}
+  finally{button.disabled=false;}
 });
-$('#invite-member-btn').addEventListener('click',()=>{renderInviteList();$('#invite-modal').hidden=false;});
+$('#invite-member-btn').addEventListener('click',()=>{renderInviteList();openModal('invite-modal');});
 $('#invite-list').addEventListener('click',async e=>{
   const b=e.target.closest('.invite-user');if(!b)return;b.disabled=true;
   try{await restInsert('chat_group_members',{group_id:currentGroupId,user_id:b.dataset.user,role:'member'});await refreshCore();renderMembers();renderInviteList();}
@@ -425,7 +436,26 @@ document.addEventListener('lms:attach-file',e=>{
   $('#pending-file').hidden=false;$('#pending-file-name').textContent=file.name+' · '+fmtSize(file.size);
 });
 $('#compose-context-close')?.addEventListener('click',()=>{editingId=null;replyTo=null;updateComposeBanner();});
-$('#mobile-chat-menu').addEventListener('click',()=>$('#chat-sidebar').classList.toggle('open'));
+const chatMobile=window.matchMedia('(max-width:700px)');
+let chatDrawerScope=null;
+function closeChatDrawer(){
+  const drawer=$('#chat-sidebar');drawer.classList.remove('open');
+  chatDrawerScope?.();chatDrawerScope=null;
+  drawer.removeAttribute('role');drawer.removeAttribute('aria-modal');
+  drawer.inert=chatMobile.matches;
+  $('#mobile-chat-menu').setAttribute('aria-expanded','false');
+}
+function openChatDrawer(){
+  if(!chatMobile.matches||chatDrawerScope)return;
+  const drawer=$('#chat-sidebar');drawer.inert=false;drawer.classList.add('open');
+  drawer.setAttribute('role','dialog');drawer.setAttribute('aria-modal','true');
+  $('#mobile-chat-menu').setAttribute('aria-expanded','true');
+  chatDrawerScope=activateFocusScope(drawer,{onEscape:closeChatDrawer,initialFocus:$('#community-mobile-close')});
+}
+$('#mobile-chat-menu').addEventListener('click',()=>chatDrawerScope?closeChatDrawer():openChatDrawer());
+$('#community-mobile-close').addEventListener('click',closeChatDrawer);
+chatMobile.addEventListener('change',closeChatDrawer);
+$('#chat-sidebar').inert=chatMobile.matches;
 // Notification tray handled by community-experience.js.
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentGroupId)markCurrentRead().catch(()=>{});});
 window.addEventListener('beforeunload',()=>{realtime?.stop();for(const url of imageCache.values())URL.revokeObjectURL(url);imageCache.clear();});

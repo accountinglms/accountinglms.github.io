@@ -1,18 +1,28 @@
-const CACHE='icaew-lms-github-v57';
-const APP=['./','./index.html','./home.html','./community.html','./progress.html','./account.html','./admin.html','./lessons.html','./diagnostics.html','./history.html','./manifest.webmanifest','./favicon.ico','./favicon-16.png','./favicon-32.png','./apple-touch-icon.png','./icon-192.png','./icon-512.png','./assets/learner.css','./assets/account.css','./assets/history.css','./assets/portal.css','./assets/portal-navigation.css','./assets/avatar.js','./assets/avatar-editor.js','./assets/avatar.css','./assets/community-v50.css','./assets/community-v51.css','./assets/community-polish.js','./assets/vg-theme.css','./assets/calculator.css','./assets/theme-init.js','./assets/learner-core.js','./assets/cloud-sync.js','./assets/calculator.js','./assets/calculator-pro.js','./assets/translation.js','./assets/common.js','./assets/score-model.js','./assets/subject-cover.js','./assets/account.js','./assets/admin.js','./assets/content-management.js','./assets/lessons.js','./assets/diagnostics.js','./assets/history.js','./assets/home.js','./assets/community.js','./assets/community-social.css','./assets/community-experience.js','./assets/community-v48.css','./assets/community-voice.js','./assets/community-social.js','./assets/progress.js']
+const CACHE='icaew-lms-github-v58';
+const APP=['./','./index.html','./home.html','./community.html','./progress.html','./account.html','./admin.html','./lessons.html','./diagnostics.html','./history.html','./manifest.webmanifest','./favicon.ico','./favicon-16.png','./favicon-32.png','./apple-touch-icon.png','./icon-192.png','./icon-512.png','./assets/learner.css','./assets/account.css','./assets/history.css','./assets/portal.css','./assets/portal-navigation.css','./assets/avatar.js','./assets/avatar-editor.js','./assets/avatar.css','./assets/community-v50.css','./assets/community-v51.css','./assets/community-polish.js','./assets/vg-theme.css','./assets/calculator.css','./assets/theme-init.js','./assets/learner-core.js','./assets/cloud-sync.js','./assets/calculator.js','./assets/calculator-pro.js','./assets/translation.js','./assets/common.js','./assets/focus-scope.js','./assets/score-model.js','./assets/subject-cover.js','./assets/account.js','./assets/admin.js','./assets/content-management.js','./assets/lessons.js','./assets/diagnostics.js','./assets/history.js','./assets/home.js','./assets/community.js','./assets/community-social.css','./assets/community-experience.js','./assets/community-v48.css','./assets/community-voice.js','./assets/community-social.js','./assets/progress.js']
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(APP)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
   const url=new URL(event.request.url);
   if(url.origin!==location.origin)return;
-  event.respondWith(fetch(event.request).then(res=>{
+  // Only same-origin app resources enter this cache; authenticated API data never does.
+  const network=fetch(event.request).then(res=>{
     if(res.ok){const copy=res.clone();event.waitUntil(caches.open(CACHE).then(c=>c.put(event.request,copy)));}
     return res;
-  }).catch(async()=>{
-    const cached=await caches.match(event.request);
-    if(cached)return cached;
-    if(event.request.mode==='navigate')return (await caches.match('./home.html'))||(await caches.match('./index.html'))||Response.error();
-    return Response.error();
-  }));
+  });
+  event.waitUntil(network.then(()=>{},()=>{}));
+  event.respondWith((async()=>{
+    const cached=await caches.match(event.request,{ignoreSearch:event.request.mode==='navigate'});
+    let timer;
+    try{
+      const response=cached?await Promise.race([network,new Promise(resolve=>{timer=setTimeout(()=>resolve(cached),3000);})]):await network;
+      if(!response.ok&&cached)return cached;
+      return response;
+    }catch{
+      if(cached)return cached;
+      if(event.request.mode==='navigate')return (await caches.match('./home.html'))||(await caches.match('./index.html'))||Response.error();
+      return Response.error();
+    }finally{clearTimeout(timer);}
+  })());
 });

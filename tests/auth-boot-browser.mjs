@@ -96,7 +96,8 @@ try{
     assert(during.bootVisible,'Neutral auth boot screen is not visible during session restore');
     assert(!during.gateVisible,'Login gate flashed while a saved session was being restored');
 
-    await page.waitForFunction(()=>!document.body.classList.contains('auth-pending'));
+    await page.waitForURL(baseURL+'/home.html',{waitUntil:'domcontentloaded'});
+    await page.waitForSelector('#welcome-title');
     const after=await page.evaluate(()=>({
       bootVisible:!!document.querySelector('#auth-boot') && getComputedStyle(document.querySelector('#auth-boot')).display!=='none',
       gateVisible:!!document.querySelector('#auth-gate') && getComputedStyle(document.querySelector('#auth-gate')).display!=='none',

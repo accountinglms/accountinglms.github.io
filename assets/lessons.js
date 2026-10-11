@@ -1,4 +1,4 @@
-import { ensureSession, restGet, callUniversalTranslate } from './common.js';
+import { ensureSession, isRetryableError, restGet, callUniversalTranslate } from './common.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -205,6 +205,7 @@ async function translateCurrentLesson() {
       lessons[0];
     renderReader(initialLesson.id);
   } catch (error) {
-    document.querySelector('#sidebar').innerHTML = '<div class="empty">Bạn cần đăng nhập ở trang chính trước.</div>';
+    document.querySelector('#sidebar').innerHTML = isRetryableError(error)?'<div class="empty">'+esc(error.message)+' <button type="button" id="retry-lessons">Thử lại</button></div>':'<div class="empty">Bạn cần đăng nhập ở trang chính trước.</div>';
+    document.querySelector('#retry-lessons')?.addEventListener('click',()=>location.reload());
   }
 })();

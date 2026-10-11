@@ -1,4 +1,4 @@
-import { ensureSession, restGet } from './common.js';
+import { ensureSession,isRetryableError, restGet } from './common.js';
 
 const SUPABASE_REF = 'uangiwgznukuicrfnohq';
 const SUPABASE_KEY = 'sb_publishable_FRBwRP7TAmiu02eRF9l49g_tCa4DsGJ';
@@ -597,7 +597,8 @@ function bindFilters() {
   } catch (error) {
     const box = $('#history-error');
     box.classList.remove('hidden');
-    box.textContent = 'Không mở được lịch sử làm bài: ' + (error?.message || 'Lỗi không xác định') + '. Hãy đăng nhập lại ở Trang học.';
+    box.innerHTML = 'Không mở được lịch sử làm bài: '+esc(error?.message||'Lỗi không xác định')+(isRetryableError(error)?' <button id="retry-history" type="button">Thử lại</button>':'. Hãy đăng nhập lại ở Trang học.');
+    $('#retry-history')?.addEventListener('click',()=>location.reload());
     setLiveStatus('connecting','Không kết nối');
   }
 })();

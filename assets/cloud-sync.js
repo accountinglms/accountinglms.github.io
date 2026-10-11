@@ -192,6 +192,10 @@
     function showGate(show) {
         finishAuthBoot();
         gate.classList.toggle('hidden', !show);
+        document.querySelectorAll('[data-auth-content]').forEach(element => {
+            const closedDrawer = element.id === 'sidebar' && window.matchMedia('(max-width: 900px)').matches && !element.classList.contains('open');
+            element.inert = show || closedDrawer;
+        });
     }
     function saveSession(session) {
         cloudSession = session || null;

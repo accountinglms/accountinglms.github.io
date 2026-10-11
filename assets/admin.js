@@ -432,7 +432,7 @@ async function createCourseItem(kind,title,parentId=null){
     items.push(item);
     return {item,created:true};
   }catch(error){
-    let code;try{code=JSON.parse(error.message).code}catch{}
+    let code=error.code||error.body?.code;try{code=code||JSON.parse(error.message).code}catch{}
     if(code!=='23505')throw error;
     await reload();
     const reused=findCourseItem(courseCatalog()[table],title,parentKey,parentId);

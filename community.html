@@ -24,7 +24,7 @@
 <body class="page-community">
 <div class="portal-shell">
   <header class="portal-topbar">
-    <a class="portal-brand" href="home.html"><img src="icon-512.png" alt=""><div><strong>Accounting LMS</strong><span>Member workspace</span></div></a>
+    <a class="portal-brand" href="home.html" aria-label="Accounting LMS — Trang chủ"><img src="icon-512.png" alt=""><div><strong>Accounting LMS</strong><span>Member workspace</span></div></a>
     <nav class="portal-nav" aria-label="Điều hướng chính">
       <a href="home.html" aria-label="Trang chủ"><svg class="portal-nav-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></svg><span>Trang chủ</span></a>
       <a href="index.html" aria-label="Làm bài"><svg class="portal-nav-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></svg><span>Làm bài</span></a>
@@ -49,7 +49,7 @@
     </nav>
 
   <div class="chat-layout">
-    <aside class="chat-sidebar" id="chat-sidebar">
+    <aside class="chat-sidebar" id="chat-sidebar" aria-label="Nhóm và cuộc trò chuyện">
       <div class="chat-side-head">
         <strong>Trò chuyện</strong>
         <button class="icon-button" id="community-mobile-close" type="button" aria-label="Đóng danh sách">×</button>
@@ -64,7 +64,7 @@
     <section class="chat-center">
       <header class="chat-room-head">
         <div style="display:flex;align-items:center;gap:9px;min-width:0">
-          <button class="icon-button mobile-chat-menu" id="mobile-chat-menu" type="button" aria-label="Mở danh sách nhóm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button>
+          <button class="icon-button mobile-chat-menu" id="mobile-chat-menu" type="button" aria-controls="chat-sidebar" aria-expanded="false" aria-label="Mở danh sách nhóm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button>
           <span id="chat-room-avatar" class="chat-room-avatar" aria-hidden="true">#</span><div class="chat-room-copy"><h1 id="room-title">Chọn một nhóm</h1><p id="room-subtitle">Tham gia nhóm để gửi tin nhắn và file.</p><span id="typing-indicator" aria-live="polite" hidden></span></div>
         </div>
         <div class="chat-room-actions">
@@ -72,7 +72,7 @@
           <button class="icon-button" id="room-search-btn" type="button" aria-label="Tìm tin nhắn" title="Tìm tin nhắn (Ctrl K)"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button>
           <button class="chat-call-btn" id="voice-call-btn" type="button" hidden title="Gọi thoại 1–1 · beta"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6.8 3.8 10 7l-2 3c1.4 2.8 3.1 4.5 6 6l3-2 3.2 3.2-1.3 3c-7 .7-15-7.3-14.3-14.3z"/></svg><span>Gọi thoại</span></button>
           <button class="chat-call-btn" id="video-call-btn" type="button" hidden title="Gọi video 1–1 · beta"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg><span>Video</span></button>
-          <button class="icon-button" id="community-mobile-info" type="button" aria-label="Thông tin hội thoại" title="Thông tin"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 10v7"/><circle cx="12" cy="7" r=".8" fill="currentColor" stroke="none"/></svg></button>
+          <button class="icon-button" id="community-mobile-info" type="button" aria-controls="community-info" aria-expanded="false" aria-label="Thông tin hội thoại" title="Thông tin"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 10v7"/><circle cx="12" cy="7" r=".8" fill="currentColor" stroke="none"/></svg></button>
           <button class="icon-button chat-more-btn" id="chat-more-btn" type="button" aria-expanded="false" aria-controls="chat-more-menu" title="Thêm tùy chọn" aria-label="Mở tùy chọn chat"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg></button>
           <span class="connection-state" id="connection-state">Đang kết nối…</span>
         </div>
@@ -99,7 +99,7 @@
             <textarea id="message-input" maxlength="8000" placeholder="Nhắn vào nhóm…"></textarea>
             <div class="composer-tools" style="position:relative">
               <button type="button" id="emoji-btn" title="Emoji" aria-label="Chọn emoji"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 14c1.5 2.3 6.5 2.3 8 0" stroke-linecap="round"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg></button>
-              <label title="Thêm ảnh hoặc tài liệu" aria-label="Thêm ảnh hoặc tài liệu"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><input id="file-input" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip,image/*"></label>
+              <label title="Thêm ảnh hoặc tài liệu"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><input id="file-input" type="file" aria-label="Thêm ảnh hoặc tài liệu" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip,image/*"></label>
               <select id="message-type" aria-label="Loại tin nhắn" style="height:30px;border:0;background:transparent;color:var(--portal-muted);font-size:.58rem">
                 <option value="text">Tin nhắn</option>
                 <option value="assignment">Bài tập</option>
@@ -113,7 +113,7 @@
       </div>
     </section>
 
-    <aside class="chat-info" id="community-info">
+    <aside class="chat-info" id="community-info" aria-labelledby="info-title">
       <button class="icon-button" id="community-info-close" type="button" aria-label="Đóng thông tin">×</button>
       <h2 id="info-title">Thông tin nhóm</h2>
       <p id="info-description">Chọn một nhóm để xem thành viên và quyền truy cập.</p>
@@ -126,8 +126,8 @@
 </div>
 
 <div class="modal-backdrop" id="group-modal" hidden>
-  <div class="modal">
-    <h2>Tạo nhóm mới</h2>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="group-modal-title">
+    <h2 id="group-modal-title">Tạo nhóm mới</h2>
     <form id="group-form">
       <label class="field"><span>Tên nhóm</span><input id="group-name" maxlength="80" required placeholder="Ví dụ: Accounting Fundamentals"></label>
       <label class="field"><span>Mô tả</span><textarea id="group-description" maxlength="500" placeholder="Mục đích của nhóm…"></textarea></label>
@@ -138,8 +138,8 @@
 </div>
 
 <div class="modal-backdrop" id="invite-modal" hidden>
-  <div class="modal">
-    <h2>Thêm thành viên</h2>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title">
+    <h2 id="invite-modal-title">Thêm thành viên</h2>
     <div id="invite-list" class="member-list"></div>
     <div class="form-actions" style="margin-top:14px"><button class="btn" type="button" data-close-modal="invite-modal">Đóng</button></div>
   </div>
