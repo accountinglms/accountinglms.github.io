@@ -13,6 +13,7 @@ const scenarios=[
   ['login','index.html','#auth-gate:not(.hidden)',false],
   ['home','home.html','#subject-catalog .subject-row',true],
   ['quiz','index.html?exercise=ex1','#quiz-container',true],
+  ['quiz-bookmarked','index.html?exercise=ex1','#quiz-container',true],
   ['lessons','lessons.html?lesson=lesson-1','#lesson-reader-title',true],
   ['history','history.html','#timeline .attempt',true],
   ['community','community.html','.chat-group',true],
@@ -55,7 +56,13 @@ try{
       try{
         await page.goto(baseURL+'/'+url,{waitUntil:'domcontentloaded'});
         await page.waitForSelector(ready,{timeout:12000});
-        if(signedIn&&url.startsWith('index.html'))await page.waitForFunction(()=>!document.body.classList.contains('auth-pending')&&document.querySelector('#auth-gate').classList.contains('hidden'));
+        if(signedIn&&url.startsWith('index.html')){
+          await page.waitForFunction(()=>!document.body.classList.contains('auth-pending')&&document.querySelector('#auth-gate').classList.contains('hidden'));
+          await page.locator('#question-text').filter({hasText:'Which account is an asset?'}).waitFor({state:'visible'});
+          await page.locator('#bookmark-btn').waitFor({state:'visible'});
+          const marked=await page.locator('#bookmark-btn').getAttribute('aria-pressed')==='true';
+          if((name==='quiz-bookmarked')!==marked)await page.locator('#bookmark-btn').click();
+        }
         if(signedIn&&name==='account')await page.waitForFunction(()=>document.querySelector('#display-name').value.length>0);
         if(name.startsWith('community'))await page.waitForSelector('#message-input');
         if(name==='home-expanded'||name==='admin-expanded')await page.evaluate(()=>document.querySelectorAll('details').forEach(el=>el.open=true));
