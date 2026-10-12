@@ -99,14 +99,13 @@
           <div class="composer-box">
             <textarea id="message-input" maxlength="8000" placeholder="Nhắn vào nhóm…"></textarea>
             <div class="composer-tools" style="position:relative">
-              <button type="button" id="emoji-btn" title="Emoji" aria-label="Chọn emoji"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 14c1.5 2.3 6.5 2.3 8 0" stroke-linecap="round"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg></button>
+              <button type="button" id="emoji-btn" title="Emoji và sticker" aria-label="Chọn emoji và sticker" aria-controls="emoji-popover" aria-expanded="false" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 14c1.5 2.3 6.5 2.3 8 0" stroke-linecap="round"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg></button>
               <label title="Thêm ảnh hoặc tài liệu"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><input id="file-input" type="file" aria-label="Thêm ảnh hoặc tài liệu" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip,image/*"></label>
               <select id="message-type" aria-label="Loại tin nhắn" style="height:30px;border:0;background:transparent;color:var(--portal-muted);font-size:.58rem">
                 <option value="text">Tin nhắn</option>
                 <option value="assignment">Bài tập</option>
               </select>
               <button class="send" type="button" id="send-btn"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="m21 3-8.2 18-2.6-7.2L3 11.2 21 3Z"/><path d="M10.2 13.8 21 3"/></svg><span>Gửi</span></button>
-              <div class="emoji-popover" id="emoji-popover" hidden></div>
             </div>
           </div>
           <div id="composer-status" role="status" aria-live="polite"></div>
@@ -147,6 +146,7 @@
 </div>
 
 <div id="community-notifications" hidden><strong>Thông báo</strong><div id="community-notify-list"></div></div>
+<div class="emoji-popover" id="emoji-popover" role="dialog" aria-label="Emoji và sticker" hidden></div>
 <div id="community-toast" role="status" aria-live="polite" hidden></div>
 <input id="avatar-source-input" type="file" accept="image/*" aria-label="Chọn ảnh từ thư viện ảnh trên thiết bị">
 <div id="avatar-edit-dialog" hidden>
