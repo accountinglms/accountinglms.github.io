@@ -429,7 +429,7 @@ if(!premiumCss.includes('font-family:Inter')||!premiumCss.includes('.message-row
 if(!upgradedCommunity.includes('community-experience.js')||!upgradedCommunity.includes('community-v48.css')
  ||!upgradedCommunity.includes('id="chat-search-input"')||!upgradedCommunity.includes('id="video-call-btn"'))
  throw new Error('Community 2.0 page missing search, video or styling');
-if(!communityJs.includes('reply_to:replyTo')||!communityJs.includes('data-edit-message')||!communityJs.includes('lms:open-room'))
+if(!/reply_to:\s*(replyTo|composingReply)\b/.test(communityJs)||!communityJs.includes('data-edit-message')||!communityJs.includes('lms:open-room'))
  throw new Error('Message replies, editing or fast room navigation missing');
 
 

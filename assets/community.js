@@ -16,6 +16,7 @@ let groups=[],memberships=[],reads=[],profiles=[],recentMessages=[],announcement
 let currentGroupId=null,currentMessages=[],currentReactions=[];
 let canLoadOlder=false,loadingOlder=false;
 let pendingFile=null;
+let sendingMessage=false;
 let realtime=null;
 let reloadTimer=null;
 let replyTo=null,editingId=null,lastTypingSent=0,peerReadAt=null;
@@ -270,25 +271,26 @@ function updateComposeBanner(){
   const send=$('#send-btn');if(send)send.textContent=editingId?'Lưu sửa':'Gửi';
 }
 async function sendMessage({sticker=null}={}){
-  if(!currentGroupId||!myMembership(currentGroupId))return;
+  if(sendingMessage||!currentGroupId||!myMembership(currentGroupId))return;
   const input=$('#message-input'),body=normalizeText(sticker||input.value.trim());
   if(!body&&!pendingFile)return;
-  const btn=$('#send-btn');btn.disabled=true;
-  const composingRoom=currentGroupId;
+  sendingMessage=true;
+  const btn=$('#send-btn'),emojiButton=$('#emoji-btn');btn.disabled=true;emojiButton.disabled=true;
+  const composingRoom=currentGroupId,composingDraft=input.value;
+  const composingEdit=sticker?null:editingId,composingReply=editingId?null:replyTo,composingFile=sticker?null:pendingFile;
+  $('#composer-status').textContent='Đang gửi…';
   try{
-    if(editingId){
+    if(composingEdit){
       if(!body)throw new Error('Nội dung không được để trống.');
-      await restPatch('chat_messages','id=eq.'+editingId+'&sender_id=eq.'+encodeURIComponent(session.user.id),{body});
+      await restPatch('chat_messages','id=eq.'+composingEdit+'&sender_id=eq.'+encodeURIComponent(session.user.id),{body});
     }else{
       let uploaded=null;
-      if(pendingFile)uploaded=await uploadChatFile(currentGroupId,pendingFile);
+      if(composingFile)uploaded=await uploadChatFile(composingRoom,composingFile);
       const nonce=crypto.randomUUID();
-      // Display optimistic feedback without exposing unconfirmed messages as persisted.
-      $('#composer-status').textContent='Đang gửi…';
       await restInsert('chat_messages',{
-        group_id:currentGroupId,sender_id:session.user.id,body,
+        group_id:composingRoom,sender_id:session.user.id,body,
         message_type:sticker?'sticker':$('#message-type').value,
-        reply_to:replyTo,client_nonce:nonce,
+        reply_to:composingReply,client_nonce:nonce,
         attachment_path:uploaded?.storagePath||null,
         attachment_name:uploaded?.name||null,
         attachment_mime:uploaded?.mime||null,
@@ -296,13 +298,20 @@ async function sendMessage({sticker=null}={}){
       });
     }
     if(composingRoom===currentGroupId){
-      input.value='';pendingFile=null;replyTo=null;editingId=null;
-      updateComposeBanner();$('#pending-file').hidden=true;$('#file-input').value='';
-      await loadCurrentMessages();await refreshCore();
+      // Sending a sticker must preserve text/attachments being drafted or edited.
+      if(!sticker){
+        if(input.value===composingDraft)input.value='';
+        if(pendingFile===composingFile){pendingFile=null;$('#pending-file').hidden=true;$('#file-input').value='';}
+        if(editingId===composingEdit)editingId=null;
+      }
+      if(replyTo===composingReply)replyTo=null;
+      updateComposeBanner();
+      // A refresh failure after persistence must not invite the user to send a duplicate.
+      await loadCurrentMessages().catch(console.warn);await refreshCore().catch(console.warn);
     }
     $('#composer-status').textContent='';
-  }catch(error){$('#composer-status').textContent='Gửi chưa thành công';alert(error.message||'Không gửi được tin nhắn.');}
-  finally{btn.disabled=false;}
+  }catch(error){$('#composer-status').textContent='Chưa gửi được. '+(error.message||'Vui lòng thử lại.');}
+  finally{sendingMessage=false;btn.disabled=false;emojiButton.disabled=false;}
 }
 async function toggleReaction(messageId,emoji){
   const mine=currentReactions.find(r=>String(r.message_id)===String(messageId)&&r.user_id===session.user.id&&r.emoji===emoji);

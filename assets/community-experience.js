@@ -12,6 +12,7 @@ const sets={
 'Học tập':'📚 📖 📕 📗 📘 📙 📓 📝 ✏️ 🖊️ 📐 📏 🧮 💻 ⌨️ 🖥️ 🖨️ 📱 💾 📊 📈 📉 💹 💰 💵 💶 💳 🪙 🏦 🧾 📁 📂 📎 📌 📍 📋 📅 ⏰ 🎓 🏆 🥇 💡 🔍 ✅ ❌ ❗ ❓ 💯 🎯 🚀 🛠️',
 'Giải trí':'🎉 🎊 🎁 🎈 🎂 ✨ 🎆 🎇 🎮 🕹️ 🎲 🎸 🎹 🎧 🎤 🎵 🎶 🎬 🍿 🎨 📷 📸 📺 🏀 ⚽ 🏸 🎾 🏓 🎳 🏋️ 🚴 🏃 🏊 🏔️ ✈️ 🚗 🚲'};
 const aliases={love:'❤️ 🥰 😍',heart:'❤️ 💗',tim:'❤️ 💕',vui:'😊 😄 🥳',buon:'😢 😭',buồn:'😢 😭',cuoi:'😂 🤣',cười:'😂 🤣',hoc:'📚 🎓 📝',học:'📚 🎓 📝',tien:'💰 💵 💳',tiền:'💰 💵 💳',ok:'👍 ✅ 👌',good:'👍 ✅ 💯',fire:'🔥 ❤️‍🔥',thanks:'🙏 ❤️ 👏',study:'📚 🧠 🎓',cat:'🐱 😻'};
+const stickers='🥳 😭 😂 🥹 😡 😍 😎 😴 🤯 🤗 🤩 😈 💪 🙏 ❤️ 🔥 📚 🎓 🧠 📝 💯 ✅ 🎯 🏆 💡 🚀 👏 📈 🧮'.split(/\s+/);
 let session=null,room=null,category='Cảm xúc',pickerMode='emoji',query='',typingLast=0,typingTimer=null,notiTimer=null,searchTimer=null,toastId=0;
 const recentKey=()=> 'lms-emoji-recent-'+(session?.user?.id||'guest');
 function recents(){try{return JSON.parse(localStorage.getItem(recentKey())||'[]');}catch{return [];}}
@@ -19,25 +20,76 @@ function remember(e){try{localStorage.setItem(recentKey(),JSON.stringify([e,...r
 function toast(message){const el=$('#community-toast');if(!el)return;el.textContent=message;el.hidden=false;const id=++toastId;setTimeout(()=>{if(id===toastId)el.hidden=true;},3200);}
 function chooseEmoji(emoji){const el=$('#message-input');if(!el)return;el.setRangeText(emoji,el.selectionStart??el.value.length,el.selectionEnd??el.value.length,'end');el.focus();el.dispatchEvent(new Event('input',{bubbles:true}));remember(emoji);}
 function pickerList(){
- if(pickerMode==='sticker')return '🥳 😭 😂 🥹 😡 😍 😎 😴 🤯 🤗 🤩 😈 💪 🙏 ❤️ 🔥 📚 🎓 🧠 📝 💯 ✅ 🎯 🏆 💡 🚀 👏 📈 🧮'.split(/\s+/);
- if(query.trim()){const q=query.trim().toLowerCase();return [...new Set([...Object.entries(aliases).filter(([k])=>k.includes(q)).flatMap(([,v])=>v.split(' ')),...Object.values(sets).flatMap(x=>x.split(/\s+/)).filter(x=>x.includes(q))])].filter(Boolean);}
+ if(query.trim()){
+  const q=query.trim().toLowerCase(),source=pickerMode==='sticker'?stickers:Object.values(sets).flatMap(x=>x.split(/\s+/));
+  const matches=[...new Set([...Object.entries(aliases).filter(([k])=>k.includes(q)).flatMap(([,v])=>v.split(' ')),...source.filter(x=>x.includes(q))])].filter(Boolean);
+  return pickerMode==='sticker'?matches.filter(x=>stickers.includes(x)):matches;
+ }
+ if(pickerMode==='sticker')return stickers;
  return category==='Gần đây'?recents():sets[category].split(/\s+/).filter(Boolean);
+}
+function renderPickerResults(){
+ const grid=$('#emoji-popover .emoji-grid');if(!grid)return;
+ const list=pickerList();
+ grid.innerHTML=list.map(e=>'<button type="button" class="'+(pickerMode==='sticker'?'sticker-tile':'')+'" data-emoji-value="'+esc(e)+'" aria-label="'+(pickerMode==='sticker'?'Gửi sticker ':'Chèn emoji ')+esc(e)+'">'+esc(e)+'</button>').join('');
+ $('#emoji-empty').hidden=Boolean(list.length);
 }
 function renderPicker(){
  const root=$('#emoji-popover');if(!root)return;
- root.innerHTML='<div class="emoji-head"><strong>Biểu cảm</strong><button type="button" data-emoji-close>×</button></div><div class="emoji-modes"><button type="button" data-emoji-mode="emoji" class="'+(pickerMode==='emoji'?'active':'')+'">Emoji</button><button type="button" data-emoji-mode="sticker" class="'+(pickerMode==='sticker'?'active':'')+'">Sticker</button></div><input type="search" id="emoji-search" maxlength="32" placeholder="Tìm: vui, tim, học…" value="'+esc(query)+'">'+(pickerMode==='emoji'?'<div class="emoji-categories">'+Object.keys(sets).map((g,i)=>'<button type="button" data-emoji-cat="'+esc(g)+'" title="'+esc(g)+'" class="'+(category===g?'active':'')+'">'+['◷','😊','👋','❤️','🌸','🍕','📚','🎉'][i]+'</button>').join('')+'</div>':'')+'<div class="emoji-scroll"><div class="emoji-grid">'+pickerList().map(e=>'<button type="button" class="'+(pickerMode==='sticker'?'sticker-tile':'')+'" data-emoji-value="'+esc(e)+'">'+esc(e)+'</button>').join('')+'</div></div><p class="emoji-help">Vuốt hoặc cuộn để tìm thêm biểu tượng.</p>';
+ root.innerHTML='<div class="emoji-head"><strong>Biểu cảm</strong><button type="button" data-emoji-close aria-label="Đóng bảng emoji và sticker">×</button></div><div class="emoji-modes"><button type="button" data-emoji-mode="emoji" aria-pressed="'+(pickerMode==='emoji')+'" class="'+(pickerMode==='emoji'?'active':'')+'">Emoji</button><button type="button" data-emoji-mode="sticker" aria-pressed="'+(pickerMode==='sticker')+'" class="'+(pickerMode==='sticker'?'active':'')+'">Sticker</button></div><input type="search" id="emoji-search" aria-label="Tìm emoji hoặc sticker" maxlength="32" placeholder="Tìm: vui, tim, học…" value="'+esc(query)+'">'+(pickerMode==='emoji'?'<div class="emoji-categories">'+Object.keys(sets).map((g,i)=>'<button type="button" data-emoji-cat="'+esc(g)+'" title="'+esc(g)+'" aria-label="'+esc(g)+'" aria-pressed="'+(category===g)+'" class="'+(category===g?'active':'')+'">'+['◷','😊','👋','❤️','🌸','🍕','📚','🎉'][i]+'</button>').join('')+'</div>':'')+'<div class="emoji-scroll"><div class="emoji-grid"></div><p id="emoji-empty" hidden>Không tìm thấy biểu tượng.</p></div><p class="emoji-help">Chọn sticker để gửi ngay. Emoji được chèn vào tin nhắn.</p>';
+ renderPickerResults();
+}
+function closePicker(returnFocus=false){
+ const root=$('#emoji-popover'),button=$('#emoji-btn');if(!root||!button)return;
+ root.hidden=true;button.setAttribute('aria-expanded','false');
+ if(returnFocus)button.focus({preventScroll:true});
+}
+function positionPicker(){
+ const root=$('#emoji-popover'),button=$('#emoji-btn');if(!root||root.hidden||!button)return;
+ const viewport=window.visualViewport,x=viewport?.offsetLeft||0,y=viewport?.offsetTop||0;
+ const width=viewport?.width||innerWidth,height=viewport?.height||innerHeight,margin=12,gap=8;
+ const anchor=button.getBoundingClientRect(),panelWidth=Math.max(0,Math.min(390,width-margin*2));
+ const above=anchor.top-y-margin-gap,panelHeight=Math.max(0,Math.min(435,height-margin*2,Math.max(240,above)));
+ // Fixed coordinates stay within the visible viewport when the iPhone keyboard opens.
+ root.style.width=panelWidth+'px';root.style.height=panelHeight+'px';
+ root.style.left=Math.max(x+margin,Math.min(anchor.left,x+width-panelWidth-margin))+'px';
+ root.style.top=Math.max(y+margin,Math.min(anchor.top-panelHeight-gap,y+height-panelHeight-margin))+'px';
 }
 function initPicker(){
  const b=$('#emoji-btn'),root=$('#emoji-popover');if(!b||!root)return;
- b.addEventListener('click',()=>{root.hidden=!root.hidden;if(!root.hidden){query='';renderPicker();}});
- root.addEventListener('click',e=>{
-  if(e.target.closest('[data-emoji-close]')){root.hidden=true;return;}
-  const mode=e.target.closest('[data-emoji-mode]');if(mode){pickerMode=mode.dataset.emojiMode;query='';renderPicker();return;}
-  const cat=e.target.closest('[data-emoji-cat]');if(cat){category=cat.dataset.emojiCat;query='';renderPicker();return;}
-  const pick=e.target.closest('[data-emoji-value]');if(pick){const emoji=pick.dataset.emojiValue;remember(emoji);if(pickerMode==='sticker'){document.dispatchEvent(new CustomEvent('lms:send-sticker',{detail:{emoji}}));root.hidden=true;}else chooseEmoji(emoji);}
+ // Escape both the composer/grid clipping and the sticky navigation stacking contexts.
+ document.body.append(root);
+ b.addEventListener('click',e=>{
+  e.preventDefault();e.stopPropagation();
+  if(!root.hidden){closePicker();return;}
+  query='';renderPicker();root.hidden=false;b.setAttribute('aria-expanded','true');positionPicker();
+  if(e.detail===0)root.querySelector('[data-emoji-close]')?.focus({preventScroll:true});
  });
- root.addEventListener('input',e=>{if(e.target.id!=='emoji-search')return;query=e.target.value;const at=e.target.selectionStart;renderPicker();const next=$('#emoji-search');next.focus();next.setSelectionRange(at,at);});
- document.addEventListener('pointerdown',e=>{if(!root.hidden&&!root.contains(e.target)&&!b.contains(e.target))root.hidden=true;});
+ b.addEventListener('contextmenu',e=>e.preventDefault());
+ root.addEventListener('contextmenu',e=>{if(!e.target.closest('input'))e.preventDefault();});
+ root.addEventListener('click',e=>{
+  e.stopPropagation();if(root.hidden)return;
+  if(e.target.closest('[data-emoji-close]')){closePicker(true);return;}
+  const mode=e.target.closest('[data-emoji-mode]');if(mode){pickerMode=mode.dataset.emojiMode;query='';renderPicker();root.querySelector('[data-emoji-mode="'+pickerMode+'"]')?.focus({preventScroll:true});return;}
+  const cat=e.target.closest('[data-emoji-cat]');if(cat){category=cat.dataset.emojiCat;query='';renderPicker();root.querySelector('[data-emoji-cat="'+category+'"]')?.focus({preventScroll:true});return;}
+  const pick=e.target.closest('[data-emoji-value]');if(pick){
+   if(b.disabled)return;
+   const emoji=pick.dataset.emojiValue;
+   closePicker(pickerMode==='sticker');remember(emoji);
+   if(pickerMode==='sticker')document.dispatchEvent(new CustomEvent('lms:send-sticker',{detail:{emoji}}));
+   else chooseEmoji(emoji);
+  }
+ });
+ // Keep the search field intact: replacing it on every keystroke loses focus on Safari.
+ root.addEventListener('input',e=>{if(e.target.id!=='emoji-search')return;query=e.target.value;renderPickerResults();});
+ document.addEventListener('pointerdown',e=>{if(!root.hidden&&!root.contains(e.target)&&!b.contains(e.target))closePicker();});
+ document.addEventListener('click',e=>{if(!root.hidden&&!root.contains(e.target)&&!b.contains(e.target))closePicker();});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!root.hidden){e.preventDefault();closePicker(true);}});
+ window.addEventListener('resize',positionPicker);
+ window.addEventListener('scroll',positionPicker,{passive:true});
+ window.visualViewport?.addEventListener('resize',positionPicker);
+ window.visualViewport?.addEventListener('scroll',positionPicker);
+ document.addEventListener('lms:room',()=>closePicker());
 }
 async function typing(){
  if(!session||!room?.groupId||Date.now()-typingLast<3000)return;typingLast=Date.now();
@@ -66,7 +118,7 @@ function initSearch(){
  $('#chat-search-close')?.addEventListener('click',()=>$('#chat-search-panel').hidden=true);
  $('#chat-search-input')?.addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(searchMessages,280);});
  $('#chat-search-results')?.addEventListener('click',e=>{const b=e.target.closest('[data-jump-id]');if(!b)return;$('#chat-search-panel').hidden=true;document.dispatchEvent(new CustomEvent('lms:jump-message',{detail:{id:Number(b.dataset.jumpId)}}));});
- document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('#room-search-btn')?.click();}if(e.key==='Escape'){$('#chat-search-panel').hidden=true;$('#emoji-popover').hidden=true;}});
+ document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('#room-search-btn')?.click();}if(e.key==='Escape')$('#chat-search-panel').hidden=true;});
 }
 function initFiles(){
  const drop=$('.chat-center');if(!drop)return;let depth=0;

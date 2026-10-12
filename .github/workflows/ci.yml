@@ -170,6 +170,12 @@ jobs:
           TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/ux-regression-browser.mjs
 
+      - name: Run mobile sticker picker regressions
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/sticker-picker-browser.mjs
+
       - name: Audit accessibility and responsive page states
         if: ${{ !cancelled() }}
         env:
