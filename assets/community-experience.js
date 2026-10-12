@@ -50,6 +50,7 @@ function positionPicker(){
  const width=viewport?.width||innerWidth,height=viewport?.height||innerHeight,margin=12,gap=8;
  const anchor=button.getBoundingClientRect(),panelWidth=Math.max(0,Math.min(390,width-margin*2));
  const above=anchor.top-y-margin-gap,panelHeight=Math.max(0,Math.min(435,height-margin*2,Math.max(240,above)));
+ root.classList.toggle('emoji-compact',panelHeight<340);
  // Fixed coordinates stay within the visible viewport when the iPhone keyboard opens.
  root.style.width=panelWidth+'px';root.style.height=panelHeight+'px';
  root.style.left=Math.max(x+margin,Math.min(anchor.left,x+width-panelWidth-margin))+'px';

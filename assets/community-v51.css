@@ -310,6 +310,8 @@ body.page-community #emoji-search{
   user-select:text;
 }
 body.page-community #emoji-empty{font-size:13px;color:var(--msg-muted);}
+body.page-community #emoji-popover.emoji-compact .emoji-categories,
+body.page-community #emoji-popover.emoji-compact .emoji-help{display:none;}
 body.page-community #emoji-btn,
 body.page-community .portal-brand,
 body.page-community .portal-mobile-nav a{
