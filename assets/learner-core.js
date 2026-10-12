@@ -1948,8 +1948,17 @@
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.disabled = true;
-                    btn.className = `tf-choice${userValue === value ? ' user-answer selected' : ''}`;
+                    btn.className = `tf-choice${userValue === value ? ' user-answer selected' : ''}${correctValue === value ? ' correct-answer' : ''}`;
                     btn.textContent = value ? 'True' : 'False';
+                    if (correctValue === value || userValue === value) {
+                        const correct = correctValue === value;
+                        const mark = document.createElement('span');
+                        mark.className = 'answer-mark';
+                        mark.setAttribute('aria-hidden', 'true');
+                        mark.textContent = correct ? '✓' : '✕';
+                        btn.setAttribute('aria-label', `${btn.textContent} · ${correct ? 'Đáp án đúng' : 'Bạn chọn sai'}`);
+                        btn.appendChild(mark);
+                    }
                     actions.appendChild(btn);
                 });
                 row.appendChild(statementEl);
@@ -1974,17 +1983,25 @@
             el.onclick = null;
             el.onkeydown = null;
             el.style.pointerEvents = 'none';
+            el.setAttribute('aria-disabled', 'true');
+            el.setAttribute('aria-checked', String(chosen));
+            if (chosen) el.classList.add('user-answer');
             if (correct) el.classList.add('correct');
             if (chosen && !correct) el.classList.add('wrong');
-            if (chosen) el.querySelector('.choice-marker').style.background = correct ? '#4caf50' : '#ef5350';
+            if (correct || chosen) {
+                const marker = el.querySelector('.choice-marker');
+                marker.textContent = correct ? '✓' : '✕';
+                marker.setAttribute('aria-hidden', 'true');
+                el.setAttribute('aria-label', `${safePlainText(opt)}${chosen ? ' · Bạn đã chọn' : ''} · ${correct ? 'Đáp án đúng' : 'Đáp án sai'}`);
+            }
             optionsContainer.appendChild(el);
         });
     }
 
     function showExplanation(isCorrect, textEng, textVie, exampleEng = '', exampleVie = '', standardReference = '') {
-        const resultColor = isCorrect ? '#4caf50' : '#ef5350';
+        const resultColor = isCorrect ? 'var(--vg-answer-correct-ink, #4caf50)' : 'var(--vg-answer-wrong-ink, #ef5350)';
         const resultText = isCorrect ? 'Chính xác' : 'Chưa chính xác';
-        explanationBox.style.borderLeftColor = resultColor;
+        explanationBox.style.borderLeftColor = isCorrect ? 'var(--vg-answer-correct-border, #4caf50)' : 'var(--vg-answer-wrong-border, #ef5350)';
         explanationBox.innerHTML = `
             <div class="explanation-toolbar">
                 <span class="explanation-result" style="color:${resultColor}">${resultText}</span>
