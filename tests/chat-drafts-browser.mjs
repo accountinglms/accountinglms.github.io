@@ -36,7 +36,8 @@ try{
       assert.ok(contrasts.length>0&&contrasts.every(item=>item.ratio>=3),`${theme} chat icons lack contrast: ${JSON.stringify(contrasts)}`);
     }
     const switchRoom=async(id)=>{
-      if(mobile)await page.click('#mobile-chat-menu');
+      if(mobile&&await page.locator('#mobile-chat-menu').getAttribute('aria-expanded')!=='true')await page.click('#mobile-chat-menu');
+      await page.click('[data-social-tab="groups"]');
       await page.click('[data-group="'+id+'"]');
       await page.waitForFunction(id=>new URL(location.href).searchParams.get('group')===id,id);
       if(mobile)await page.waitForFunction(()=>!document.querySelector('#chat-sidebar').classList.contains('open'));
@@ -93,6 +94,29 @@ try{
     assert.equal(state.messages.at(-1).group_id,roomB);assert.equal(state.messages.at(-1).attachment_path,null);
     await page.reload({waitUntil:'domcontentloaded'});
     await page.waitForFunction(()=>document.querySelector('#room-title').textContent.includes('Second room'));
+    assert.equal(await page.inputValue('#message-input'),'');assert.deepEqual(errors,[]);
+
+    // A delayed old A response must not replace a newer A visit after switching A → B → A.
+    let releaseRead,firstRead,readFinished,delayRead=true;
+    const readGate=new Promise(resolve=>releaseRead=resolve),reading=new Promise(resolve=>firstRead=resolve),finished=new Promise(resolve=>readFinished=resolve);
+    await page.route('**/rest/v1/chat_messages*',async route=>{
+      const request=route.request(),url=new URL(request.url());
+      if(!delayRead||request.method()!=='GET'||url.searchParams.get('group_id')!=='eq.'+roomA)return route.fallback();
+      delayRead=false;
+      const snapshot=state.messages.filter(m=>m.group_id===roomA).map(m=>({...m})).reverse();
+      firstRead();await readGate;
+      await route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(snapshot)});
+      readFinished();
+    });
+    if(mobile)await page.click('#mobile-chat-menu');
+    await page.click('[data-social-tab="groups"]');await page.click('[data-group="'+roomA+'"]');await reading;
+    assert.equal(await page.locator('#message-stream [data-message-id]').count(),0,'Previous room actions remained active during loading');
+    await switchRoom(roomB);
+    state.messages.find(m=>m.id===sent.id).body='Bản cập nhật mới nhất';
+    await switchRoom(roomA);
+    await page.waitForFunction(()=>document.querySelector('#message-stream').textContent.includes('Bản cập nhật mới nhất'));
+    releaseRead();await finished;await page.waitForTimeout(100);
+    assert.match(await page.locator('#message-stream').innerText(),/Bản cập nhật mới nhất/,'An old room response overwrote the current view');
     assert.equal(await page.inputValue('#message-input'),'');assert.deepEqual(errors,[]);
     await context.close();
   }

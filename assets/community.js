@@ -16,6 +16,7 @@ let session=null,access=null;
 let groups=[],memberships=[],reads=[],profiles=[],recentMessages=[],announcements=[],announcementReads=[];
 let currentGroupId=null,currentMessages=[],currentReactions=[];
 let canLoadOlder=false,loadingOlder=false;
+let messageLoadVersion=0;
 let pendingFile=null;
 let pendingAttachment=null,chatDrafts=null,draftTimer=null;
 let sendingMessage=false;
@@ -204,33 +205,39 @@ async function loadCurrentMessages({older=false}={}){
   loadingOlder=true;
   const stream=$('#message-stream');
   const renderRoom=currentGroupId;
+  const loadVersion=++messageLoadVersion;
+  const stillCurrent=()=>renderRoom===currentGroupId&&loadVersion===messageLoadVersion;
   const heightBefore=stream.scrollHeight;
   const oldest=older?currentMessages[0]?.id:null;
   try{
     const query=`select=*&group_id=eq.${encodeURIComponent(currentGroupId)}${oldest?`&id=lt.${encodeURIComponent(oldest)}`:''}&order=id.desc&limit=100`;
     const rows=await restGet('chat_messages',query);
-    if(renderRoom!==currentGroupId)return;
-    canLoadOlder=rows.length===100;
+    if(!stillCurrent())return;
     const ordered=[...rows].reverse();
-    currentMessages=older?[...ordered,...currentMessages]:ordered;
-    const ids=currentMessages.map(m=>m.id);
-    currentReactions=ids.length?await restGet('chat_message_reactions',`select=*&message_id=in.(${ids.join(',')})`):[];
+    const nextMessages=older?[...ordered,...currentMessages]:ordered;
+    const ids=nextMessages.map(m=>m.id);
+    const nextReactions=ids.length?await restGet('chat_message_reactions',`select=*&message_id=in.(${ids.join(',')})`):[];
+    if(!stillCurrent())return;
+    let nextPeerReadAt=null;
     if(currentGroup()?.kind==='direct'){
-      const rows=await restGet('chat_reads',`select=user_id,last_read_at&group_id=eq.${encodeURIComponent(currentGroupId)}`);
-      peerReadAt=rows.find(r=>r.user_id!==session.user.id)?.last_read_at||null;
-    }else peerReadAt=null;
-    if(renderRoom!==currentGroupId)return;
+      const rows=await restGet('chat_reads',`select=user_id,last_read_at&group_id=eq.${encodeURIComponent(renderRoom)}`);
+      nextPeerReadAt=rows.find(r=>r.user_id!==session.user.id)?.last_read_at||null;
+    }
+    if(!stillCurrent())return;
+    currentMessages=nextMessages;currentReactions=nextReactions;peerReadAt=nextPeerReadAt;
+    canLoadOlder=rows.length===100;
     if(older)stream.dataset.preserveScroll='1';
     renderMessages();
     if(older)requestAnimationFrame(()=>{stream.scrollTop=stream.scrollHeight-heightBefore;});
     if(!older&&document.visibilityState==='visible')await markCurrentRead().catch(()=>{});
-  }finally{loadingOlder=false;}
+  }finally{if(stillCurrent())loadingOlder=false;}
 }
 async function selectGroup(id,{closeDrawer=true}={}){
   const g=groups.find(group=>group.id===id);
   if(!g)return;
   rememberDraft({flush:true});
-  if(id!==currentGroupId){currentMessages=[];$('#composer-status').textContent='';}
+  const changedRoom=id!==currentGroupId;
+  if(changedRoom){currentMessages=[];currentReactions=[];canLoadOlder=false;$('#composer-status').textContent='';}
   currentGroupId=id;
   restoreDraft(id);
   const url=new URL(location.href);url.searchParams.set('group',id);history.replaceState(null,'',url);
@@ -251,6 +258,7 @@ async function selectGroup(id,{closeDrawer=true}={}){
   $('#message-type').hidden=direct;
   document.dispatchEvent(new CustomEvent('lms:room',{detail:{groupId:g.id,kind:g.kind,peerId:other}}));
   renderGroups();renderMembers();setComposerState();
+  if(changedRoom)$('#message-stream').innerHTML='<div class="empty-compact" role="status">Đang tải hội thoại…</div>';
   await loadCurrentMessages();
   if(currentGroupId===id){updateComposeBanner();if(closeDrawer)closeChatDrawer();}
 }
