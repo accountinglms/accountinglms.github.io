@@ -162,7 +162,9 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
 .aiWorkspace>*,.destinationFieldRow>*,.structureGrid>*,.field,.inline>*,.subject-cover-preview>div{min-width:0}
 .field input,.field select,.field textarea,.inline input{min-width:0;max-width:100%}
 .structureActions{display:flex;gap:8px;flex-wrap:wrap}
-body.page-admin button.deleteItem{color:var(--vg-danger,#db7d79)!important;border-color:var(--vg-danger,#a9514f)!important;min-height:44px}
+body.page-admin button.deleteItem{color:#923832!important;background:#fff1ee!important;border-color:#a9514f!important;min-height:44px;transition:transform .15s ease,box-shadow .15s ease!important}
+html[data-theme="dark"] body.page-admin button.deleteItem{color:#ffd0c8!important;background:#3d2026!important;border-color:#db7d79!important}
+body.page-admin button.deleteItem:disabled{opacity:1!important;color:var(--vg-muted)!important;background:var(--vg-paper)!important;border-color:var(--vg-line)!important}
 .trashList{display:grid;gap:10px;margin-top:14px}
 .trashItem{display:flex;gap:12px;align-items:center;justify-content:space-between;border:1px solid var(--vg-line,#294154);border-radius:10px;padding:12px}
 .trashItem div{min-width:0;overflow-wrap:anywhere;font-size:.85rem}

@@ -16,6 +16,7 @@ const aiResult={title:'Revenue practice',questions:[{question_type:'single',prom
   explanation_en:'(GBP 12,000 / 6 months) * 2 months = GBP 4,000.'}],lesson:null,warnings:[],model_name:'mock-free'};
 const drafts=new Map(),sources=new Map(),objects=new Map(),questions=[],lessons=[];
 let uploads=0,aiCalls=0,failReadyPatch=false,failNextAI=false,failUploadAt=0;
+let emptyNextAI=false;
 const routeInputs=[];
 
 const browser=await engine.launch({headless:true});
@@ -85,6 +86,10 @@ try{
         assert.equal(sources.get(saved.sourceId).storage_key,f.storagePath,'AI ran before all sources were saved');
       });
       if(aiCalls===1||failNextAI){failNextAI=false;return json(route,{error:'AI đang chạm hạn mức.',code:'AI_QUOTA_EXCEEDED',quota_scope:'minute',retry_after_seconds:2},429)}
+      if(emptyNextAI){
+        const mode=emptyNextAI;emptyNextAI=false;
+        return mode==='server'?json(route,{error:'AI chưa trích xuất được câu hỏi nào. Hãy kiểm tra ảnh rồi thử lại.',code:'AI_NO_QUESTIONS'},422):json(route,{...aiResult,questions:[]});
+      }
       const result=payload.files?{...aiResult,title:'Combined image questions',processed_files:files.map((_,i)=>i+1),questions:files.map((f,i)=>({...aiResult.questions[0],prompt:'Question from '+f.fileName,source_file:i+1,source_files:i===0&&files.length>1?[1,2]:[i+1]}))}:aiResult;
       return json(route,result);
     }
@@ -212,6 +217,28 @@ try{
   await page.setInputFiles('#import-file',Array.from({length:21},(_,i)=>image('too-many-'+i+'.png')));
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Tối đa 20 tệp'));
   assert.equal(uploads,8);assert.equal(aiCalls,6);
+  // A legacy/incorrect provider response with zero questions keeps its source and is retryable.
+  await page.setInputFiles('#import-file',{name:'empty-first.txt',mimeType:'text/plain',buffer:Buffer.from(sourceText)});
+  await confirm();emptyNextAI='client';await page.click('#ai-generate');
+  await page.waitForFunction(()=>document.querySelector('#import-recovery-text').textContent.includes('chưa trích xuất được câu hỏi'));
+  assert.equal(drafts.get('draft-6').payload.processing.state,'failed');
+  assert.equal(drafts.get('draft-6').payload.processing.error_code,'AI_NO_QUESTIONS');
+  assert.equal(await page.isVisible('#publish-imported'),false,'Empty extraction offered publication');
+  assert.equal(await page.isVisible('#continue-manual-import'),true);
+  assert.equal(uploads,9);assert.equal(aiCalls,7);
+  await page.click('#ai-generate');await page.waitForSelector('.importCard');
+  assert.equal(aiCalls,8);assert.equal(uploads,9,'Retry uploaded the saved source again');
+  assert.equal(await page.isVisible('#publish-imported'),true,'Valid retry did not offer publication');
+  // Old drafts already marked ready with no questions must be repairable after reload.
+  drafts.get('draft-6').payload.questions=[];
+  await open();await page.click('[data-resume-import="draft-6"]');
+  assert.match(await page.locator('#import-recovery-text').innerText(),/chưa trích xuất được câu hỏi/);
+  assert.equal(await page.isVisible('#publish-imported'),false);
+  emptyNextAI='server';await page.click('#ai-generate');
+  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('được giữ lại'));
+  assert.equal(aiCalls,9);assert.equal(drafts.get('draft-6').payload.processing.state,'failed');
+  await page.click('#ai-generate');await page.waitForSelector('.importCard');
+  assert.equal(aiCalls,10);assert.equal(uploads,9);
   await page.setViewportSize({width:390,height:844});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'Recovery UI overflowed a phone viewport');
   console.log(`PASS ${browserName}: draft before AI, quota recovery, reload/resume, source reuse, manual save, multi-image extraction/provenance, partial-upload resume, and failed-save retry.`);

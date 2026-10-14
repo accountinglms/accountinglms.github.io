@@ -79,6 +79,12 @@ assert.equal(data.questions[3].verification_status,'source_only');
 assert.match(data.questions[0].explanation_en,/2 months = GBP 4,000/);
 assert.ok(data.warnings.some(x=>x.includes('không tra cứu web')));
 
+const empty=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[]})}]);
+const emptyResponse=await empty.call(input),emptyData=await emptyResponse.json();
+assert.equal(emptyResponse.status,422);assert.equal(emptyData.code,'AI_NO_QUESTIONS');
+assert.match(emptyData.error,/chưa trích xuất được câu hỏi/);
+assert.equal(empty.requests.length,1,'Empty extraction must not silently consume quota again');
+
 const lesson=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[],lesson:{
   title:'Revenue',content_markdown:'Revenue = GBP 4,000.',verification_status:'verified'
 }})}]);

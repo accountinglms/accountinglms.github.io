@@ -5,6 +5,7 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -43,6 +44,8 @@ jobs:
           node --check assets/history.js
           node --check assets/home.js
           node --check assets/community.js
+          node --check assets/chat-drafts.js
+          node --check assets/import-result.js
           node --check assets/progress.js
 
       - uses: denoland/setup-deno@v2
@@ -70,6 +73,11 @@ jobs:
       - name: AI provider quota and free-tier regression tests
         run: node tests/ai-import-provider.test.mjs
 
+      - name: Chat draft isolation and empty AI result tests
+        run: |
+          node tests/chat-drafts.test.mjs
+          node tests/import-result.test.mjs
+
       - name: Edge Function typecheck
         run: |
           deno check supabase/functions/icaew-ai-import/index.ts
@@ -91,6 +99,9 @@ jobs:
           curl --fail --silent http://127.0.0.1:4173/admin.html >/dev/null
           curl --fail --silent http://127.0.0.1:4173/lessons.html >/dev/null
           curl --fail --silent http://127.0.0.1:4173/diagnostics.html >/dev/null
+
+      - name: Verify application-only Pages artifact
+        run: node scripts/build-pages.mjs
 
 
   browser-session:
@@ -176,6 +187,12 @@ jobs:
           TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/sticker-picker-browser.mjs
 
+      - name: Run conversation draft and late-send regressions
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/chat-drafts-browser.mjs
+
       - name: Audit accessibility and responsive page states
         if: ${{ !cancelled() }}
         env:
@@ -218,4 +235,55 @@ jobs:
         if: always()
         run: |
           if [ -f /tmp/icaew-browser-http.pid ]; then kill $(cat /tmp/icaew-browser-http.pid) || true; fi
+
+  publish-pages:
+    name: Publish tested Pages
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [validate, browser-session]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Pages publishing mode and current revision
+        id: mode
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BUILD_TYPE=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq .build_type)
+          CURRENT_SHA=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          if [ "$BUILD_TYPE" = workflow ] && [ "$CURRENT_SHA" = "$GITHUB_SHA" ]; then
+            echo 'enabled=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'enabled=false' >> "$GITHUB_OUTPUT"
+            if [ "$BUILD_TYPE" != workflow ]; then
+              echo '::warning::Pages still publishes directly from a branch. Set Settings > Pages > Source to GitHub Actions to enforce this test gate.'
+            else
+              echo 'Skipping an older revision: main has already changed.'
+            fi
+          fi
+      - uses: actions/configure-pages@v5
+        if: steps.mode.outputs.enabled == 'true'
+      - name: Build application artifact
+        if: steps.mode.outputs.enabled == 'true'
+        run: node scripts/build-pages.mjs
+      - uses: actions/upload-pages-artifact@v4
+        if: steps.mode.outputs.enabled == 'true'
+        with:
+          path: dist
+      - uses: actions/deploy-pages@v4
+        if: steps.mode.outputs.enabled == 'true'
+        id: deployment
 

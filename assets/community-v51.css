@@ -321,3 +321,20 @@ body.page-community .portal-mobile-nav a{
   user-select:none;
 }
 body.page-community .portal-brand img{pointer-events:none;}
+
+/* Keep action glyphs legible on both Van Gogh surfaces, including hover. */
+body.page-community .chat-room-actions .icon-button,
+body.page-community .chat-room-head .mobile-chat-menu,
+body.page-community .chat-room-actions .chat-call-btn{
+  color:var(--portal-ink)!important;
+  background:var(--portal-surface)!important;
+  border-color:var(--portal-line)!important;
+}
+body.page-community .chat-room-actions .icon-button:hover,
+body.page-community .chat-room-head .mobile-chat-menu:hover,
+body.page-community .chat-room-actions .chat-call-btn:hover{
+  background:var(--portal-surface-2)!important;
+}
+body.page-community #remove-pending-file{
+  min-width:44px;min-height:44px;flex-shrink:0;
+}
