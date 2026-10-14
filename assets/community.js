@@ -1,4 +1,5 @@
 import {activateFocusScope} from './focus-scope.js';
+import {createChatDrafts} from './chat-drafts.js';
 import {paintAvatar,hydrateAvatars,avatarMark} from './avatar.js';
 import {
   ensureSession,getMyAccess,restGet,restInsert,restDelete,restUpsert,restRpc,restPatch,
@@ -16,6 +17,7 @@ let groups=[],memberships=[],reads=[],profiles=[],recentMessages=[],announcement
 let currentGroupId=null,currentMessages=[],currentReactions=[];
 let canLoadOlder=false,loadingOlder=false;
 let pendingFile=null;
+let pendingAttachment=null,chatDrafts=null,draftTimer=null;
 let sendingMessage=false;
 let realtime=null;
 let reloadTimer=null;
@@ -23,6 +25,29 @@ let replyTo=null,editingId=null,lastTypingSent=0,peerReadAt=null;
 const normalizeText=value=>String(value||'').normalize('NFC');
 const imageCache=new Map();
 const safeImageMime=/^image\/(png|jpeg|webp|gif)$/i;
+
+function composerDraft(){
+  return {text:$('#message-input').value,type:$('#message-type').value,replyTo,editingId,file:pendingFile,attachment:pendingAttachment};
+}
+function rememberDraft({flush=false}={}){
+  if(!chatDrafts||!currentGroupId)return;
+  chatDrafts.put(currentGroupId,composerDraft());
+  clearTimeout(draftTimer);
+  if(flush)chatDrafts.flush();else draftTimer=setTimeout(()=>chatDrafts.flush(),300);
+}
+function renderPendingAttachment(){
+  const attachment=pendingFile||pendingAttachment;
+  $('#pending-file').hidden=!attachment;
+  $('#pending-file-name').textContent=attachment?`${attachment.name} · ${fmtSize(attachment.size)}${pendingFile?'':' · Chọn lại tệp để gửi'}`:'';
+  document.dispatchEvent(new CustomEvent('lms:composer-draft',{detail:{file:pendingFile}}));
+}
+function restoreDraft(room){
+  const draft=chatDrafts?.get(room)||{text:'',type:'text'};
+  $('#message-input').value=draft.text;$('#message-type').value=draft.type;
+  pendingFile=draft.file||null;pendingAttachment=draft.attachment||null;
+  replyTo=draft.replyTo||null;editingId=draft.editingId||null;
+  $('#file-input').value='';renderPendingAttachment();updateComposeBanner();
+}
 
 function profileMap(){return new Map(profiles.map(p=>[p.id,p]));}
 function myMembership(groupId){return memberships.find(m=>m.group_id===groupId&&m.user_id===session.user.id)||null;}
@@ -202,10 +227,12 @@ async function loadCurrentMessages({older=false}={}){
   }finally{loadingOlder=false;}
 }
 async function selectGroup(id,{closeDrawer=true}={}){
-  currentGroupId=id;
-  replyTo=null;editingId=null;updateComposeBanner();
-  const g=currentGroup();
+  const g=groups.find(group=>group.id===id);
   if(!g)return;
+  rememberDraft({flush:true});
+  if(id!==currentGroupId){currentMessages=[];$('#composer-status').textContent='';}
+  currentGroupId=id;
+  restoreDraft(id);
   const url=new URL(location.href);url.searchParams.set('group',id);history.replaceState(null,'',url);
   const direct=g.kind==='direct';
   const other=direct?(g.direct_low===session.user.id?g.direct_high:g.direct_low):null;
@@ -225,7 +252,7 @@ async function selectGroup(id,{closeDrawer=true}={}){
   document.dispatchEvent(new CustomEvent('lms:room',{detail:{groupId:g.id,kind:g.kind,peerId:other}}));
   renderGroups();renderMembers();setComposerState();
   await loadCurrentMessages();
-  if(closeDrawer)closeChatDrawer();
+  if(currentGroupId===id){updateComposeBanner();if(closeDrawer)closeChatDrawer();}
 }
 async function refreshCore({keepCurrent=true}={}){
   const [
@@ -273,11 +300,13 @@ function updateComposeBanner(){
 async function sendMessage({sticker=null}={}){
   if(sendingMessage||!currentGroupId||!myMembership(currentGroupId))return;
   const input=$('#message-input'),body=normalizeText(sticker||input.value.trim());
+  if(!sticker&&pendingAttachment&&!pendingFile){$('#composer-status').textContent='Chọn lại tệp đính kèm hoặc bỏ tệp trước khi gửi.';return;}
   if(!body&&!pendingFile)return;
+  rememberDraft({flush:true});
   sendingMessage=true;
   const btn=$('#send-btn'),emojiButton=$('#emoji-btn');btn.disabled=true;emojiButton.disabled=true;
-  const composingRoom=currentGroupId,composingDraft=input.value;
-  const composingEdit=sticker?null:editingId,composingReply=editingId?null:replyTo,composingFile=sticker?null:pendingFile;
+  const composingRoom=currentGroupId,composingDraft=composerDraft(),composingType=$('#message-type').value;
+  const composingEdit=sticker?null:editingId,composingReply=editingId?null:replyTo,composingFile=sticker||editingId?null:pendingFile;
   $('#composer-status').textContent='Đang gửi…';
   try{
     if(composingEdit){
@@ -289,7 +318,7 @@ async function sendMessage({sticker=null}={}){
       const nonce=crypto.randomUUID();
       await restInsert('chat_messages',{
         group_id:composingRoom,sender_id:session.user.id,body,
-        message_type:sticker?'sticker':$('#message-type').value,
+        message_type:sticker?'sticker':composingType,
         reply_to:composingReply,client_nonce:nonce,
         attachment_path:uploaded?.storagePath||null,
         attachment_name:uploaded?.name||null,
@@ -297,20 +326,15 @@ async function sendMessage({sticker=null}={}){
         attachment_size:uploaded?.size||null
       });
     }
+    if(composingRoom===currentGroupId)rememberDraft();
+    chatDrafts?.consume(composingRoom,{...composingDraft,file:composingFile,replyTo:composingReply,editingId:composingEdit},{sticker:Boolean(sticker)});
     if(composingRoom===currentGroupId){
-      // Sending a sticker must preserve text/attachments being drafted or edited.
-      if(!sticker){
-        if(input.value===composingDraft)input.value='';
-        if(pendingFile===composingFile){pendingFile=null;$('#pending-file').hidden=true;$('#file-input').value='';}
-        if(editingId===composingEdit)editingId=null;
-      }
-      if(replyTo===composingReply)replyTo=null;
-      updateComposeBanner();
+      restoreDraft(composingRoom);
       // A refresh failure after persistence must not invite the user to send a duplicate.
       await loadCurrentMessages().catch(console.warn);await refreshCore().catch(console.warn);
     }
-    $('#composer-status').textContent='';
-  }catch(error){$('#composer-status').textContent='Chưa gửi được. '+(error.message||'Vui lòng thử lại.');}
+    if(composingRoom===currentGroupId)$('#composer-status').textContent='';
+  }catch(error){$('#composer-status').textContent='Chưa gửi được'+(composingRoom===currentGroupId?'':` trong ${groups.find(g=>g.id===composingRoom)?.name||'hội thoại trước'}`)+'. '+(error.message||'Vui lòng thử lại.');}
   finally{sendingMessage=false;btn.disabled=false;emojiButton.disabled=false;}
 }
 async function toggleReaction(messageId,emoji){
@@ -337,6 +361,8 @@ function renderInviteList(){
 async function bootstrap(){
   try{session=await ensureSession();access=await getMyAccess(session);}
   catch{location.replace('index.html?returnTo='+encodeURIComponent(location.pathname.split('/').pop()+location.search));return;}
+  let draftStorage;try{draftStorage=localStorage;}catch{}
+  chatDrafts=createChatDrafts(session.user.id,draftStorage);
   await refreshCore({keepCurrent:false});
   const requested=new URLSearchParams(location.search).get('group');
   const myGroups=groups.filter(g=>myMembership(g.id));
@@ -358,12 +384,14 @@ async function bootstrap(){
 $('#chat-groups').addEventListener('click',e=>{const b=e.target.closest('[data-group]');if(b)selectGroup(b.dataset.group).catch(console.error);});
 $('#send-btn').addEventListener('click',()=>sendMessage());
 $('#message-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendMessage();}});
+$('#message-input').addEventListener('input',()=>rememberDraft());
+$('#message-type').addEventListener('change',()=>rememberDraft());
 $('#file-input').addEventListener('change',e=>{
   pendingFile=e.target.files?.[0]||null;
   if(pendingFile&&pendingFile.size>20*1024*1024){alert('File tối đa 20 MB.');pendingFile=null;e.target.value='';}
-  $('#pending-file').hidden=!pendingFile;$('#pending-file-name').textContent=pendingFile?`${pendingFile.name} · ${fmtSize(pendingFile.size)}`:'';
+  pendingAttachment=null;renderPendingAttachment();rememberDraft();
 });
-$('#remove-pending-file').addEventListener('click',()=>{pendingFile=null;$('#file-input').value='';$('#pending-file').hidden=true;});
+$('#remove-pending-file').addEventListener('click',()=>{pendingFile=null;pendingAttachment=null;$('#file-input').value='';renderPendingAttachment();rememberDraft();});
 // Rich emoji and sticker picker is provided by community-experience.js.
 $('#message-stream').addEventListener('click',async e=>{
   const preview=e.target.closest('.chat-image-preview');
@@ -378,11 +406,11 @@ $('#message-stream').addEventListener('click',async e=>{
   const row=e.target.closest('[data-message-id]');if(!row)return;
   const msg=currentMessages.find(m=>String(m.id)===row.dataset.messageId);
   if(msg&&e.target.closest('[data-reply-message]')){
-    replyTo=msg.id;editingId=null;updateComposeBanner();$('#message-input').focus();return;
+    replyTo=msg.id;editingId=null;updateComposeBanner();rememberDraft();$('#message-input').focus();return;
   }
   if(msg&&msg.sender_id===session.user.id&&e.target.closest('[data-edit-message]')){
     editingId=msg.id;replyTo=null;$('#message-input').value=msg.body||'';
-    updateComposeBanner();$('#message-input').focus();return;
+    updateComposeBanner();rememberDraft();$('#message-input').focus();return;
   }
   const reaction=e.target.closest('[data-react],[data-add-reaction]');
   if(reaction){await toggleReaction(row.dataset.messageId,reaction.dataset.react||reaction.dataset.addReaction).catch(err=>alert(err.message));return;}
@@ -442,9 +470,9 @@ document.addEventListener('lms:attach-file',e=>{
   const file=e.detail?.file;if(!file)return;
   if(file.size>20*1024*1024){alert('Tệp tối đa 20 MB.');return;}
   pendingFile=file;
-  $('#pending-file').hidden=false;$('#pending-file-name').textContent=file.name+' · '+fmtSize(file.size);
+  pendingAttachment=null;renderPendingAttachment();rememberDraft();
 });
-$('#compose-context-close')?.addEventListener('click',()=>{editingId=null;replyTo=null;updateComposeBanner();});
+$('#compose-context-close')?.addEventListener('click',()=>{editingId=null;replyTo=null;updateComposeBanner();rememberDraft();});
 const chatMobile=window.matchMedia('(max-width:700px)');
 let chatDrawerScope=null;
 function closeChatDrawer(){
@@ -467,6 +495,8 @@ chatMobile.addEventListener('change',closeChatDrawer);
 $('#chat-sidebar').inert=chatMobile.matches;
 // Notification tray handled by community-experience.js.
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentGroupId)markCurrentRead().catch(()=>{});});
+window.addEventListener('pagehide',()=>rememberDraft({flush:true}));
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')rememberDraft({flush:true});});
 window.addEventListener('beforeunload',()=>{realtime?.stop();for(const url of imageCache.values())URL.revokeObjectURL(url);imageCache.clear();});
 bootstrap().catch(error=>{console.error(error);$('#message-stream').innerHTML='<div class="empty-compact">Không tải được Community.</div>';});
 

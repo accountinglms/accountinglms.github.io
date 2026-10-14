@@ -45,6 +45,7 @@ function preview(file){
 }
 $('#file-input')?.addEventListener('change',e=>preview(e.target.files?.[0]));
 document.addEventListener('lms:attach-file',e=>preview(e.detail?.file));
+document.addEventListener('lms:composer-draft',e=>preview(e.detail?.file));
 $('#remove-pending-file')?.addEventListener('click',clearPreview);
 $('#send-btn')?.addEventListener('click',()=>{
  // Other handler owns upload. Watch for completion before releasing preview.

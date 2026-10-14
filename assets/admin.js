@@ -1,5 +1,6 @@
 import { ensureSession, ensureEditorSession, restGet, restInsert, restPatch, restRpc, uploadImportFile, downloadImportFile, callAiImport, callAiRoute } from './common.js';
 import {subjectCoverDataURL,subjectCoverLabel} from './subject-cover.js';
+import {isReadyImport,requireImportContent,EMPTY_QUESTIONS_MESSAGE} from './import-result.js';
 import {COURSE_KINDS,findCourseItem,courseItemPath,courseItemCounts,courseParentDeleted} from './content-management.js';
 
 const $ = s => document.querySelector(s);
@@ -50,7 +51,7 @@ function renderImportFiles(){
     const entry=entries.find(f=>f.key===importFileKey(file));
     const saved=Boolean(entry?.storagePath&&entry?.sourceId);
     const state=saved?'Đã lưu nguồn':entry?.storagePath?'Đã tải lên':typeof file.arrayBuffer==='function'?'Chờ lưu':'Cần chọn lại tệp này';
-    const ready=saved&&activeDraft?.payload?.processing?.state==='ready';
+    const ready=saved&&isReadyImport(activeDraft);
     return `<div class="importFile"><div class="importFileName">${i+1}. ${esc(file.name)}<small>${ready?'Đã tạo bản nháp':state}</small></div>${saved?`<button type="button" class="ghost" data-download-source="${i}" aria-label="Tải ${esc(file.name)}">Tải</button>`:''}${!activeDraft?`<button type="button" class="ghost" data-move-source="${i}" data-direction="-1" aria-label="Đưa ${esc(file.name)} lên" ${importBusy||i===0?'disabled':''}>↑</button><button type="button" class="ghost" data-move-source="${i}" data-direction="1" aria-label="Đưa ${esc(file.name)} xuống" ${importBusy||i===files.length-1?'disabled':''}>↓</button>`:''}</div>`;
   }).join('');
 }
@@ -147,7 +148,7 @@ function rememberImport(draft){
 function renderSavedImports(){
   const list=$('#saved-import-list');
   $('#saved-imports').classList.toggle('hidden',!savedImports.length);
-  list.innerHTML=savedImports.map(d=>`<div class="savedImport"><div><strong>${esc(d.title)}</strong><small>${esc(d.payload?.destination?.subject_title||'')} · ${d.payload?.files?.length||1} tệp · ${d.payload?.processing?.state==='ready'?'Sẵn sàng kiểm tra':'Đã lưu nguồn · chưa xử lý xong'}</small></div><button type="button" class="ghost" data-resume-import="${esc(d.id)}">Tiếp tục</button></div>`).join('');
+  list.innerHTML=savedImports.map(d=>`<div class="savedImport"><div><strong>${esc(d.title)}</strong><small>${esc(d.payload?.destination?.subject_title||'')} · ${d.payload?.files?.length||1} tệp · ${isReadyImport(d)?'Sẵn sàng kiểm tra':'Đã lưu nguồn · chưa xử lý xong'}</small></div><button type="button" class="ghost" data-resume-import="${esc(d.id)}">Tiếp tục</button></div>`).join('');
   updateGenerateState();
 }
 function renderImportRecovery(){
@@ -155,10 +156,11 @@ function renderImportRecovery(){
   box.classList.toggle('hidden',!activeDraft);
   renderImportFiles();
   if(!activeDraft)return;
-  const pending=activeDraft.payload?.processing?.state!=='ready';
+  const pending=!isReadyImport(activeDraft);
   const count=preparedImport?.files?.filter(f=>f.sourceId).length||0;
   const total=currentImportFiles().length;
-  $('#import-recovery-text').textContent=pending?`Đã lưu bản nháp và ${count}/${total} tệp nguồn. ${count<total?'Chọn lại các tệp còn thiếu để tiếp tục.':'Bạn có thể thử AI lại hoặc nhập nội dung thủ công.'}`:'Bản nháp đã được lưu. Hãy kiểm tra nội dung trước khi xuất bản.';
+  const failure=activeDraft.payload?.processing?.state==='ready'&&pending?EMPTY_QUESTIONS_MESSAGE:activeDraft.payload?.processing?.message||'';
+  $('#import-recovery-text').textContent=pending?`${failure?failure+' ':''}Đã lưu bản nháp và ${count}/${total} tệp nguồn. ${count<total?'Chọn lại các tệp còn thiếu để tiếp tục.':'Bạn có thể thử AI lại hoặc nhập nội dung thủ công.'}`:'Bản nháp đã được lưu. Hãy kiểm tra nội dung trước khi xuất bản.';
   $('#continue-manual-import').classList.toggle('hidden',!pending);
   $('#download-import-source').classList.toggle('hidden',total!==1);
   $('#manual-source-row').classList.toggle('hidden',!pending||total<2);
@@ -630,7 +632,7 @@ async function runImport(useAI){
       notice('Đã lưu bản nháp và tệp nguồn. Bấm “Nhập thủ công” để tiếp tục mà không cần AI.','ok');
       return;
     }
-    if(activeDraft.payload?.processing?.state==='ready'){
+    if(isReadyImport(activeDraft)){
       importedQuestions=activeDraft.payload.questions||[];importedLesson=activeDraft.payload.lesson||null;
       renderReview(activeDraft.payload.warnings||[]);
       notice('Đã mở bản nháp AI đã lưu. Hãy kiểm tra trước khi xuất bản.','ok');
@@ -644,6 +646,7 @@ async function runImport(useAI){
       ...aiSourceInput(),targetType:currentTargetType(),
       subjectTitle:subject.title,chapterTitle:chapter.title,exerciseTitle:exercise?.title||''
     });
+    requireImportContent(ai,currentTargetType());
     // Keep a successful response if saving it fails, so retrying does not use AI quota again.
     prepared.result=ai;prepared.resultKey=resultKey;
     await patchActiveImport({title:ai.title||f.name,model_name:ai.model_name||'configured-provider',payload:{
@@ -655,6 +658,7 @@ async function runImport(useAI){
     notice('AI đã tạo và lưu bản nháp. Hãy kiểm tra trước khi xuất bản.','ok');
   }catch(err){
     if(err.retryAfterSeconds)aiRetryAt=Date.now()+err.retryAfterSeconds*1000;
+    $('#review-area').classList.add('hidden');
     if(activeDraft&&preparedImport?.draftSignature===currentDestinationSignature()&&(!workingDraft||activeDraft.id===workingDraft)){
       setImportProgress('Xử lý chưa hoàn tất. Các tệp đã lưu được giữ trong bản nháp.');
       try{

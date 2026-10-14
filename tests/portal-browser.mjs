@@ -28,6 +28,15 @@ async function testHome(browser){
   assert((await page.locator('#subject-catalog .chapter-row').count())===2,'Home chapter TOC did not render');
   assert((await page.locator('.subject-cover-art.has-generated-cover img').count())===1,'Automatic accounting cover did not render');
   assert((await page.locator('#home-mini-trend svg').count())===1,'Home score sparkline did not render');
+  await page.click('#subject-catalog .subject-row summary');
+  for(const width of [320,1280]){
+    await page.setViewportSize({width,height:850});
+    const targets=await page.locator('.chapter-links a.mini-link').evaluateAll(links=>links.map(link=>{
+      const r=link.getBoundingClientRect();return {width:r.width,height:r.height};
+    }));
+    assert(targets.length>0&&targets.every(r=>r.width>=44&&r.height>=44),'Home chapter links need 44px touch targets');
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Chapter touch targets overflow the viewport');
+  }
   const heroArt=await page.evaluate(()=>getComputedStyle(document.body,'::before').backgroundImage);
   assert(heroArt.includes('Starry_Night.webp'),'Home is missing the Van Gogh artwork background');
   const continueHref=await page.locator('[data-continue-exercise]').getAttribute('href');

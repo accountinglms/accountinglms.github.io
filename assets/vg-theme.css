@@ -1917,3 +1917,8 @@ body.page-learner:has(#auth-gate:not(.hidden)) [data-auth-content]{visibility:hi
 
 body.page-admin .structure-note{color:var(--vg-muted)!important;border-color:var(--vg-line-strong)!important}
 body.page-admin .structure-note strong{color:var(--vg-ink)!important}
+
+body.page-home .chapter-links .mini-link{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:44px;min-width:44px;padding:8px 12px;box-sizing:border-box;
+}

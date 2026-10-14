@@ -168,6 +168,9 @@ function validateOutput(raw: any, targetType: string, fileCount = 1) {
     throw new Error("questions must be an array with at most 150 items");
   }
   const questions = raw.questions.map((q: any, i: number) => validateQuestion(q, i, fileCount));
+  if (targetType === "questions" && questions.length === 0) {
+    throw new Error("AI_NO_QUESTIONS");
+  }
   const processedFiles: number[] = raw.processed_files == null && fileCount === 1 ? [1] : raw.processed_files;
   if (!Array.isArray(processedFiles) || processedFiles.length !== fileCount || new Set(processedFiles).size !== fileCount || processedFiles.some(v => !Number.isInteger(v) || v < 1 || v > fileCount)) throw new Error("processed_files must account for every uploaded file");
 
@@ -336,6 +339,12 @@ Deno.serve(async (req: Request) => {
       });
     } catch (error) {
       console.error("Invalid Gemini output", error);
+      if (error instanceof Error && error.message === "AI_NO_QUESTIONS") {
+        return json(req, {
+          error: "AI chưa trích xuất được câu hỏi nào. Hãy kiểm tra độ rõ của ảnh hoặc chọn đúng nguồn, rồi thử lại hoặc nhập thủ công.",
+          code: "AI_NO_QUESTIONS", provider: "gemini"
+        }, 422);
+      }
       return json(req, {
         error: "AI_OUTPUT_VALIDATION_FAILED",
         detail: error instanceof Error ? error.message : "Invalid AI output",
