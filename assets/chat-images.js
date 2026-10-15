@@ -49,10 +49,21 @@ export function createChatImagePreviews(root,fetchBlob){
     }else{cache.delete(path);cache.set(path,item);}
     const url=await item.promise;
     if(url&&version===epoch&&image.isConnected&&image.dataset.previewPath===path){
+      // Decode while hidden so network/decode timing cannot resize the stream.
+      image.src=url;
+      try{
+        if(image.decode)await image.decode();
+        else if(!image.complete)await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;});
+      }catch{return;}
+      if(version!==epoch||!image.isConnected)return;
       const bottom=root.scrollHeight-root.scrollTop-root.clientHeight<160;
-      const top=root.scrollTop;
-      image.onload=()=>{if(bottom&&version===epoch&&Math.abs(root.scrollTop-top)<2)root.scrollTop=root.scrollHeight;};
-      image.src=url;image.hidden=false;
+      const bounds=root.getBoundingClientRect();
+      const anchor=[...root.querySelectorAll('[data-message-id]')].find(row=>row.getBoundingClientRect().bottom>bounds.top);
+      const top=anchor?.getBoundingClientRect().top;
+      image.hidden=false;
+      // Safari does not provide the same native scroll anchoring as Chromium.
+      if(bottom)root.scrollTop=root.scrollHeight;
+      else if(anchor?.isConnected)root.scrollTop+=anchor.getBoundingClientRect().top-top;
     }
   }
   return {

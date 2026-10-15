@@ -96,7 +96,8 @@ try{
     await page.evaluate(()=>window.anchorTop=anchor.getBoundingClientRect().top);
     await append(132);await page.waitForTimeout(300);
     assert.equal(await page.locator('[data-message-id="1"]').count(),1,'Realtime discarded loaded older history');
-    assert.ok(await page.evaluate(()=>Math.abs(anchor.getBoundingClientRect().top-anchorTop)<3),'A new message moved the older message being read');
+    const drift=await page.evaluate(()=>anchor.getBoundingClientRect().top-anchorTop);
+    assert.ok(Math.abs(drift)<3,`${mobile?'Mobile':'Desktop'}: a new message/image moved the reading position by ${drift}px`);
     state.messages[0].body='Edited old message';
     await page.evaluate(row=>emitChatChange('chat_messages',row),state.messages[0]);
     await page.waitForFunction(()=>document.querySelector('[data-message-id="1"] .message-body')?.textContent==='Edited old message');
