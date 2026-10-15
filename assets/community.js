@@ -311,11 +311,16 @@ async function refreshCurrentChanges({messageIds=[],reactionIds=[],reactions=fal
   if(!currentGroupId)return;
   if(loadingOlder){chatUpdates.push({messageIds,reactionIds,reactions});return;}
   const room=currentGroupId,version=++messageLoadVersion;
+  const stillCurrent=()=>{
+    if(room!==currentGroupId)return false;
+    if(version===messageLoadVersion)return true;
+    chatUpdates.push({messageIds,reactionIds,reactions});return false;
+  };
   let changed=[];
   // Bound URL size during a busy burst; each query still goes through RLS.
   for(let i=0;i<messageIds.length;i+=100)
     changed.push(...await restGet('chat_messages',`select=*&group_id=eq.${encodeURIComponent(room)}&id=in.(${messageIds.slice(i,i+100).join(',')})`));
-  if(room!==currentGroupId||version!==messageLoadVersion)return;
+  if(!stillCurrent())return;
   const touched=new Set(messageIds.map(String));
   const nextMessages=[...currentMessages.filter(msg=>!touched.has(String(msg.id))),...changed].sort((a,b)=>Number(a.id)-Number(b.id));
   const loadedIds=new Set(nextMessages.map(msg=>String(msg.id)));
@@ -323,7 +328,7 @@ async function refreshCurrentChanges({messageIds=[],reactionIds=[],reactions=fal
   const nextReactions=[];
   for(let i=0;i<ids.length;i+=100)
     nextReactions.push(...await restGet('chat_message_reactions',`select=*&message_id=in.(${ids.slice(i,i+100).join(',')})`));
-  if(room!==currentGroupId||version!==messageLoadVersion)return;
+  if(!stillCurrent())return;
   currentMessages=nextMessages;
   const reactionTouched=new Set([...ids.map(String),...touched]);
   currentReactions=reactions?nextReactions:[...currentReactions.filter(row=>!reactionTouched.has(String(row.message_id))),...nextReactions];
@@ -412,6 +417,9 @@ async function sendMessage({sticker=null}={}){
       restoreDraft(composingRoom);
       // Reuse the persisted representation; a later refresh failure must not invite a duplicate.
       if(persisted.length){
+        // A response started before this write must not erase the new representation.
+        messageLoadVersion++;
+        if(loadingOlder){loadingOlder=false;chatUpdates.push({messages:true});}
         const ids=new Set(persisted.map(msg=>String(msg.id)));
         currentMessages=[...currentMessages.filter(msg=>!ids.has(String(msg.id))),...persisted].sort((a,b)=>Number(a.id)-Number(b.id));
         renderMessages();await markCurrentRead().catch(console.warn);

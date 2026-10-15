@@ -20,6 +20,7 @@ export function createChatImagePreviews(root,fetchBlob){
     }
   }
   function pump(){
+    if(document.hidden)return;
     while(active<2&&waiting.length){
       const item=waiting.shift();
       if(item.epoch!==epoch){item.resolve(null);continue;}
@@ -56,6 +57,7 @@ export function createChatImagePreviews(root,fetchBlob){
   }
   return {
     attach(){
+      pump();
       for(const [row] of observed)if(!row.isConnected){observer?.unobserve(row);observed.delete(row);}
       for(const image of root.querySelectorAll('img[data-preview-path]')){
         if(image.src||Number(image.dataset.previewSize)>MAX_IMAGE)continue;
