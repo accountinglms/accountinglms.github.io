@@ -28,6 +28,8 @@ body.page-community .message-stream{
   max-width:100%;
   overflow-x:hidden;
   overflow-y:auto;
+  /* Background updates must not animate through the entire conversation. */
+  scroll-behavior:auto;
   overscroll-behavior-x:contain;
 }
 body.page-community .message-row{

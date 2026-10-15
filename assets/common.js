@@ -476,14 +476,14 @@ export async function uploadChatFile(groupId, file) {
   };
 }
 
-export async function getChatFileBlob(storagePath) {
+export async function getChatFileBlob(storagePath,{signal}={}) {
   const session=await ensureSession();
   const encoded=String(storagePath||'').split('/').map(encodeURIComponent).join('/');
   const res=await fetch(`${SUPABASE_URL}/storage/v1/object/authenticated/chat-files/${encoded}`,{
     headers:{
       apikey:SUPABASE_KEY,
       Authorization:`Bearer ${session.access_token}`
-    }
+    },signal
   });
   if(!res.ok) throw new Error(await res.text() || 'Không tải được file.');
   return res.blob();
