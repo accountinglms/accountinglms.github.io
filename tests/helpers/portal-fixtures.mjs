@@ -228,6 +228,8 @@ export async function installMock(context){
       }
       const group=url.searchParams.get('group_id')?.replace('eq.','');
       let data=group?state.messages.filter(m=>m.group_id===group):[...state.messages];
+      const included=url.searchParams.get('id')?.match(/^in\.\((\d+(?:,\d+)*)\)$/);
+      if(included){const ids=new Set(included[1].split(','));data=data.filter(m=>ids.has(String(m.id)));}
       const beforeId=Number(url.searchParams.get('id')?.replace('lt.',''));
       if(Number.isFinite(beforeId)&&beforeId>0)data=data.filter(m=>m.id<beforeId);
       if((url.searchParams.get('order')||'').includes('desc'))data.sort((a,b)=>Number(b.id)-Number(a.id));
@@ -242,7 +244,8 @@ export async function installMock(context){
         const mid=Number(url.searchParams.get('message_id')?.replace('eq.','')),emoji=(url.searchParams.get('emoji')||'').replace('eq.','');
         state.reactions=state.reactions.filter(r=>!(r.message_id===mid&&r.user_id===user.id&&r.emoji===emoji));return json(route,[]);
       }
-      return json(route,state.reactions);
+      const included=url.searchParams.get('message_id')?.match(/^in\.\((\d+(?:,\d+)*)\)$/);
+      return json(route,included?state.reactions.filter(row=>included[1].split(',').includes(String(row.message_id))):state.reactions);
     }
     if(path.startsWith('/rest/v1/')){
       if(method==='GET')return json(route,[]);

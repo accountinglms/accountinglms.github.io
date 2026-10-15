@@ -1,5 +1,7 @@
 import {activateFocusScope} from './focus-scope.js';
 import {createChatDrafts} from './chat-drafts.js';
+import {planChatUpdate,createChatUpdateQueue} from './chat-updates.js';
+import {createChatImagePreviews} from './chat-images.js';
 import {paintAvatar,hydrateAvatars,avatarMark} from './avatar.js';
 import {
   ensureSession,getMyAccess,restGet,restInsert,restDelete,restUpsert,restRpc,restPatch,
@@ -21,11 +23,15 @@ let pendingFile=null;
 let pendingAttachment=null,chatDrafts=null,draftTimer=null;
 let sendingMessage=false;
 let realtime=null;
-let reloadTimer=null;
 let replyTo=null,editingId=null,lastTypingSent=0,peerReadAt=null;
 const normalizeText=value=>String(value||'').normalize('NFC');
-const imageCache=new Map();
 const safeImageMime=/^image\/(png|jpeg|webp|gif)$/i;
+const readWrites=new Map(),messageMarkup=new WeakMap();
+const imagePreviews=createChatImagePreviews($('#message-stream'),getChatFileBlob);
+const chatUpdates=createChatUpdateQueue(refreshChatChanges,{
+  isPaused:()=>document.hidden||loadingOlder,
+  onError:error=>{console.error(error);$('#connection-state').textContent='Chưa đồng bộ · đang chờ kết nối';$('#connection-state').classList.remove('live');}
+});
 
 function composerDraft(){
   return {text:$('#message-input').value,type:$('#message-type').value,replyTo,editingId,file:pendingFile,attachment:pendingAttachment};
@@ -136,15 +142,15 @@ function renderMessages(){
   }
   const pmap=profileMap(),agg=aggregateReactions();
   const wasNearBottom=root.scrollHeight-root.scrollTop-root.clientHeight<160;
+  const anchor=[...root.querySelectorAll('[data-message-id]')].find(row=>row.getBoundingClientRect().bottom>root.getBoundingClientRect().top);
+  const anchorTop=anchor?.getBoundingClientRect().top;
   const direct=currentGroup()?.kind==='direct';
-  root.innerHTML=(canLoadOlder?'<div style="text-align:center;padding:8px"><button class="btn" id="load-older-messages" type="button">Tải tin nhắn cũ hơn</button></div>':'')+currentMessages.map(msg=>{
+  const rendered=currentMessages.map(msg=>{
     const p=pmap.get(msg.sender_id);const name=p?.display_name||(msg.sender_id===session.user.id?'Bạn':'Member');
     const reactions=[...agg.values()].filter(x=>x.message_id===msg.id);
     const deleted=Boolean(msg.deleted_at);
     const original=msg.reply_to?currentMessages.find(m=>m.id===msg.reply_to):null;
     const replied=msg.reply_to?'<div class="chat-replied">↪ '+esc(original?.body?.slice(0,135)||'Tin nhắn được trả lời')+'</div>':'';
-    const seen=direct&&msg.sender_id===session.user.id&&peerReadAt
-      &&new Date(msg.created_at)<=new Date(peerReadAt);
     return `<article class="message-row ${msg.sender_id===session.user.id?'own':''}" data-message-id="${msg.id}">
       ${avatarMark(p,{className:'message-avatar',name})}
       <div class="message-main">
@@ -152,38 +158,48 @@ function renderMessages(){
         ${replied}
         <div class="message-body ${msg.message_type==='sticker'?'is-sticker':''}">${deleted?'<em style="color:var(--portal-muted)">Tin nhắn đã xoá</em>':esc(normalizeText(msg.body))}</div>
         ${msg.edited_at?'<span class="chat-edited">Đã chỉnh sửa</span>':''}
-        ${direct&&msg.sender_id===session.user.id?'<span class="chat-delivery">'+(seen?'✓✓ Đã xem':'✓ Đã gửi')+'</span>':''}
+        ${direct&&msg.sender_id===session.user.id?'<span class="chat-delivery">✓ Đã gửi</span>':''}
         ${!deleted&&msg.attachment_path&&safeImageMime.test(msg.attachment_mime||'')?`<img class="chat-image-preview" data-preview-path="${esc(msg.attachment_path)}" data-preview-size="${Number(msg.attachment_size)||0}" alt="Ảnh từ ${esc(name)}" hidden>`:''}
          ${!deleted&&msg.attachment_path?`<button class="message-attachment" type="button" data-download="${esc(msg.attachment_path)}" data-name="${esc(msg.attachment_name||'file')}"><span>▣</span><span><strong>${esc(msg.attachment_name||'Tệp đính kèm')}</strong><br>${esc(fmtSize(msg.attachment_size))}</span></button>`:''}
         ${!deleted?`<div class="reaction-row">${reactions.map(r=>`<button class="reaction ${r.mine?'mine':''}" data-react="${esc(r.emoji)}" type="button">${esc(r.emoji)} ${r.count}</button>`).join('')}</div>
         <div class="message-actions"><button type="button" data-reply-message title="Trả lời">↪ Trả lời</button><button type="button" data-add-reaction="👍">👍</button><button type="button" data-add-reaction="❤️">❤️</button>${msg.sender_id===session.user.id?'<button type="button" data-edit-message>Sửa</button>':''}${msg.sender_id===session.user.id||canManage(currentGroupId)?'<button type="button" data-delete-message>Xoá</button>':''}</div>`:''}
       </div>
     </article>`;
-  }).join('');
-  hydrateAvatars(root,profiles);
-  enhanceImagePreviews(root).catch(console.warn);
-  requestAnimationFrame(()=>{if(root.dataset.preserveScroll==='1'){root.dataset.preserveScroll='';return;}if(wasNearBottom)root.scrollTop=root.scrollHeight;});
-}
-async function enhanceImagePreviews(root){
-  const items=[...root.querySelectorAll('img[data-preview-path]')];
-  await Promise.all(items.map(async image=>{
-    const path=image.dataset.previewPath;
-    if(Number(image.dataset.previewSize)>8*1024*1024)return;
-    let url=imageCache.get(path);
-    if(!url){
-      try{
-        const blob=await getChatFileBlob(path);
-        if(!safeImageMime.test(blob.type)||blob.size>8*1024*1024)return;
-        url=URL.createObjectURL(blob);
-        if(imageCache.size>45){
-          const [oldPath,oldUrl]=imageCache.entries().next().value;
-          imageCache.delete(oldPath);URL.revokeObjectURL(oldUrl);
-        }
-        imageCache.set(path,url);
-      }catch(error){console.warn('Không thể xem ảnh đính kèm',error);return;}
+  });
+  const existing=new Map([...root.querySelectorAll(':scope > [data-message-id]')].map(row=>[row.dataset.messageId,row]));
+  const retained=new Set(currentMessages.map(msg=>String(msg.id)));
+  for(const child of [...root.children])if(!retained.has(child.dataset.messageId)&&child.id!=='older-messages-control')child.remove();
+  let older=root.querySelector('#older-messages-control');
+  if(canLoadOlder&&!older){older=document.createElement('div');older.id='older-messages-control';older.style.cssText='text-align:center;padding:8px';older.innerHTML='<button class="btn" id="load-older-messages" type="button">Tải tin nhắn cũ hơn</button>';root.prepend(older);}
+  if(!canLoadOlder&&older){older.remove();older=null;}
+  let cursor=older?older.nextElementSibling:root.firstElementChild;
+  rendered.forEach((html,index)=>{
+    let node=existing.get(String(currentMessages[index].id));
+    if(!node||messageMarkup.get(node)!==html){
+      const template=document.createElement('template');template.innerHTML=html.trim();
+      const next=template.content.firstElementChild;messageMarkup.set(next,html);
+      if(node){if(cursor===node)cursor=next;node.replaceWith(next);}
+      node=next;hydrateAvatars(node,profiles);
     }
-    if(image.isConnected){image.src=url;image.hidden=false;}
-  }));
+    if(node!==cursor)root.insertBefore(node,cursor);
+    cursor=node.nextElementSibling;
+  });
+  renderReceipts();
+  const renderRoom=currentGroupId;
+  requestAnimationFrame(()=>{
+    if(renderRoom!==currentGroupId)return;
+    if(root.dataset.preserveScroll==='1')root.dataset.preserveScroll='';
+    else if(wasNearBottom)root.scrollTop=root.scrollHeight;
+    else if(anchor?.isConnected)root.scrollTop+=anchor.getBoundingClientRect().top-anchorTop;
+    imagePreviews.attach();
+  });
+}
+function renderReceipts(){
+  const times=new Map(currentMessages.map(msg=>[String(msg.id),Date.parse(msg.created_at)]));
+  for(const row of $('#message-stream').querySelectorAll('[data-message-id]')){
+    const label=row.querySelector('.chat-delivery');
+    if(label)label.textContent=peerReadAt&&times.get(row.dataset.messageId)<=Date.parse(peerReadAt)?'✓✓ Đã xem':'✓ Đã gửi';
+  }
 }
 
 function setComposerState(){
@@ -193,11 +209,18 @@ function setComposerState(){
 }
 async function markCurrentRead(){
   if(!currentGroupId||!myMembership(currentGroupId))return;
-  const now=new Date().toISOString();
-  await restUpsert('chat_reads',{group_id:currentGroupId,user_id:session.user.id,last_read_at:now,updated_at:now},'group_id,user_id');
-  const existing=reads.find(r=>r.group_id===currentGroupId);
-  if(existing)existing.last_read_at=now;else reads.push({group_id:currentGroupId,user_id:session.user.id,last_read_at:now});
-  await updateUnread().catch(console.error);
+  const room=currentGroupId,last=currentMessages.at(-1)?.created_at;
+  if(!last||Date.parse(reads.find(r=>r.group_id===room)?.last_read_at)>=Date.parse(last))return;
+  if(readWrites.has(room)){await readWrites.get(room);if(currentGroupId===room)return markCurrentRead();return;}
+  const task=(async()=>{
+    await restUpsert('chat_reads',{group_id:room,user_id:session.user.id,last_read_at:last,updated_at:new Date().toISOString()},'group_id,user_id');
+    const existing=reads.find(r=>r.group_id===room);
+    if(existing){if(!(Date.parse(existing.last_read_at)>=Date.parse(last)))existing.last_read_at=last;}
+    else reads.push({group_id:room,user_id:session.user.id,last_read_at:last});
+    await updateUnread().catch(console.error);
+  })();
+  readWrites.set(room,task);
+  try{await task;}finally{readWrites.delete(room);}
 }
 async function loadCurrentMessages({older=false}={}){
   if(!currentGroupId){currentMessages=[];currentReactions=[];renderMessages();return;}
@@ -208,15 +231,20 @@ async function loadCurrentMessages({older=false}={}){
   const loadVersion=++messageLoadVersion;
   const stillCurrent=()=>renderRoom===currentGroupId&&loadVersion===messageLoadVersion;
   const heightBefore=stream.scrollHeight;
+  const topBefore=stream.scrollTop;
   const oldest=older?currentMessages[0]?.id:null;
   try{
     const query=`select=*&group_id=eq.${encodeURIComponent(currentGroupId)}${oldest?`&id=lt.${encodeURIComponent(oldest)}`:''}&order=id.desc&limit=100`;
     const rows=await restGet('chat_messages',query);
     if(!stillCurrent())return;
     const ordered=[...rows].reverse();
-    const nextMessages=older?[...ordered,...currentMessages]:ordered;
-    const ids=nextMessages.map(m=>m.id);
-    const nextReactions=ids.length?await restGet('chat_message_reactions',`select=*&message_id=in.(${ids.join(',')})`):[];
+    // If more than a page arrived while away, show a continuous latest page.
+    const missedPage=!older&&rows.length===100&&currentMessages.length&&Number(ordered[0].id)>Number(currentMessages.at(-1).id);
+    const retained=older?currentMessages:missedPage?[]:currentMessages.filter(msg=>rows.length&&Number(msg.id)<Number(ordered[0].id));
+    const nextMessages=older?[...ordered,...retained]:[...retained,...ordered];
+    const ids=ordered.map(m=>m.id),retainedIds=new Set(retained.map(m=>String(m.id)));
+    const nextReactions=[...currentReactions.filter(row=>retainedIds.has(String(row.message_id))),
+      ...(ids.length?await restGet('chat_message_reactions',`select=*&message_id=in.(${ids.join(',')})`):[])];
     if(!stillCurrent())return;
     let nextPeerReadAt=null;
     if(currentGroup()?.kind==='direct'){
@@ -225,19 +253,19 @@ async function loadCurrentMessages({older=false}={}){
     }
     if(!stillCurrent())return;
     currentMessages=nextMessages;currentReactions=nextReactions;peerReadAt=nextPeerReadAt;
-    canLoadOlder=rows.length===100;
+    if(older||!retained.length)canLoadOlder=rows.length===100;
     if(older)stream.dataset.preserveScroll='1';
     renderMessages();
-    if(older)requestAnimationFrame(()=>{stream.scrollTop=stream.scrollHeight-heightBefore;});
+    if(older)requestAnimationFrame(()=>{if(stillCurrent())stream.scrollTop=topBefore+stream.scrollHeight-heightBefore;});
     if(!older&&document.visibilityState==='visible')await markCurrentRead().catch(()=>{});
-  }finally{if(stillCurrent())loadingOlder=false;}
+  }finally{if(stillCurrent())loadingOlder=false;chatUpdates.resume();}
 }
 async function selectGroup(id,{closeDrawer=true}={}){
   const g=groups.find(group=>group.id===id);
   if(!g)return;
   rememberDraft({flush:true});
   const changedRoom=id!==currentGroupId;
-  if(changedRoom){currentMessages=[];currentReactions=[];canLoadOlder=false;$('#composer-status').textContent='';}
+  if(changedRoom){imagePreviews.reset();currentMessages=[];currentReactions=[];peerReadAt=null;canLoadOlder=false;loadingOlder=false;$('#composer-status').textContent='';}
   currentGroupId=id;
   restoreDraft(id);
   const url=new URL(location.href);url.searchParams.set('group',id);history.replaceState(null,'',url);
@@ -279,20 +307,68 @@ async function refreshCore({keepCurrent=true}={}){
   renderHeader();renderGroups();
   if(keepCurrent&&currentGroupId&&groups.some(g=>g.id===currentGroupId)){renderMembers();setComposerState();}
 }
-function scheduleRefresh(){
-  clearTimeout(reloadTimer);
-  reloadTimer=setTimeout(async()=>{
-    try{
-      await refreshCore();
-      if(currentGroupId)await loadCurrentMessages();
-      $('#connection-state').textContent='Realtime · đã đồng bộ';
-      $('#connection-state').classList.add('live');
-    }catch(error){
-      console.error(error);
-      $('#connection-state').textContent='Đang thử kết nối lại…';
-      $('#connection-state').classList.remove('live');
+async function refreshCurrentChanges({messageIds=[],reactionIds=[],reactions=false}={}){
+  if(!currentGroupId)return;
+  if(loadingOlder){chatUpdates.push({messageIds,reactionIds,reactions});return;}
+  const room=currentGroupId,version=++messageLoadVersion;
+  const stillCurrent=()=>{
+    if(room!==currentGroupId)return false;
+    if(version===messageLoadVersion)return true;
+    chatUpdates.push({messageIds,reactionIds,reactions});return false;
+  };
+  let changed=[];
+  // Bound URL size during a busy burst; each query still goes through RLS.
+  for(let i=0;i<messageIds.length;i+=100)
+    changed.push(...await restGet('chat_messages',`select=*&group_id=eq.${encodeURIComponent(room)}&id=in.(${messageIds.slice(i,i+100).join(',')})`));
+  if(!stillCurrent())return;
+  const touched=new Set(messageIds.map(String));
+  const nextMessages=[...currentMessages.filter(msg=>!touched.has(String(msg.id))),...changed].sort((a,b)=>Number(a.id)-Number(b.id));
+  const loadedIds=new Set(nextMessages.map(msg=>String(msg.id)));
+  const ids=reactions?[...loadedIds]:[...new Set([...changed.map(msg=>String(msg.id)),...reactionIds.filter(id=>loadedIds.has(String(id)))])];
+  const nextReactions=[];
+  for(let i=0;i<ids.length;i+=100)
+    nextReactions.push(...await restGet('chat_message_reactions',`select=*&message_id=in.(${ids.slice(i,i+100).join(',')})`));
+  if(!stillCurrent())return;
+  currentMessages=nextMessages;
+  const reactionTouched=new Set([...ids.map(String),...touched]);
+  currentReactions=reactions?nextReactions:[...currentReactions.filter(row=>!reactionTouched.has(String(row.message_id))),...nextReactions];
+  renderMessages();updateComposeBanner();
+  if(messageIds.length&&!document.hidden)await markCurrentRead().catch(console.warn);
+}
+async function refreshChatChanges(batch){
+  if(batch.core)await refreshCore();
+  if(batch.messages){
+    await loadCurrentMessages();
+    if(batch.messageIds.length||batch.reactionIds.length||batch.reactions)await refreshCurrentChanges(batch);
+  }
+  else if(batch.messageIds.length||batch.reactionIds.length||batch.reactions)await refreshCurrentChanges(batch);
+  else if(batch.render)renderMessages();
+  if(batch.summaries&&!batch.core){
+    recentMessages=await restGet('chat_messages','select=id,group_id,sender_id,body,attachment_name,created_at&order=created_at.desc&limit=500');
+    renderGroups();
+  }
+  if((batch.summaries||batch.unread)&&!batch.core)await updateUnread();
+  $('#connection-state').textContent='Realtime · đã đồng bộ';
+  $('#connection-state').classList.add('live');
+}
+function scheduleRefresh(payload){
+  const plan=planChatUpdate(payload,{roomId:currentGroupId,messageIds:currentMessages.map(msg=>msg.id)});
+  if(plan.read){
+    const row=plan.read;
+    if(row.user_id===session.user.id&&row.group_id){
+      const existing=reads.find(read=>read.group_id===row.group_id);
+      if(row.last_read_at&&!(Date.parse(existing?.last_read_at)>=Date.parse(row.last_read_at))){
+        if(existing)existing.last_read_at=row.last_read_at;else reads.push(row);
+        chatUpdates.push({unread:true});
+      }
+    }else if(row.group_id===currentGroupId&&currentGroup()?.kind==='direct'){
+      if(plan.readDeleted)peerReadAt=null;
+      else if(row.last_read_at&&!(Date.parse(peerReadAt)>=Date.parse(row.last_read_at)))peerReadAt=row.last_read_at;
+      renderReceipts();
     }
-  },180);
+    return;
+  }
+  chatUpdates.push(plan);
 }
 function updateComposeBanner(){
   const panel=$('#compose-context');
@@ -317,14 +393,15 @@ async function sendMessage({sticker=null}={}){
   const composingEdit=sticker?null:editingId,composingReply=editingId?null:replyTo,composingFile=sticker||editingId?null:pendingFile;
   $('#composer-status').textContent='Đang gửi…';
   try{
+    let persisted=[];
     if(composingEdit){
       if(!body)throw new Error('Nội dung không được để trống.');
-      await restPatch('chat_messages','id=eq.'+composingEdit+'&sender_id=eq.'+encodeURIComponent(session.user.id),{body});
+      persisted=await restPatch('chat_messages','id=eq.'+composingEdit+'&sender_id=eq.'+encodeURIComponent(session.user.id),{body});
     }else{
       let uploaded=null;
       if(composingFile)uploaded=await uploadChatFile(composingRoom,composingFile);
       const nonce=crypto.randomUUID();
-      await restInsert('chat_messages',{
+      persisted=await restInsert('chat_messages',{
         group_id:composingRoom,sender_id:session.user.id,body,
         message_type:sticker?'sticker':composingType,
         reply_to:composingReply,client_nonce:nonce,
@@ -338,9 +415,17 @@ async function sendMessage({sticker=null}={}){
     chatDrafts?.consume(composingRoom,{...composingDraft,file:composingFile,replyTo:composingReply,editingId:composingEdit},{sticker:Boolean(sticker)});
     if(composingRoom===currentGroupId){
       restoreDraft(composingRoom);
-      // A refresh failure after persistence must not invite the user to send a duplicate.
-      await loadCurrentMessages().catch(console.warn);await refreshCore().catch(console.warn);
+      // Reuse the persisted representation; a later refresh failure must not invite a duplicate.
+      if(persisted.length){
+        // A response started before this write must not erase the new representation.
+        messageLoadVersion++;
+        if(loadingOlder){loadingOlder=false;chatUpdates.push({messages:true});}
+        const ids=new Set(persisted.map(msg=>String(msg.id)));
+        currentMessages=[...currentMessages.filter(msg=>!ids.has(String(msg.id))),...persisted].sort((a,b)=>Number(a.id)-Number(b.id));
+        renderMessages();await markCurrentRead().catch(console.warn);
+      }else await loadCurrentMessages().catch(console.warn);
     }
+    chatUpdates.push({summaries:true});
     if(composingRoom===currentGroupId)$('#composer-status').textContent='';
   }catch(error){$('#composer-status').textContent='Chưa gửi được'+(composingRoom===currentGroupId?'':` trong ${groups.find(g=>g.id===composingRoom)?.name||'hội thoại trước'}`)+'. '+(error.message||'Vui lòng thử lại.');}
   finally{sendingMessage=false;btn.disabled=false;emojiButton.disabled=false;}
@@ -349,7 +434,7 @@ async function toggleReaction(messageId,emoji){
   const mine=currentReactions.find(r=>String(r.message_id)===String(messageId)&&r.user_id===session.user.id&&r.emoji===emoji);
   if(mine)await restDelete('chat_message_reactions',`message_id=eq.${messageId}&user_id=eq.${encodeURIComponent(session.user.id)}&emoji=eq.${encodeURIComponent(emoji)}`);
   else await restInsert('chat_message_reactions',{message_id:Number(messageId),user_id:session.user.id,emoji});
-  await loadCurrentMessages();
+  await refreshCurrentChanges({reactionIds:[String(messageId)]});
 }
 const modalScopes=new Map();
 function openModal(id){
@@ -376,17 +461,20 @@ async function bootstrap(){
   const myGroups=groups.filter(g=>myMembership(g.id));
   const first=(requested&&groups.some(g=>g.id===requested)?requested:null)||myGroups[0]?.id||groups[0]?.id||null;
   if(first)await selectGroup(first,{closeDrawer:false});
+  let connectedOnce=false;
   realtime=createRealtimeClient(session,[
     {table:'chat_messages',event:'*'},
     {table:'chat_message_reactions',event:'*'},
     {table:'chat_reads',event:'*'},
     {table:'chat_groups',event:'*'},
+    {table:'chat_group_members',event:'*'},
     {table:'profiles',event:'UPDATE'},
     {table:'announcements',event:'*'}
   ],scheduleRefresh,status=>{
     const labels={connected:'Realtime · đã kết nối',connecting:'Đang kết nối…',disconnected:'Mất kết nối · đang thử lại','subscription-error':'Không thể đăng ký nhận tin','auth-error':'Phiên Realtime hết hạn'};
     $('#connection-state').textContent=labels[status]||'Đang kết nối…';
     $('#connection-state').classList.toggle('live',status==='connected');
+    if(status==='connected'){if(connectedOnce)chatUpdates.push({core:true,messages:true});connectedOnce=true;}
   });
 }
 $('#chat-groups').addEventListener('click',e=>{const b=e.target.closest('[data-group]');if(b)selectGroup(b.dataset.group).catch(console.error);});
@@ -425,7 +513,7 @@ $('#message-stream').addEventListener('click',async e=>{
   if(e.target.closest('[data-delete-message]')){
     if(!confirm('Xoá tin nhắn này?'))return;
     await restDelete('chat_messages',`id=eq.${row.dataset.messageId}`).catch(err=>alert(err.message));
-    await loadCurrentMessages();await refreshCore();return;
+    await refreshCurrentChanges({messageIds:[row.dataset.messageId]});chatUpdates.push({summaries:true});return;
   }
 });
 $('#join-group-btn').addEventListener('click',async()=>{
@@ -462,7 +550,7 @@ document.addEventListener('lms:open-room',async event=>{
   try{await refreshCore();await selectGroup(id);}catch(err){alert(err.message||'Không mở được cuộc trò chuyện.');}
 });
 document.addEventListener('lms:send-sticker',e=>{if(e.detail?.emoji)sendMessage({sticker:e.detail.emoji}).catch(console.warn);});
-document.addEventListener('lms:refresh-chat',()=>{loadCurrentMessages().catch(console.warn);refreshCore().catch(console.warn);});
+document.addEventListener('lms:refresh-chat',()=>chatUpdates.push({core:true,messages:true}));
 document.addEventListener('lms:load-older',()=>{if(canLoadOlder&&!loadingOlder)loadCurrentMessages({older:true}).catch(console.warn);});
 document.addEventListener('lms:jump-message',async e=>{
   const id=e.detail?.id;
@@ -502,10 +590,14 @@ $('#community-mobile-close').addEventListener('click',closeChatDrawer);
 chatMobile.addEventListener('change',closeChatDrawer);
 $('#chat-sidebar').inert=chatMobile.matches;
 // Notification tray handled by community-experience.js.
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&currentGroupId)markCurrentRead().catch(()=>{});});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&currentGroupId){
+    chatUpdates.push({messages:true,summaries:true});chatUpdates.resume();
+  }
+});
 window.addEventListener('pagehide',()=>rememberDraft({flush:true}));
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')rememberDraft({flush:true});});
-window.addEventListener('beforeunload',()=>{realtime?.stop();for(const url of imageCache.values())URL.revokeObjectURL(url);imageCache.clear();});
+window.addEventListener('beforeunload',()=>{chatUpdates.stop();realtime?.stop();imagePreviews.reset();});
 bootstrap().catch(error=>{console.error(error);$('#message-stream').innerHTML='<div class="empty-compact">Không tải được Community.</div>';});
 
 document.addEventListener('lms:profile-image',e=>{const p=e.detail?.profile;if(!p)return;profiles=profiles.map(x=>x.id===p.id?{...x,...p}:x);renderHeader();renderMembers();renderMessages();});

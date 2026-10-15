@@ -118,6 +118,24 @@ try{
     releaseRead();await finished;await page.waitForTimeout(100);
     assert.match(await page.locator('#message-stream').innerText(),/Bản cập nhật mới nhất/,'An old room response overwrote the current view');
     assert.equal(await page.inputValue('#message-input'),'');assert.deepEqual(errors,[]);
+    // A pre-send refresh snapshot cannot erase the newly persisted row.
+    let releaseSnapshot,snapshotStarted,snapshotDone,holdSnapshot=true;
+    const snapshotGate=new Promise(resolve=>releaseSnapshot=resolve),snapshotReading=new Promise(resolve=>snapshotStarted=resolve),snapshotFinished=new Promise(resolve=>snapshotDone=resolve);
+    await page.route('**/rest/v1/chat_messages*',async route=>{
+      const request=route.request(),url=new URL(request.url());
+      if(!holdSnapshot||request.method()!=='GET'||url.searchParams.get('group_id')!=='eq.'+roomA)return route.fallback();
+      holdSnapshot=false;
+      const snapshot=state.messages.filter(m=>m.group_id===roomA).map(m=>({...m})).reverse();
+      snapshotStarted();await snapshotGate;
+      await route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(snapshot)});snapshotDone();
+    });
+    await page.evaluate(()=>document.dispatchEvent(new CustomEvent('lms:refresh-chat')));await snapshotReading;
+    await page.fill('#message-input','New message during an old refresh');await page.click('#send-btn');
+    await page.waitForFunction(()=>!document.querySelector('#send-btn').disabled);
+    const newest=state.messages.at(-1);assert.equal(newest.body,'New message during an old refresh');
+    releaseSnapshot();await snapshotFinished;await page.waitForTimeout(300);
+    assert.equal(await page.locator('[data-message-id="'+newest.id+'"] .message-body').innerText(),newest.body,'An earlier refresh erased a successful send');
+    assert.deepEqual(errors,[]);
     await context.close();
   }
   console.log(`PASS ${name}: desktop/mobile room drafts, attachments, reply/edit isolation, late send and reload recovery.`);
