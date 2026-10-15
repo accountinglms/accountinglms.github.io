@@ -28,11 +28,12 @@ release();await wait(25);
 assert.equal(maxActive,1);assert.deepEqual(batches[0].messageIds,['1','2']);assert.deepEqual(batches[1].messageIds,['3']);assert.equal(batches[1].reactions,true);
 queue.stop();
 
-let paused=true,calls=0,errors=0;
-const pausedQueue=createChatUpdateQueue(async()=>{calls++;if(calls===1)throw new Error('offline');},{delay:5,isPaused:()=>paused,onError:()=>errors++});
-pausedQueue.push({messages:true});await wait(15);assert.equal(calls,0);
+let paused=true,calls=0,errors=0,retriedIds=[];
+const pausedQueue=createChatUpdateQueue(async batch=>{calls++;if(calls===1)throw new Error('offline');retriedIds=batch.messageIds;},{delay:5,isPaused:()=>paused,onError:()=>errors++});
+pausedQueue.push({messageIds:['lost']});await wait(15);assert.equal(calls,0);
 paused=false;pausedQueue.resume();await wait(15);assert.equal(calls,1);assert.equal(errors,1);
 await wait(15);assert.equal(calls,1,'A failed refresh entered an automatic request loop');
-pausedQueue.push({messages:true});await wait(15);assert.equal(calls,2,'A subsequent event could not retry');
+pausedQueue.push({messageIds:['new']});await wait(15);assert.equal(calls,2,'A subsequent event could not retry');
+assert.deepEqual(retriedIds,['lost','new'],'A later message event silently dropped the failed change');
 pausedQueue.push({messages:true});pausedQueue.stop();await wait(15);assert.equal(calls,2);
 console.log('PASS chat updates: receipt routing, room scope, loaded history, coalescing, serialization, hidden tabs and retry.');

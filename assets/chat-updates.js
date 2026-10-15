@@ -17,7 +17,14 @@ export function planChatUpdate(payload,{roomId,messageIds=[]}={}){
 
 // One active refresh; a continuous burst cannot keep postponing the first batch.
 export function createChatUpdateQueue(run,{delay=180,isPaused=()=>false,onError=console.warn}={}){
-  let pending=null,timer=null,running=false,stopped=false;
+  let pending=null,failed=null,timer=null,running=false,stopped=false;
+  const merge=update=>{
+    pending??={messageIds:new Set(),reactionIds:new Set()};
+    for(const [key,value] of Object.entries(update)){
+      if(key==='messageIds'||key==='reactionIds')for(const id of value)pending[key].add(String(id));
+      else if(value)pending[key]=true;
+    }
+  };
   const schedule=()=>{if(!stopped&&pending&&!timer&&!running&&!isPaused())timer=setTimeout(flush,delay);};
   async function flush(){
     timer=null;
@@ -25,20 +32,22 @@ export function createChatUpdateQueue(run,{delay=180,isPaused=()=>false,onError=
     const batch=pending;pending=null;running=true;
     batch.messageIds=[...batch.messageIds];
     batch.reactionIds=[...batch.reactionIds];
-    try{await run(batch);}catch(error){onError(error);}
-    finally{running=false;schedule();}
+    try{await run(batch);}catch(error){failed=batch;onError(error);}
+    finally{
+      running=false;
+      // Retry failed IDs with the next event, without a self-sustaining retry loop.
+      if(pending&&failed){merge(failed);failed=null;}
+      schedule();
+    }
   }
   return {
     push(update){
       if(stopped||!update||!Object.keys(update).length)return;
-      pending??={messageIds:new Set(),reactionIds:new Set()};
-      for(const [key,value] of Object.entries(update)){
-        if(key==='messageIds'||key==='reactionIds')for(const id of value)pending[key].add(String(id));
-        else if(value)pending[key]=true;
-      }
+      if(failed){merge(failed);failed=null;}
+      merge(update);
       schedule();
     },
     resume:schedule,
-    stop(){stopped=true;clearTimeout(timer);timer=null;pending=null;}
+    stop(){stopped=true;clearTimeout(timer);timer=null;pending=null;failed=null;}
   };
 }
