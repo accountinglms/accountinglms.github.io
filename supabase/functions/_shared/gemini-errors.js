@@ -33,6 +33,16 @@ export function geminiFailure(status, data, retryAfterHeader = null) {
       },
     };
   }
+  if (status === 400) {
+    return {
+      status: 502,
+      body: {
+        error: 'AI từ chối yêu cầu do định dạng hoặc cấu hình chưa hợp lệ. Bản nháp và tệp nguồn vẫn được giữ để kiểm tra.',
+        code: 'AI_PROVIDER_REQUEST_INVALID', provider: 'gemini', provider_status: 400,
+        retryable: false, retry_after_seconds: null,
+      },
+    };
+  }
   return {
     status: status === 503 ? 503 : 502,
     body: {

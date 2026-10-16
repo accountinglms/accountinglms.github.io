@@ -9,6 +9,9 @@ import {normalizeImportQuestion,importOutputSchema,importContentError} from '../
 import {fidelityQuestion} from './helpers/import-fidelity-fixture.mjs';
 
 const origin = 'https://accountinglms.github.io';
+// REST wire enum from Google's discovery document, rather than the SDK MIME string.
+const textResponseFormat=JSON.parse(fs.readFileSync('tests/fixtures/gemini-text-response-format.json','utf8'));
+assert.equal(textResponseFormat.mimeType.enum.includes('application/json'),false,'The production-invalid SDK MIME string must be rejected at the REST boundary');
 const userId = '11111111-1111-4111-8111-111111111111';
 const input = {storagePath:userId+'/fixture.txt',fileName:'fixture.txt',mimeType:'text/plain',
   targetType:'questions',subjectTitle:'Accounting',chapterTitle:'Revenue',exerciseTitle:'Practice'};
@@ -32,7 +35,11 @@ function handlerFor(slug, responses, options={}) {
       if(url.includes('/rest/v1/'))return json([]);
       if(url.includes('/storage/v1/'))return options.storage?options.storage(url,init):new Response('Revenue = GBP 4,000.');
       assert.match(url,/^https:\/\/generativelanguage.googleapis.com\/v1beta\/models\/gemini-3\.5-flash-lite:generateContent$/);
-      requests.push(JSON.parse(init.body));
+      const request=JSON.parse(init.body);
+      if(request.generationConfig?.responseFormat?.text){
+        assert.ok(textResponseFormat.mimeType.enum.includes(request.generationConfig.responseFormat.text.mimeType),'Invalid REST TextResponseFormat.mimeType: '+request.generationConfig.responseFormat.text.mimeType);
+      }
+      requests.push(request);
       const next=responses.shift();
       assert.ok(next,'Unexpected extra Gemini request');
       return json(next.body,next.status);
@@ -66,6 +73,15 @@ for(const slug of ['icaew-ai-import','icaew-ai-route']){
 assert.equal(geminiFailure(429,{error:{message:'Quota exceeded'}}).body.quota_scope,'unknown');
 assert.equal(geminiFailure(429,{}).body.retry_after_seconds,null);
 assert.equal(geminiFailure(429,{},'9').body.retry_after_seconds,9);
+const badRequest={error:{code:400,status:'INVALID_ARGUMENT',message:"Invalid value at 'generation_config.response_format.text.mime_type' (type.googleapis.com/google.ai.generativelanguage.v1beta.TextResponseFormat.MimeType), \"application/json\""}};
+for(const slug of ['icaew-ai-import','icaew-ai-route']){
+  const invalidRequest=handlerFor(slug,[{status:400,body:badRequest}]);
+  const response=await invalidRequest.call(input),body=await response.json();
+  assert.equal(response.status,502);assert.equal(body.code,'AI_PROVIDER_REQUEST_INVALID');assert.equal(body.provider_status,400);
+  assert.equal(body.retryable,false);assert.equal(body.retry_after_seconds,null);
+  assert.equal(invalidRequest.requests.length,1,'Invalid request was retried as a temporary outage');
+  assert.ok(!body.error.includes('tạm chưa xử lý'),'Invalid configuration was labelled a temporary outage');
+}
 
 const success=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[question,
   {...question,verification_status:'needs_review',verification_note:'Answer inferred from source.'},
@@ -112,7 +128,7 @@ assert.equal(recoveredData.questions[11].correct_answer,null);assert.equal(recov
 assert.equal(recoveredData.questions[11].verification_status,'needs_review');assert.equal(recoveredData.questions[0].correct_answer,1);
 assert.ok(recoveredData.warnings.some(message=>message.includes('câu 12')));assert.equal(recovered.requests.length,1,'Repair consumed another provider request');
 const schema=recovered.requests[0].generationConfig.responseFormat.text;
-assert.equal(schema.mimeType,'application/json');assert.equal(schema.schema.properties.questions.items.properties.confidence.maximum,1);
+assert.equal(schema.mimeType,'APPLICATION_JSON');assert.equal(schema.schema.properties.questions.items.properties.confidence.maximum,1);
 const oldClient=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:twelveQuestions})}]);
 const oldClientResponse=await oldClient.call(input);assert.equal(oldClientResponse.status,422);assert.equal((await oldClientResponse.json()).code,'AI_ANSWER_REVIEW_REQUIRED');
 const booleanWords=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[{...question,question_type:'tf',correct_answer:['true','false']}]})}]);
