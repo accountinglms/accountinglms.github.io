@@ -39,6 +39,7 @@
     .option:hover:not(:disabled) { background: #3d3d3d; border-color: #666; }
     .option.selected { border-color: #64b5f6; background: #263238; }
     .option-text { flex-grow: 1; pointer-events: none; }
+    #question-text, .option-text, .tf-statement { white-space:pre-wrap; overflow-wrap:anywhere; }
     .custom-checkbox { width: 22px; height: 22px; margin-left: 15px; cursor: pointer; accent-color: #4caf50; flex-shrink: 0; pointer-events: none; }
     
     /* Correct/Wrong States */

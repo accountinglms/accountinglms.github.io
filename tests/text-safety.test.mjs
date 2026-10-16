@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { stripTypeScriptTypes } from 'node:module';
 import { hasUnsafeMarkup } from '../supabase/functions/_shared/text-safety.js';
-import {normalizeImportQuestion,importOutputSchema,assertImportAnswers} from '../assets/import-answers.js';
+import {normalizeImportQuestion,importOutputSchema,importContentError,assertImportAnswers} from '../assets/import-answers.js';
 
 // Exact formula from a real Gemini response rejected by the old validator.
 const formula = 'Revenue earned is calculated based on the portion of service delivered over time: (GBP 12,000 / 6 months) * 2 months = GBP 4,000.';
@@ -19,7 +19,7 @@ const blocked = ['<script>alert(1)</script>', '<iframe src="x"></iframe>',
 for (const slug of ['icaew-ai-import','icaew-ai-route','icaew-question-translate','icaew-translate']) {
   const source = fs.readFileSync(`supabase/functions/${slug}/index.ts`, 'utf8');
   const prefix = source.slice(0, source.indexOf('Deno.serve')).replace(/^import[^\n]*\n/gm, '');
-  const context = vm.createContext({ Deno: { env: { get: () => undefined } }, hasUnsafeMarkup,normalizeImportQuestion,importOutputSchema });
+  const context = vm.createContext({ Deno: { env: { get: () => undefined } }, hasUnsafeMarkup,normalizeImportQuestion,importOutputSchema,importContentError });
   vm.runInContext(stripTypeScriptTypes(prefix), context);
   const validate = context.safeText || context.cleanText;
   assert.equal(typeof validate, 'function');

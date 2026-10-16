@@ -2,6 +2,7 @@ import { chromium, webkit } from 'playwright';
 import assert from 'node:assert/strict';
 import AxeBuilder from '@axe-core/playwright';
 import {normalizeImportQuestion} from '../assets/import-answers.js';
+import {fidelityQuestion} from './helpers/import-fidelity-fixture.mjs';
 
 const browserName=process.env.BROWSER||'chromium';
 const engine=browserName==='webkit'?webkit:chromium;
@@ -80,7 +81,7 @@ try{
     if(path==='/functions/v1/icaew-ai-import'){
       aiCalls++;
       const payload=req.postDataJSON();
-      assert.equal(payload.answerReviewVersion,1,'Editor did not advertise safe pending-answer handling');
+      assert.equal(payload.answerReviewVersion,2,'Editor did not advertise source and answer review handling');
       const files=payload.files||[payload];
       const persisted=[...drafts.values()].find(d=>sources.get(d.source_id)?.storage_key===files[0].storagePath&&d.payload.destination.target_type===payload.targetType);
       assert.ok(persisted,'AI request ran before the draft was saved');
@@ -96,7 +97,7 @@ try{
       }
       if(repairNextAI){
         repairNextAI=false;
-        return json(route,{...aiResult,questions:Array.from({length:12},(_,i)=>normalizeImportQuestion({...aiResult.questions[0],source_file:1,source_files:[1],prompt:'Recovered question '+(i+1),...(i===11?{question_type:'tf',options:['Statement A','Statement B'],correct_answer:[true]}:{})})),warnings:['Cần bổ sung đáp án cho câu 12.']});
+        return json(route,{...aiResult,questions:Array.from({length:12},(_,i)=>normalizeImportQuestion(i===0?{...fidelityQuestion,prompt:fidelityQuestion.prompt.replace('£12,000','[UNREADABLE]')}:{...aiResult.questions[0],source_file:1,source_files:[1],prompt:'Recovered question '+(i+1),...(i===11?{question_type:'tf',options:['Statement A','Statement B'],correct_answer:[true]}:{})})),warnings:['Cần bổ sung đáp án cho câu 12.','Câu 1 có phần [UNREADABLE] cần đối chiếu nguồn.']});
       }
       const result=payload.files?{...aiResult,title:'Combined image questions',processed_files:files.map((_,i)=>i+1),questions:files.map((f,i)=>({...aiResult.questions[0],prompt:'Question from '+f.fileName,source_file:i+1,source_files:i===0&&files.length>1?[1,2]:[i+1]}))}:aiResult;
       return json(route,result);
@@ -254,7 +255,12 @@ try{
   await page.click('#ai-generate');await page.waitForFunction(()=>document.querySelectorAll('.importCard').length===12);
   const repairDraft=[...drafts.values()].at(-1),callsBeforeEdit=aiCalls,uploadsBeforeEdit=uploads;
   assert.equal(repairDraft.payload.questions.length,12);assert.equal(repairDraft.payload.questions[11].correct_answer,null);
-  assert.equal(await page.isDisabled('#publish-imported'),true);assert.match(await page.locator('#import-answer-summary').innerText(),/1 câu/);
+  assert.equal(await page.isDisabled('#publish-imported'),true);assert.match(await page.locator('#import-answer-summary').innerText(),/2 câu/);
+  for(let i=0;i<fidelityQuestion.options.length;i++)assert.equal(await page.inputValue('[data-i="0"][data-k="option"][data-option-index="'+i+'"]'),fidelityQuestion.options[i]);
+  assert.equal(await page.inputValue('[data-i="0"][data-k="explanation_en"]'),fidelityQuestion.explanation_en);
+  await page.click('a[href="#import-question-0"]');
+  await page.fill('[data-i="0"][data-k="prompt"]',fidelityQuestion.prompt);
+  assert.match(await page.locator('#import-answer-summary').innerText(),/1 câu/);
   for(const theme of ['light','dark']){
     await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);await page.waitForTimeout(220);
     const audit=await new AxeBuilder({page}).include('#review-area').withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();
@@ -264,16 +270,29 @@ try{
   await page.selectOption('[data-answer-question="11"][data-answer-option="0"]','true');
   assert.equal(await page.isDisabled('#publish-imported'),true,'Partial boolean answer enabled publication');
   await page.selectOption('[data-answer-question="11"][data-answer-option="1"]','false');
+  // Editing a multi-line option must never split it into extra choices.
+  await page.fill('[data-i="0"][data-k="option"][data-option-index="1"]',fidelityQuestion.options[1]+'\nTemporary edit.');
+  assert.equal(await page.isDisabled('#publish-imported'),true,'Changed choice kept a previously confirmed answer');
+  await page.fill('[data-i="0"][data-k="option"][data-option-index="1"]',fidelityQuestion.options[1]);
+  assert.equal(await page.locator('[data-i="0"][data-k="option"]').count(),4);
+  await page.click('[data-add-import-option="0"]');
+  assert.equal(await page.locator('[data-i="0"][data-k="option"]').count(),5);
+  await page.click('[data-remove-import-option="0"][data-option-index="4"]');
+  assert.equal(await page.locator('[data-i="0"][data-k="option"]').count(),4);
+  await page.selectOption('[data-answer-question="0"]','1');
+  assert.equal(await page.isDisabled('#publish-imported'),false);
   await page.click('#save-reviewed-import');
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã lưu chỉnh sửa'));
   assert.deepEqual(drafts.get(repairDraft.id).payload.questions[11].correct_answer,[true,false]);
   await open();await page.click('[data-resume-import="'+repairDraft.id+'"]');
+  assert.equal(await page.inputValue('[data-i="0"][data-k="prompt"]'),fidelityQuestion.prompt,'Source detail lost after save/reload');
   assert.equal(await page.inputValue('[data-answer-question="11"][data-answer-option="1"]'),'false','False answer was lost on reload');
   assert.equal(await page.isDisabled('#publish-imported'),false);
   await page.click('#publish-imported');
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã publish AI question'));
   const repaired=questions.filter(q=>q.metadata.import_draft_id===repairDraft.id);
   assert.equal(repaired.length,12);assert.deepEqual(repaired[11].correct_answer,[true,false]);
+  for(const field of ['prompt','options','explanation_en','explanation_vi'])assert.deepEqual(repaired[0][field],fidelityQuestion[field],field+' was shortened before publication');
   assert.ok(repaired.every(q=>q.status==='published'&&q.verification_status==='verified'&&q.metadata.reviewed_by===user.id&&q.verified_at));
   assert.equal(aiCalls,callsBeforeEdit,'Editing an answer called Gemini again');assert.equal(uploads,uploadsBeforeEdit,'Review re-uploaded the saved image');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'Answer review overflowed a phone viewport');
