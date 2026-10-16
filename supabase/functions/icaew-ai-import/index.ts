@@ -311,7 +311,7 @@ Deno.serve(async (req: Request) => {
           body: JSON.stringify({
             contents: [{ role: "user", parts }],
             generationConfig: {
-              responseFormat: {text:{mimeType:"application/json",schema:importOutputSchema(sources.files.length,targetType)}},
+              responseFormat: {text:{mimeType:"APPLICATION_JSON",schema:importOutputSchema(sources.files.length,targetType)}},
               temperature: 0.1,
               maxOutputTokens: 16000,
             },
