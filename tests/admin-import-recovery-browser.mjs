@@ -256,7 +256,7 @@ try{
   const repairDraft=[...drafts.values()].at(-1),callsBeforeEdit=aiCalls,uploadsBeforeEdit=uploads;
   assert.equal(repairDraft.payload.questions.length,12);assert.equal(repairDraft.payload.questions[11].correct_answer,null);
   assert.equal(await page.isDisabled('#publish-imported'),true);assert.match(await page.locator('#import-answer-summary').innerText(),/2 câu/);
-  assert.equal(await page.inputValue('[data-i="0"][data-k="options"]'),fidelityQuestion.options.join('\n'));
+  for(let i=0;i<fidelityQuestion.options.length;i++)assert.equal(await page.inputValue('[data-i="0"][data-k="option"][data-option-index="'+i+'"]'),fidelityQuestion.options[i]);
   assert.equal(await page.inputValue('[data-i="0"][data-k="explanation_en"]'),fidelityQuestion.explanation_en);
   await page.click('a[href="#import-question-0"]');
   await page.fill('[data-i="0"][data-k="prompt"]',fidelityQuestion.prompt);
@@ -270,6 +270,17 @@ try{
   await page.selectOption('[data-answer-question="11"][data-answer-option="0"]','true');
   assert.equal(await page.isDisabled('#publish-imported'),true,'Partial boolean answer enabled publication');
   await page.selectOption('[data-answer-question="11"][data-answer-option="1"]','false');
+  // Editing a multi-line option must never split it into extra choices.
+  await page.fill('[data-i="0"][data-k="option"][data-option-index="1"]',fidelityQuestion.options[1]+'\nTemporary edit.');
+  assert.equal(await page.isDisabled('#publish-imported'),true,'Changed choice kept a previously confirmed answer');
+  await page.fill('[data-i="0"][data-k="option"][data-option-index="1"]',fidelityQuestion.options[1]);
+  assert.equal(await page.locator('[data-i="0"][data-k="option"]').count(),4);
+  await page.click('[data-add-import-option="0"]');
+  assert.equal(await page.locator('[data-i="0"][data-k="option"]').count(),5);
+  await page.click('[data-remove-import-option="0"][data-option-index="4"]');
+  assert.equal(await page.locator('[data-i="0"][data-k="option"]').count(),4);
+  await page.selectOption('[data-answer-question="0"]','1');
+  assert.equal(await page.isDisabled('#publish-imported'),false);
   await page.click('#save-reviewed-import');
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã lưu chỉnh sửa'));
   assert.deepEqual(drafts.get(repairDraft.id).payload.questions[11].correct_answer,[true,false]);
