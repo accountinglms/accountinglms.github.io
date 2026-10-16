@@ -158,6 +158,14 @@ button,a,summary,label{ -webkit-tap-highlight-color:transparent }
 .inline{display:grid;grid-template-columns:1fr 42px;gap:7px;margin:0 0 9px}
 .inline button{border:1px solid #2e688c;background:#12334a;color:#83cef6;border-radius:10px;cursor:pointer;font-size:1.1rem}
 .miniToggle{padding:7px 10px;font-size:.7rem}
+.importAnswerEditor{min-width:0;margin:12px 0;padding:12px;border:1px solid var(--vg-line,#294154);border-radius:9px}
+.importAnswerEditor legend{font-weight:750;color:var(--vg-ink,#edf0ed)}
+.importAnswerChoice{display:flex;align-items:center;gap:10px;min-height:44px;overflow-wrap:anywhere}
+.importAnswerChoice input[type=checkbox]{width:20px;min-width:20px;height:20px;margin:0}
+.importAnswerEditor .field{margin-bottom:8px}
+.importAnswerEditor select{min-height:44px;width:100%;max-width:100%}
+.importAnswerEditor p,#import-answer-summary{font-size:.8rem;color:var(--vg-muted,#94aabe);line-height:1.6;overflow-wrap:anywhere}
+.reviewActions{display:flex;gap:8px;flex-wrap:wrap}
 /* Enabling a course control must restore readable text immediately. */
 body.page-admin button.miniToggle{transition:transform .15s ease,box-shadow .15s ease!important}
 .structureSelection{font-size:.78rem;line-height:1.6;overflow-wrap:anywhere;color:var(--vg-muted,#94aabe)}

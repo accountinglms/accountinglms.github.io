@@ -48,6 +48,7 @@ jobs:
           node --check assets/chat-updates.js
           node --check assets/chat-images.js
           node --check assets/import-result.js
+          node --check assets/import-answers.js
           node --check assets/progress.js
 
       - uses: denoland/setup-deno@v2
@@ -79,6 +80,7 @@ jobs:
         run: |
           node tests/chat-drafts.test.mjs
           node tests/import-result.test.mjs
+          node tests/import-answers.test.mjs
           node tests/chat-updates.test.mjs
 
       - name: Edge Function typecheck
