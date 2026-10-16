@@ -5,7 +5,8 @@ import { stripTypeScriptTypes } from 'node:module';
 import { hasUnsafeMarkup } from '../supabase/functions/_shared/text-safety.js';
 import { geminiFailure } from '../supabase/functions/_shared/gemini-errors.js';
 import { loadImportSources, ImportSourceError } from '../supabase/functions/_shared/import-sources.js';
-import {normalizeImportQuestion,importOutputSchema} from '../assets/import-answers.js';
+import {normalizeImportQuestion,importOutputSchema,importContentError} from '../assets/import-answers.js';
+import {fidelityQuestion} from './helpers/import-fidelity-fixture.mjs';
 
 const origin = 'https://accountinglms.github.io';
 const userId = '11111111-1111-4111-8111-111111111111';
@@ -23,7 +24,7 @@ function handlerFor(slug, responses, options={}) {
   const requests=[];
   let serve;
   const context=vm.createContext({Response,Request,Headers,TextDecoder,Uint8Array,btoa,
-    hasUnsafeMarkup,geminiFailure,loadImportSources,ImportSourceError,normalizeImportQuestion,importOutputSchema,console:{error(){}},setTimeout:fn=>{fn();return 0},
+    hasUnsafeMarkup,geminiFailure,loadImportSources,ImportSourceError,normalizeImportQuestion,importOutputSchema,importContentError,console:{error(){}},setTimeout:fn=>{fn();return 0},
     Deno:{env:{get:name=>({SUPABASE_URL:'https://test.supabase.co',SUPABASE_ANON_KEY:'public',GEMINI_API_KEY:'server-key'})[name]},serve:fn=>serve=fn},
     fetch:async(url,init)=>{
       if(url.includes('/auth/v1/user'))return json({id:userId});
@@ -79,6 +80,22 @@ assert.match(data.questions[2].verification_note,/inconsistent/);
 assert.equal(data.questions[3].verification_status,'source_only');
 assert.match(data.questions[0].explanation_en,/2 months = GBP 4,000/);
 assert.ok(data.warnings.some(x=>x.includes('không tra cứu web')));
+
+const faithful=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[fidelityQuestion]})}]);
+const faithfulResponse=await faithful.call({...input,answerReviewVersion:2}),faithfulData=await faithfulResponse.json();
+assert.equal(faithfulResponse.status,200);
+for(const field of ['prompt','options','explanation_en','explanation_vi','correct_answer'])assert.deepEqual(faithfulData.questions[0][field],fidelityQuestion[field],field+' was shortened or rewritten');
+const instructions=faithful.requests[0].contents[0].parts[0].text;
+assert.match(instructions,/SOURCE FIDELITY IS MANDATORY/);assert.match(instructions,/copy it IN FULL/);assert.match(instructions,/Never substitute a concise AI explanation/);
+assert.equal(faithful.requests.length,1,'Preserving source text consumed extra model requests');
+const unclearOutput={...output,questions:[{...fidelityQuestion,prompt:fidelityQuestion.prompt.replace('£12,000','[UNREADABLE]')}]};
+const unclear=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess(unclearOutput)}]);
+const unclearResponse=await unclear.call({...input,answerReviewVersion:2}),unclearData=await unclearResponse.json();
+assert.equal(unclearResponse.status,200);assert.equal(unclearData.questions[0].prompt,unclearOutput.questions[0].prompt);
+assert.equal(unclearData.questions[0].verification_status,'needs_review');assert.ok(unclearData.warnings.some(w=>w.includes('Câu 1')&&w.includes('UNREADABLE')));
+const cachedEditor=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess(unclearOutput)}]);
+const cachedResponse=await cachedEditor.call({...input,answerReviewVersion:1});
+assert.equal(cachedResponse.status,422);assert.equal((await cachedResponse.json()).code,'AI_SOURCE_REVIEW_REQUIRED');
 
 const empty=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[]})}]);
 const emptyResponse=await empty.call(input),emptyData=await emptyResponse.json();

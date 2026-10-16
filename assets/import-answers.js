@@ -14,9 +14,13 @@ export function importAnswerError(question){
   if(type==='tf')return Array.isArray(answer)&&answer.length===options.length&&answer.every(value=>typeof value==='boolean')?'':'Hãy chọn Đúng hoặc Sai cho từng mệnh đề.';
   return 'Loại câu hỏi chưa hợp lệ.';
 }
+export function importContentError(item){
+  const fields=[item?.prompt,...(Array.isArray(item?.options)?item.options:[]),item?.explanation_en,item?.explanation_vi,item?.practical_example_en,item?.practical_example_vi,item?.content_markdown,item?.content_markdown_vi];
+  return fields.some(value=>typeof value==='string'&&/\[\s*UNREADABLE(?:\s*:[^\]\r\n]*)?\s*\]/i.test(value))?'Có phần [UNREADABLE] chưa đọc rõ. Hãy đối chiếu tệp nguồn và điền đầy đủ nội dung trước khi xuất bản.':'';
+}
 export function assertImportAnswers(questions){
   if(!Array.isArray(questions)||questions.length===0)throw new Error('Chưa có câu hỏi để xuất bản.');
-  questions.forEach((question,index)=>{if(typeof question?.prompt!=='string'||!question.prompt.trim())throw new Error(`Câu ${index+1}: nội dung câu hỏi đang trống.`);const issue=importAnswerError(question);if(issue)throw new Error(`Câu ${index+1}: ${issue}`);});
+  questions.forEach((question,index)=>{if(typeof question?.prompt!=='string'||!question.prompt.trim())throw new Error(`Câu ${index+1}: nội dung câu hỏi đang trống.`);const issue=importContentError(question)||importAnswerError(question);if(issue)throw new Error(`Câu ${index+1}: ${issue}`);});
 }
 export function normalizeImportQuestion(raw){
   if(!raw||typeof raw!=='object'||Array.isArray(raw))return raw;
@@ -41,6 +45,8 @@ export function normalizeImportQuestion(raw){
   const issue=importAnswerError(question);
   question.answer_needs_review=Boolean(issue);question.answer_issue=issue||null;
   if(issue){question.correct_answer=null;question.verification_status='needs_review';notes.push('Đáp án AI chưa hợp lệ. '+issue);}
+  const contentIssue=importContentError(question);
+  if(contentIssue){question.verification_status='needs_review';notes.push(contentIssue);}
   if(notes.length)question.review_note=[typeof question.review_note==='string'?question.review_note:'',...notes].filter(Boolean).join(' ');
   return question;
 }
@@ -48,14 +54,15 @@ export function normalizeImportQuestion(raw){
 export function importOutputSchema(fileCount,targetType){
   const text={type:['string','null']},file={type:'integer',minimum:1,maximum:fileCount};
   const properties={
-    question_type:{type:'string',enum:['single','multiple','tf']},prompt:{type:'string'},
-    options:{type:'array',minItems:2,maxItems:30,items:{type:'string'}},
+    question_type:{type:'string',enum:['single','multiple','tf']},prompt:{type:'string',description:'Verbatim complete source question, including its scenario, all figures, conditions, tables and instructions. Never summarise or paraphrase. Mark unreadable spans [UNREADABLE].'},
+    options:{type:'array',minItems:2,maxItems:30,items:{type:'string',description:'One complete source option or statement, copied verbatim in source order. Keep every condition and line of working; never shorten.'}},
     correct_answer:{description:'single: zero-based integer; multiple: integer indexes; tf: one boolean per statement; null if unknown. Never invent an answer.',anyOf:[{type:'integer',minimum:0,maximum:29},{type:'array',items:{type:'integer',minimum:0,maximum:29},minItems:1,maxItems:30},{type:'array',items:{type:'boolean'},minItems:2,maxItems:30},{type:'null'}]},
     required_selections:{type:['integer','null']},confidence:{type:'number',minimum:0,maximum:1},
     source_page:{type:['integer','null']},source_file:file,source_files:{type:'array',items:file,minItems:1,maxItems:fileCount},
     verification_status:{type:'string',enum:['source_only','needs_review','conflict']}
   };
   for(const key of ['explanation_en','explanation_vi','practical_example_en','practical_example_vi','standard_reference','verification_note','review_note'])properties[key]=text;
-  const lesson={type:['object','null'],properties:{title:{type:'string'},summary:text,content_markdown:{type:'string'},content_markdown_vi:text,standard_references:{type:'array',items:{type:'string'}},verification_status:{type:'string',enum:['source_only','needs_review','conflict']},verification_note:text},required:['title','content_markdown']};
+  for(const key of ['explanation_en','explanation_vi'])properties[key]={...text,description:'Full source answer explanation in this language, copied verbatim when present. Translate the full source explanation faithfully for the other language. Preserve every reasoning step, calculation and rejected-option rationale. Only generate an explanation if the source contains none, and disclose that in review_note.'};
+  const lesson={type:['object','null'],properties:{title:{type:'string'},summary:{...text,description:'Optional separate overview; never replace or shorten content_markdown with this summary.'},content_markdown:{type:'string',description:'Full verbatim source lesson in original language. Preserve every paragraph, heading, table, formula and worked example; never summarise.'},content_markdown_vi:{...text,description:'Complete faithful Vietnamese translation of the entire source lesson; do not condense.'},standard_references:{type:'array',items:{type:'string'}},verification_status:{type:'string',enum:['source_only','needs_review','conflict']},verification_note:text},required:['title','content_markdown']};
   return {type:'object',properties:{title:{type:'string'},questions:{type:'array',maxItems:150,items:{type:'object',properties,required:['question_type','prompt','options','correct_answer','confidence','source_file','source_files']}},lesson:targetType==='questions'?{type:'null'}:lesson,warnings:{type:'array',items:{type:'string'}},processed_files:{type:'array',items:file,minItems:fileCount,maxItems:fileCount}},required:['title','questions','lesson','warnings','processed_files']};
 }

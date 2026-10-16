@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import {normalizeImportQuestion,importAnswerError,assertImportAnswers,importOutputSchema} from '../assets/import-answers.js';
+import {normalizeImportQuestion,importAnswerError,importContentError,assertImportAnswers,importOutputSchema} from '../assets/import-answers.js';
+import {fidelityQuestion} from './helpers/import-fidelity-fixture.mjs';
 const question={question_type:'tf',prompt:'Assess both statements.',options:['Statement one','Statement two'],correct_answer:[true,false],confidence:.85,verification_status:'source_only'};
 assert.throws(()=>assertImportAnswers([]),/Chưa có câu hỏi/);
 assert.deepEqual(normalizeImportQuestion(question).correct_answer,[true,false]);
@@ -21,6 +22,17 @@ assert.equal(importAnswerError({question_type:'single',options:['A','B'],correct
 assert.ok(importAnswerError({question_type:'single',options:['A','B'],correct_answer:false}));
 assert.ok(importAnswerError({question_type:'tf',options:['A','B'],correct_answer:[true,null]}));
 const raw={...question,correct_answer:['true','false']};normalizeImportQuestion(raw);assert.deepEqual(raw.correct_answer,['true','false'],'Normalization mutated provider data');
+assert.deepEqual(normalizeImportQuestion(fidelityQuestion).prompt,fidelityQuestion.prompt);
+assert.doesNotThrow(()=>assertImportAnswers([fidelityQuestion]));
+for(const field of ['prompt','explanation_en','explanation_vi','practical_example_en','practical_example_vi']){
+  const pending={...fidelityQuestion,[field]:'The amount is [UNREADABLE].'};
+  assert.ok(importContentError(pending));assert.throws(()=>assertImportAnswers([pending]),/Câu 1.*UNREADABLE/);
+  assert.equal(normalizeImportQuestion(pending).verification_status,'needs_review');
+}
+assert.ok(importContentError({...fidelityQuestion,options:['[UNREADABLE: figure]','Readable choice']}));
+assert.ok(importContentError({content_markdown:'Full lesson\n[UNREADABLE]'}));
+assert.equal(importContentError({prompt:'UNREADABLE is a word, [a note] is a note.'}),'');
+assert.equal(importContentError({...fidelityQuestion,review_note:'The previous [UNREADABLE] span was corrected.'}),'','Old review notes must not block a corrected question');
 const schema=importOutputSchema(3,'questions');
 assert.equal(schema.properties.processed_files.minItems,3);assert.equal(schema.properties.questions.items.properties.confidence.maximum,1);
 assert.equal(schema.properties.lesson.type,'null');
