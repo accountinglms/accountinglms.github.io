@@ -792,7 +792,7 @@ export async function callAiRoute({storagePath, fileName, mimeType, files, targe
   return data;
 }
 
-export async function callAiImport({storagePath, fileName, mimeType, files, targetType, subjectTitle, chapterTitle, exerciseTitle}) {
+export async function callAiImport({storagePath, fileName, mimeType, files, targetType, subjectTitle, chapterTitle, exerciseTitle, answerReviewVersion=0}) {
   const session = await ensureSession();
   const res = await fetch(`${SUPABASE_URL}/functions/v1/icaew-ai-import`, {
     method: 'POST',
@@ -801,7 +801,7 @@ export async function callAiImport({storagePath, fileName, mimeType, files, targ
       Authorization: `Bearer ${session.access_token}`,
       'content-type': 'application/json'
     },
-    body: JSON.stringify({ storagePath, fileName, mimeType, files, targetType, subjectTitle, chapterTitle, exerciseTitle, answerReviewVersion: 1 })
+    body: JSON.stringify({ storagePath, fileName, mimeType, files, targetType, subjectTitle, chapterTitle, exerciseTitle, answerReviewVersion })
   });
   const text = await res.text();
   let data = null;

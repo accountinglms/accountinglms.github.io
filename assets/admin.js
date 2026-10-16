@@ -644,7 +644,7 @@ async function runImport(useAI){
     notice('Bản nháp và tệp nguồn đã lưu. AI đang chuyển đổi nội dung…');
     const resultKey=workingDraft+'|'+currentDestinationSignature();
     const ai=prepared.resultKey===resultKey&&prepared.result?prepared.result:await callAiImport({
-      ...aiSourceInput(),targetType:currentTargetType(),
+      ...aiSourceInput(),targetType:currentTargetType(),answerReviewVersion:1,
       subjectTitle:subject.title,chapterTitle:chapter.title,exerciseTitle:exercise?.title||''
     });
     requireImportContent(ai,currentTargetType());
