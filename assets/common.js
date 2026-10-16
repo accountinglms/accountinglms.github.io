@@ -801,7 +801,7 @@ export async function callAiImport({storagePath, fileName, mimeType, files, targ
       Authorization: `Bearer ${session.access_token}`,
       'content-type': 'application/json'
     },
-    body: JSON.stringify({ storagePath, fileName, mimeType, files, targetType, subjectTitle, chapterTitle, exerciseTitle })
+    body: JSON.stringify({ storagePath, fileName, mimeType, files, targetType, subjectTitle, chapterTitle, exerciseTitle, answerReviewVersion: 1 })
   });
   const text = await res.text();
   let data = null;

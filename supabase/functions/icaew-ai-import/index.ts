@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { hasUnsafeMarkup } from "../_shared/text-safety.js";
 import { geminiFailure } from "../_shared/gemini-errors.js";
 import { loadImportSources, ImportSourceError } from "../_shared/import-sources.js";
+import { normalizeImportQuestion, importOutputSchema } from "../../../assets/import-answers.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -84,6 +85,7 @@ if (hasUnsafeMarkup(text)) {
 
 function validateQuestion(raw: any, index: number, fileCount = 1) {
   if (!raw || typeof raw !== "object") throw new Error(`questions[${index}] must be an object`);
+  raw = normalizeImportQuestion(raw);
   const type = raw.question_type;
   if (!["single", "multiple", "tf"].includes(type)) throw new Error(`questions[${index}].question_type is invalid`);
 
@@ -95,10 +97,13 @@ function validateQuestion(raw: any, index: number, fileCount = 1) {
     safeText(v, `questions[${index}].options[${i}]`, 5_000, true)!
   );
 
-  let correct_answer: number | number[] | boolean[];
+  let correct_answer: number | number[] | boolean[] | null;
   let required_selections: number | null = null;
 
-  if (type === "single") {
+  if (raw.answer_needs_review === true) {
+    correct_answer = null;
+    required_selections = type === "single" ? 1 : null;
+  } else if (type === "single") {
     if (!Number.isInteger(raw.correct_answer) || raw.correct_answer < 0 || raw.correct_answer >= options.length) {
       throw new Error(`questions[${index}].correct_answer is out of range`);
     }
@@ -142,6 +147,8 @@ function validateQuestion(raw: any, index: number, fileCount = 1) {
     prompt,
     options,
     correct_answer,
+    answer_needs_review: raw.answer_needs_review === true,
+    answer_issue: raw.answer_issue || null,
     required_selections,
     explanation_en: safeText(raw.explanation_en, `questions[${index}].explanation_en`, 20_000),
     explanation_vi: safeText(raw.explanation_vi, `questions[${index}].explanation_vi`, 20_000),
@@ -199,6 +206,8 @@ function validateOutput(raw: any, targetType: string, fileCount = 1) {
   const warnings = Array.isArray(raw.warnings)
     ? raw.warnings.slice(0, 50).map((w: unknown, i: number) => safeText(w, `warnings[${i}]`, 1_000, true)!)
     : [];
+  const pendingAnswers = questions.map((question: any, index: number) => question.answer_needs_review ? index + 1 : null).filter(Boolean);
+  if (pendingAnswers.length) warnings.push(`Cần bổ sung đáp án cho câu ${pendingAnswers.join(", ")}. Nội dung các câu được giữ trong bản nháp; hãy hoàn thiện trước khi xuất bản.`);
 
   return { title, questions, lesson, warnings, processed_files: processedFiles };
 }
@@ -244,6 +253,9 @@ Deno.serve(async (req: Request) => {
       "single: correct_answer is one zero-based option index.",
       "multiple: correct_answer is an array of zero-based option indexes.",
       "tf: options are statements and correct_answer is a same-length boolean array.",
+      "If options are just True and False for a single proposition, use single, with correct_answer 0 or 1 matching the option order. Do not use tf for this case.",
+      "If an answer is unknown or incomplete, use correct_answer:null and needs_review. Preserve the entire question; never guess a missing boolean or index.",
+      "confidence must be a number from 0 to 1, never a percentage like 90 or a string.",
       "Treat the uploaded source as authoritative for the ORIGINAL wording and any EXPLICIT answer key. Never silently replace an explicit source answer with a web-derived answer.",
       "This request has NO web search or external verification tools. Do not claim to have checked current standards or browsed authoritative guidance.",
       "For each question, produce a concise but technically precise EN and VI explanation using current standard terminology where relevant.",
@@ -288,7 +300,7 @@ Deno.serve(async (req: Request) => {
           body: JSON.stringify({
             contents: [{ role: "user", parts }],
             generationConfig: {
-              responseMimeType: "application/json",
+              responseFormat: {text:{mimeType:"application/json",schema:importOutputSchema(sources.files.length,targetType)}},
               temperature: 0.1,
               maxOutputTokens: 16000,
             },
@@ -321,6 +333,9 @@ Deno.serve(async (req: Request) => {
     try {
       const parsed = JSON.parse(stripFence(text));
       const validated = validateOutput(parsed, targetType, sources.files.length);
+      if (validated.questions.some((question: any) => question.answer_needs_review) && input.answerReviewVersion !== 1) {
+        return json(req, {error:"Đã giữ tệp nguồn. Hãy cập nhật hoặc mở lại website để bổ sung đáp án AI chưa hợp lệ trong bản nháp, rồi xuất bản.",code:"AI_ANSWER_REVIEW_REQUIRED",provider:"gemini"},422);
+      }
       for (const question of validated.questions) {
         if (sources.files[question.source_file - 1].mimeType.startsWith("image/")) question.source_page = 1;
       }
@@ -346,7 +361,8 @@ Deno.serve(async (req: Request) => {
         }, 422);
       }
       return json(req, {
-        error: "AI_OUTPUT_VALIDATION_FAILED",
+        error: "AI trả về nội dung chưa đúng định dạng. Tệp nguồn và bản nháp đã được giữ; hãy thử lại hoặc nhập thủ công.",
+        code: "AI_OUTPUT_VALIDATION_FAILED",
         detail: error instanceof Error ? error.message : "Invalid AI output",
         provider: "gemini"
       }, 502);

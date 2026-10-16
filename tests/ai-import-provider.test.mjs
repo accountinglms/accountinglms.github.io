@@ -5,6 +5,7 @@ import { stripTypeScriptTypes } from 'node:module';
 import { hasUnsafeMarkup } from '../supabase/functions/_shared/text-safety.js';
 import { geminiFailure } from '../supabase/functions/_shared/gemini-errors.js';
 import { loadImportSources, ImportSourceError } from '../supabase/functions/_shared/import-sources.js';
+import {normalizeImportQuestion,importOutputSchema} from '../assets/import-answers.js';
 
 const origin = 'https://accountinglms.github.io';
 const userId = '11111111-1111-4111-8111-111111111111';
@@ -22,7 +23,7 @@ function handlerFor(slug, responses, options={}) {
   const requests=[];
   let serve;
   const context=vm.createContext({Response,Request,Headers,TextDecoder,Uint8Array,btoa,
-    hasUnsafeMarkup,geminiFailure,loadImportSources,ImportSourceError,console:{error(){}},setTimeout:fn=>{fn();return 0},
+    hasUnsafeMarkup,geminiFailure,loadImportSources,ImportSourceError,normalizeImportQuestion,importOutputSchema,console:{error(){}},setTimeout:fn=>{fn();return 0},
     Deno:{env:{get:name=>({SUPABASE_URL:'https://test.supabase.co',SUPABASE_ANON_KEY:'public',GEMINI_API_KEY:'server-key'})[name]},serve:fn=>serve=fn},
     fetch:async(url,init)=>{
       if(url.includes('/auth/v1/user'))return json({id:userId});
@@ -85,6 +86,21 @@ assert.equal(emptyResponse.status,422);assert.equal(emptyData.code,'AI_NO_QUESTI
 assert.match(emptyData.error,/chưa trích xuất được câu hỏi/);
 assert.equal(empty.requests.length,1,'Empty extraction must not silently consume quota again');
 
+// The production failure at question 12 must preserve the other eleven questions.
+const twelveQuestions=Array.from({length:12},(_,i)=>({...question,prompt:'Question '+(i+1),...(i===9?{confidence:85}:{}),...(i===11?{question_type:'tf',options:['First statement','Second statement'],correct_answer:[true]}:{})}));
+const recovered=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:twelveQuestions})}]);
+const recoveredResponse=await recovered.call({...input,answerReviewVersion:1}),recoveredData=await recoveredResponse.json();
+assert.equal(recoveredResponse.status,200);assert.equal(recoveredData.questions.length,12);assert.equal(recoveredData.questions[9].confidence,.85);
+assert.equal(recoveredData.questions[11].correct_answer,null);assert.equal(recoveredData.questions[11].answer_needs_review,true);
+assert.equal(recoveredData.questions[11].verification_status,'needs_review');assert.equal(recoveredData.questions[0].correct_answer,1);
+assert.ok(recoveredData.warnings.some(message=>message.includes('câu 12')));assert.equal(recovered.requests.length,1,'Repair consumed another provider request');
+const schema=recovered.requests[0].generationConfig.responseFormat.text;
+assert.equal(schema.mimeType,'application/json');assert.equal(schema.schema.properties.questions.items.properties.confidence.maximum,1);
+const oldClient=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:twelveQuestions})}]);
+const oldClientResponse=await oldClient.call(input);assert.equal(oldClientResponse.status,422);assert.equal((await oldClientResponse.json()).code,'AI_ANSWER_REVIEW_REQUIRED');
+const booleanWords=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[{...question,question_type:'tf',correct_answer:['true','false']}]})}]);
+assert.deepEqual((await (await booleanWords.call(input)).json()).questions[0].correct_answer,[true,false]);
+
 const lesson=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[],lesson:{
   title:'Revenue',content_markdown:'Revenue = GBP 4,000.',verification_status:'verified'
 }})}]);
@@ -98,7 +114,7 @@ const unavailable=handlerFor('icaew-ai-import',[
 assert.equal((await unavailable.call(input)).status,200);assert.equal(unavailable.requests.length,2);
 const invalid=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[{...question,prompt:'<img src=x onerror=alert(1)>'}]})}]);
 const invalidResponse=await invalid.call(input);
-assert.equal(invalidResponse.status,502);assert.equal((await invalidResponse.json()).error,'AI_OUTPUT_VALIDATION_FAILED');
+assert.equal(invalidResponse.status,502);assert.equal((await invalidResponse.json()).code,'AI_OUTPUT_VALIDATION_FAILED');
 
 // Read every image in one provider request, including a question split across two pages.
 const imageFiles=['page-1.png','page-2.png','page-3.png'].map(fileName=>({storagePath:userId+'/'+fileName,fileName,mimeType:'image/png'}));

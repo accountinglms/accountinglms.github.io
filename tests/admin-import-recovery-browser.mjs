@@ -1,5 +1,7 @@
 import { chromium, webkit } from 'playwright';
 import assert from 'node:assert/strict';
+import AxeBuilder from '@axe-core/playwright';
+import {normalizeImportQuestion} from '../assets/import-answers.js';
 
 const browserName=process.env.BROWSER||'chromium';
 const engine=browserName==='webkit'?webkit:chromium;
@@ -17,6 +19,7 @@ const aiResult={title:'Revenue practice',questions:[{question_type:'single',prom
 const drafts=new Map(),sources=new Map(),objects=new Map(),questions=[],lessons=[];
 let uploads=0,aiCalls=0,failReadyPatch=false,failNextAI=false,failUploadAt=0;
 let emptyNextAI=false;
+let repairNextAI=false;
 const routeInputs=[];
 
 const browser=await engine.launch({headless:true});
@@ -77,6 +80,7 @@ try{
     if(path==='/functions/v1/icaew-ai-import'){
       aiCalls++;
       const payload=req.postDataJSON();
+      assert.equal(payload.answerReviewVersion,1,'Editor did not advertise safe pending-answer handling');
       const files=payload.files||[payload];
       const persisted=[...drafts.values()].find(d=>sources.get(d.source_id)?.storage_key===files[0].storagePath&&d.payload.destination.target_type===payload.targetType);
       assert.ok(persisted,'AI request ran before the draft was saved');
@@ -89,6 +93,10 @@ try{
       if(emptyNextAI){
         const mode=emptyNextAI;emptyNextAI=false;
         return mode==='server'?json(route,{error:'AI chưa trích xuất được câu hỏi nào. Hãy kiểm tra ảnh rồi thử lại.',code:'AI_NO_QUESTIONS'},422):json(route,{...aiResult,questions:[]});
+      }
+      if(repairNextAI){
+        repairNextAI=false;
+        return json(route,{...aiResult,questions:Array.from({length:12},(_,i)=>normalizeImportQuestion({...aiResult.questions[0],source_file:1,source_files:[1],prompt:'Recovered question '+(i+1),...(i===11?{question_type:'tf',options:['Statement A','Statement B'],correct_answer:[true]}:{})})),warnings:['Cần bổ sung đáp án cho câu 12.']});
       }
       const result=payload.files?{...aiResult,title:'Combined image questions',processed_files:files.map((_,i)=>i+1),questions:files.map((f,i)=>({...aiResult.questions[0],prompt:'Question from '+f.fileName,source_file:i+1,source_files:i===0&&files.length>1?[1,2]:[i+1]}))}:aiResult;
       return json(route,result);
@@ -241,6 +249,34 @@ try{
   assert.equal(aiCalls,10);assert.equal(uploads,9);
   await page.setViewportSize({width:390,height:844});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'Recovery UI overflowed a phone viewport');
+  // One malformed TF answer retains all questions, survives editing/reload, then really publishes.
+  await page.setInputFiles('#import-file',image('answer-repair.png'));await confirm();repairNextAI=true;
+  await page.click('#ai-generate');await page.waitForFunction(()=>document.querySelectorAll('.importCard').length===12);
+  const repairDraft=[...drafts.values()].at(-1),callsBeforeEdit=aiCalls,uploadsBeforeEdit=uploads;
+  assert.equal(repairDraft.payload.questions.length,12);assert.equal(repairDraft.payload.questions[11].correct_answer,null);
+  assert.equal(await page.isDisabled('#publish-imported'),true);assert.match(await page.locator('#import-answer-summary').innerText(),/1 câu/);
+  for(const theme of ['light','dark']){
+    await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);await page.waitForTimeout(220);
+    const audit=await new AxeBuilder({page}).include('#review-area').withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();
+    assert.deepEqual(audit.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[],theme+' answer review accessibility');
+  }
+  await page.click('a[href="#import-answer-editor-11"]');
+  await page.selectOption('[data-answer-question="11"][data-answer-option="0"]','true');
+  assert.equal(await page.isDisabled('#publish-imported'),true,'Partial boolean answer enabled publication');
+  await page.selectOption('[data-answer-question="11"][data-answer-option="1"]','false');
+  await page.click('#save-reviewed-import');
+  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã lưu chỉnh sửa'));
+  assert.deepEqual(drafts.get(repairDraft.id).payload.questions[11].correct_answer,[true,false]);
+  await open();await page.click('[data-resume-import="'+repairDraft.id+'"]');
+  assert.equal(await page.inputValue('[data-answer-question="11"][data-answer-option="1"]'),'false','False answer was lost on reload');
+  assert.equal(await page.isDisabled('#publish-imported'),false);
+  await page.click('#publish-imported');
+  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã publish AI question'));
+  const repaired=questions.filter(q=>q.metadata.import_draft_id===repairDraft.id);
+  assert.equal(repaired.length,12);assert.deepEqual(repaired[11].correct_answer,[true,false]);
+  assert.ok(repaired.every(q=>q.status==='published'&&q.verification_status==='verified'&&q.metadata.reviewed_by===user.id&&q.verified_at));
+  assert.equal(aiCalls,callsBeforeEdit,'Editing an answer called Gemini again');assert.equal(uploads,uploadsBeforeEdit,'Review re-uploaded the saved image');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'Answer review overflowed a phone viewport');
   console.log(`PASS ${browserName}: draft before AI, quota recovery, reload/resume, source reuse, manual save, multi-image extraction/provenance, partial-upload resume, and failed-save retry.`);
   await context.close();
 }finally{await browser.close()}
