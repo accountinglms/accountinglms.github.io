@@ -16,7 +16,7 @@ export function importAnswerError(question){
 }
 export function assertImportAnswers(questions){
   if(!Array.isArray(questions)||questions.length===0)throw new Error('Chưa có câu hỏi để xuất bản.');
-  questions.forEach((question,index)=>{const issue=importAnswerError(question);if(issue)throw new Error(`Câu ${index+1}: ${issue}`);});
+  questions.forEach((question,index)=>{if(typeof question?.prompt!=='string'||!question.prompt.trim())throw new Error(`Câu ${index+1}: nội dung câu hỏi đang trống.`);const issue=importAnswerError(question);if(issue)throw new Error(`Câu ${index+1}: ${issue}`);});
 }
 export function normalizeImportQuestion(raw){
   if(!raw||typeof raw!=='object'||Array.isArray(raw))return raw;
