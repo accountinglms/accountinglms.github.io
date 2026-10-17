@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { hasUnsafeMarkup } from "../_shared/text-safety.js";
 import { geminiFailure } from "../_shared/gemini-errors.js";
 import { loadImportSources, ImportSourceError } from "../_shared/import-sources.js";
-import { normalizeImportQuestion, importOutputSchema, importContentError } from "../../../assets/import-answers.js";
+import { normalizeImportQuestion, importContentError } from "../../../assets/import-answers.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -281,7 +281,7 @@ Deno.serve(async (req: Request) => {
       "processed_files must list EVERY SOURCE_FILE number (1-based), including files containing only continuations, answer keys, or no questions. Do not silently skip any file. Add a warning identifying any unreadable or irrelevant file.",
       "For each question, source_file is the 1-based SOURCE_FILE where it starts; source_files lists all SOURCE_FILE numbers needed for its question/options/answer key. source_page is the page within that file (1 for an image). Preserve question order across all files.",
       "Each question must be:",
-      "{\"question_type\":\"single\"|\"multiple\"|\"tf\",\"prompt\":string,\"options\":string[],\"correct_answer\":number|number[]|boolean[],\"required_selections\":number|null,\"explanation_en\":string|null,\"explanation_vi\":string|null,\"practical_example_en\":string|null,\"practical_example_vi\":string|null,\"standard_reference\":string|null,\"verification_status\":\"verified\"|\"needs_review\"|\"conflict\"|\"source_only\",\"verification_note\":string|null,\"source_page\":number|null,\"source_file\":number,\"source_files\":number[],\"confidence\":number,\"review_note\":string|null}",
+      "{\"question_type\":\"single\"|\"multiple\"|\"tf\",\"prompt\":string,\"options\":string[],\"correct_answer\":number|number[]|boolean[]|null,\"required_selections\":number|null,\"explanation_en\":string|null,\"explanation_vi\":string|null,\"practical_example_en\":string|null,\"practical_example_vi\":string|null,\"standard_reference\":string|null,\"verification_status\":\"verified\"|\"needs_review\"|\"conflict\"|\"source_only\",\"verification_note\":string|null,\"source_page\":number|null,\"source_file\":number,\"source_files\":number[],\"confidence\":number,\"review_note\":string|null}",
       targetType === "lesson"
         ? "Primary task: create lesson {title,summary,content_markdown,content_markdown_vi,standard_references,verification_status,verification_note}; content_markdown must contain the COMPLETE verbatim original lesson, all paragraphs, tables and worked examples. content_markdown_vi must be a full faithful Vietnamese translation, never a condensed lesson. summary is only a separate optional overview and must not replace full content. Also extract explicit questions if present."
         : "Primary task: extract explicit questions and answer keys; lesson must be null.",
@@ -311,7 +311,10 @@ Deno.serve(async (req: Request) => {
           body: JSON.stringify({
             contents: [{ role: "user", parts }],
             generationConfig: {
-              responseFormat: {text:{mimeType:"APPLICATION_JSON",schema:importOutputSchema(sources.files.length,targetType)}},
+              // Match the JSON mode used by successful imports before v16.
+              // Validate/normalise model output locally; do not send the responseFormat/schema
+              // combination that this deployed model rejects with INVALID_ARGUMENT.
+              responseMimeType: "application/json",
               temperature: 0.1,
               maxOutputTokens: 16000,
             },

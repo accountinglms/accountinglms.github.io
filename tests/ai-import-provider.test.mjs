@@ -40,6 +40,10 @@ function handlerFor(slug, responses, options={}) {
         assert.ok(textResponseFormat.mimeType.enum.includes(request.generationConfig.responseFormat.text.mimeType),'Invalid REST TextResponseFormat.mimeType: '+request.generationConfig.responseFormat.text.mimeType);
       }
       requests.push(request);
+      // Replay the deployed model's 400 for the new format/schema combination.
+      if(options.rejectStructuredFormat&&request.generationConfig?.responseFormat){
+        return json({error:{code:400,status:'INVALID_ARGUMENT',message:'Request contains an invalid argument.'}},400);
+      }
       const next=responses.shift();
       assert.ok(next,'Unexpected extra Gemini request');
       return json(next.body,next.status);
@@ -127,8 +131,14 @@ assert.equal(recoveredResponse.status,200);assert.equal(recoveredData.questions.
 assert.equal(recoveredData.questions[11].correct_answer,null);assert.equal(recoveredData.questions[11].answer_needs_review,true);
 assert.equal(recoveredData.questions[11].verification_status,'needs_review');assert.equal(recoveredData.questions[0].correct_answer,1);
 assert.ok(recoveredData.warnings.some(message=>message.includes('câu 12')));assert.equal(recovered.requests.length,1,'Repair consumed another provider request');
-const schema=recovered.requests[0].generationConfig.responseFormat.text;
-assert.equal(schema.mimeType,'APPLICATION_JSON');assert.equal(schema.schema.properties.questions.items.properties.confidence.maximum,1);
+const config=recovered.requests[0].generationConfig;
+assert.equal(config.responseMimeType,'application/json');
+assert.equal(config.responseFormat,undefined);assert.equal(config.responseSchema,undefined);assert.equal(config.responseJsonSchema,undefined);
+const compatible=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:twelveQuestions})}],{rejectStructuredFormat:true});
+const compatibleResponse=await compatible.call({...input,answerReviewVersion:2}),compatibleData=await compatibleResponse.json();
+assert.equal(compatibleResponse.status,200,'Configured model still received the rejected responseFormat/schema combination');
+assert.equal(compatible.requests.length,1,'Compatibility recovery sent extra provider requests');
+assert.equal(compatibleData.questions.length,12);assert.equal(compatibleData.questions[11].correct_answer,null,'Local answer recovery was removed with the remote schema');
 const oldClient=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:twelveQuestions})}]);
 const oldClientResponse=await oldClient.call(input);assert.equal(oldClientResponse.status,422);assert.equal((await oldClientResponse.json()).code,'AI_ANSWER_REVIEW_REQUIRED');
 const booleanWords=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[{...question,question_type:'tf',correct_answer:['true','false']}]})}]);
@@ -152,6 +162,13 @@ assert.equal(invalidResponse.status,502);assert.equal((await invalidResponse.jso
 // Read every image in one provider request, including a question split across two pages.
 const imageFiles=['page-1.png','page-2.png','page-3.png'].map(fileName=>({storagePath:userId+'/'+fileName,fileName,mimeType:'image/png'}));
 const png=Uint8Array.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,1]);
+const pdfBytes=new TextEncoder().encode('%PDF-1.7\nsynthetic PDF transport fixture\n%%EOF');
+const pdf=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[fidelityQuestion]})}],{rejectStructuredFormat:true,storage:()=>new Response(pdfBytes)});
+const pdfResponse=await pdf.call({...input,storagePath:userId+'/questions.pdf',fileName:'questions.pdf',mimeType:'application/pdf',answerReviewVersion:2});
+assert.equal(pdfResponse.status,200);
+const pdfPart=pdf.requests[0].contents[0].parts.find(part=>part.inlineData)?.inlineData;
+assert.equal(pdfPart.mimeType,'application/pdf');assert.deepEqual(Buffer.from(pdfPart.data,'base64'),Buffer.from(pdfBytes),'PDF transport bytes were changed');
+assert.equal(pdf.requests[0].generationConfig.responseMimeType,'application/json');assert.equal(pdf.requests.length,1);
 const downloads=[];
 const storage=(url,init)=>{downloads.push(url);assert.equal(init.headers.Authorization,'Bearer editor-token');return new Response(png)};
 const batchOutput={...output,processed_files:[1,2,3],questions:[
