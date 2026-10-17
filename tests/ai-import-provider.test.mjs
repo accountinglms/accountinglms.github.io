@@ -7,6 +7,7 @@ import { geminiFailure } from '../supabase/functions/_shared/gemini-errors.js';
 import { loadImportSources, ImportSourceError } from '../supabase/functions/_shared/import-sources.js';
 import {normalizeImportQuestion,importOutputSchema,importContentError} from '../assets/import-answers.js';
 import {fidelityQuestion} from './helpers/import-fidelity-fixture.mjs';
+import {parseImportJson} from '../supabase/functions/_shared/import-json.js';
 
 const origin = 'https://accountinglms.github.io';
 // REST wire enum from Google's discovery document, rather than the SDK MIME string.
@@ -27,7 +28,7 @@ function handlerFor(slug, responses, options={}) {
   const requests=[];
   let serve;
   const context=vm.createContext({Response,Request,Headers,TextDecoder,Uint8Array,btoa,
-    hasUnsafeMarkup,geminiFailure,loadImportSources,ImportSourceError,normalizeImportQuestion,importOutputSchema,importContentError,console:{error(){}},setTimeout:fn=>{fn();return 0},
+    hasUnsafeMarkup,geminiFailure,loadImportSources,ImportSourceError,normalizeImportQuestion,importOutputSchema,importContentError,parseImportJson,console:{error(){}},setTimeout:fn=>{fn();return 0},
     Deno:{env:{get:name=>({SUPABASE_URL:'https://test.supabase.co',SUPABASE_ANON_KEY:'public',GEMINI_API_KEY:'server-key'})[name]},serve:fn=>serve=fn},
     fetch:async(url,init)=>{
       if(url.includes('/auth/v1/user'))return json({id:userId});
@@ -108,6 +109,23 @@ for(const field of ['prompt','options','explanation_en','explanation_vi','correc
 const instructions=faithful.requests[0].contents[0].parts[0].text;
 assert.match(instructions,/SOURCE FIDELITY IS MANDATORY/);assert.match(instructions,/copy it IN FULL/);assert.match(instructions,/Never substitute a concise AI explanation/);
 assert.equal(faithful.requests.length,1,'Preserving source text consumed extra model requests');
+const rawText=text=>({candidates:[{content:{parts:[{text}]}}]});
+for(const [escape,expected,needsReview] of [[String.raw`\u{00a3}`,'£',false],[String.raw`\u00G0`,String.raw`[UNREADABLE]\u00G0`,true]]){
+  const text=JSON.stringify({...output,questions:[{...question,prompt:'Amount: PLACEHOLDER12,000'}]}).replace('PLACEHOLDER',escape);
+  const unicode=handlerFor('icaew-ai-import',[{status:200,body:rawText(text)}]);
+  const response=await unicode.call({...input,answerReviewVersion:2}),body=await response.json();
+  assert.equal(response.status,200);assert.equal(body.questions[0].prompt,'Amount: '+expected+'12,000');
+  assert.equal(Boolean(importContentError(body.questions[0])),needsReview);assert.equal(unicode.requests.length,1,'String repair used another Gemini request');
+}
+const splitText=JSON.stringify({...output,questions:[{...question,prompt:'£12,000'}]}).replace('£',String.raw`\u00a3`);
+const splitAt=splitText.indexOf(String.raw`\u00a3`)+4;
+const split=handlerFor('icaew-ai-import',[{status:200,body:{candidates:[{content:{parts:[{thought:true,text:'Synthetic non-output metadata.'},{text:splitText.slice(0,splitAt)},{text:splitText.slice(splitAt)}]}}]}}]);
+assert.equal((await (await split.call({...input,answerReviewVersion:2})).json()).questions[0].prompt,'£12,000','Part boundaries corrupted a Unicode escape');
+const unsafeText=JSON.stringify({...output,questions:[{...question,prompt:'PLACEHOLDERscript>alert(1)</script>'}]}).replace('PLACEHOLDER',String.raw`\u{003c}`);
+const repairedUnsafe=handlerFor('icaew-ai-import',[{status:200,body:rawText(unsafeText)}]);
+const unsafeResponse=await repairedUnsafe.call({...input,answerReviewVersion:2});assert.equal(unsafeResponse.status,502);assert.equal((await unsafeResponse.json()).code,'AI_OUTPUT_VALIDATION_FAILED','JSON repair bypassed active-markup validation');
+const brokenStructure=handlerFor('icaew-ai-import',[{status:200,body:rawText('{"title":"Revenue","questions":[')}]);
+assert.equal((await brokenStructure.call(input)).status,502,'Missing JSON structure was invented');
 const unclearOutput={...output,questions:[{...fidelityQuestion,prompt:fidelityQuestion.prompt.replace('£12,000','[UNREADABLE]')}]};
 const unclear=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess(unclearOutput)}]);
 const unclearResponse=await unclear.call({...input,answerReviewVersion:2}),unclearData=await unclearResponse.json();
