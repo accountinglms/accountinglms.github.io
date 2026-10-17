@@ -81,6 +81,7 @@ jobs:
           node tests/chat-drafts.test.mjs
           node tests/import-result.test.mjs
           node tests/import-answers.test.mjs
+          node tests/import-json.test.mjs
           node tests/chat-updates.test.mjs
 
       - name: Edge Function typecheck

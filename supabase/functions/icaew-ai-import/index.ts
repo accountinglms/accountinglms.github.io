@@ -3,6 +3,7 @@ import { hasUnsafeMarkup } from "../_shared/text-safety.js";
 import { geminiFailure } from "../_shared/gemini-errors.js";
 import { loadImportSources, ImportSourceError } from "../_shared/import-sources.js";
 import { normalizeImportQuestion, importContentError } from "../../../assets/import-answers.js";
+import { parseImportJson } from "../_shared/import-json.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -339,14 +340,16 @@ Deno.serve(async (req: Request) => {
 
     if (aiBody?.candidates?.[0]?.finishReason === "MAX_TOKENS") return json(req, {error:"Bộ câu hỏi quá dài cho một lượt AI. Hãy chia thành các nhóm ảnh nhỏ hơn; bản nháp và nguồn vẫn được giữ.",code:"AI_OUTPUT_TRUNCATED"}, 502);
     const text = (aiBody?.candidates?.[0]?.content?.parts || [])
-      .map((p: any) => p?.text || "")
-      .join("\n");
+      .filter((p: any) => p?.thought !== true && typeof p?.text === "string")
+      .map((p: any) => p.text)
+      .join("");
 
     if (!text) return json(req, { error: "Gemini không trả về nội dung.", provider: "gemini" }, 502);
 
     try {
-      const parsed = JSON.parse(stripFence(text));
-      const validated = validateOutput(parsed, targetType, sources.files.length);
+      const parsed = parseImportJson(stripFence(text));
+      const validated = validateOutput(parsed.value, targetType, sources.files.length);
+      if (parsed.repaired) validated.warnings.push("Đã chuẩn hoá ký tự trong phản hồi AI. Phần mã Unicode chưa xác định được giữ kèm [UNREADABLE] để đối chiếu nguồn trước khi xuất bản.");
       if ([...validated.questions, ...(validated.lesson ? [validated.lesson] : [])].some(importContentError) && input.answerReviewVersion !== 2) {
         return json(req, {error:"Tệp nguồn đã được giữ. Hãy cập nhật hoặc mở lại website để đối chiếu và bổ sung phần AI chưa đọc rõ trước khi xuất bản.",code:"AI_SOURCE_REVIEW_REQUIRED",provider:"gemini"},422);
       }
