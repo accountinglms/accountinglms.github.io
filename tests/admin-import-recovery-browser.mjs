@@ -304,6 +304,44 @@ try{
   assert.ok(repaired.every(q=>q.status==='published'&&q.verification_status!=='verified'&&q.metadata.published_by===user.id&&!q.verified_at));
   assert.equal(aiCalls,callsBeforeEdit,'Editing an answer called Gemini again');assert.equal(uploads,uploadsBeforeEdit,'Review re-uploaded the saved image');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'Answer review overflowed a phone viewport');
+  // Owner-controlled source publication works even when Gemini failed,
+  // preserves the original draft for a later AI retry and never spends quota.
+  const noAiCalls=aiCalls,oldUploadCount=uploads;
+  await open();await resume('[data-resume-import="draft-1"]');
+  assert.equal(await page.isDisabled('#publish-source-fallback'),false);
+  await page.click('#publish-source-fallback');
+  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã xuất bản tài liệu gốc'));
+  const publishedOriginals=lessons.filter(row=>row.content_json?.source_fallback===true
+    &&row.content_json?.import_draft_id==='draft-1');
+  assert.equal(publishedOriginals.length,1,'Fallback created multiple lessons for one import');
+  assert.equal(publishedOriginals[0].status,'published');
+  assert.equal(publishedOriginals[0].source_id,'source-1');
+  assert.deepEqual(publishedOriginals[0].content_json.source_files.map(f=>f.sourceId),['source-1']);
+  assert.equal(aiCalls,noAiCalls,'Publishing original source unexpectedly called Gemini');
+  assert.equal(uploads,oldUploadCount,'Publishing existing source uploaded again');
+  assert.equal(drafts.get('draft-1').status,'draft','Fallback erased a retryable AI draft');
+  await page.click('#publish-source-fallback');
+  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã xuất bản tài liệu gốc'));
+  assert.equal(lessons.filter(row=>row.content_json?.import_draft_id==='draft-1'&&row.content_json?.source_fallback).length,1,
+    'Retrying fallback duplicated a lesson');
+  await page.goto(baseURL+'/lessons.html?lesson='+encodeURIComponent(publishedOriginals[0].id),{waitUntil:'domcontentloaded'});
+  await page.waitForFunction(text=>document.querySelector('.sourceText')?.textContent===text,sourceText);
+  assert.equal(await page.locator('.sourceActions a').count(),2,'Reader did not provide open/download links');
+  assert.equal(aiCalls,noAiCalls,'Opening source in lesson reader invoked Gemini');
+  // Multiple uploaded PDFs must render as distinct source tabs without AI.
+  await open();
+  await page.setInputFiles('#import-file',[image('page-1.png'),image('page-2.png')]);
+  await confirm();
+  await page.click('#publish-source-fallback');
+  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã xuất bản tài liệu gốc'));
+  const original=lessons.filter(row=>row.content_json?.source_fallback).at(-1);
+  assert.equal(original.content_json.source_files.length,2);
+  assert.equal(aiCalls,noAiCalls,'Multi-image original fallback called Gemini');
+  await page.goto(baseURL+'/lessons.html?lesson='+encodeURIComponent(original.id),{waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.querySelectorAll('.sourceTabs button').length===2);
+  await page.locator('.sourceTabs button').nth(1).click();
+  await page.waitForFunction(()=>document.querySelector('.sourceViewer img')?.getAttribute('src')?.startsWith('blob:'));
+  
   console.log(`PASS ${browserName}: draft before AI, quota recovery, reload/resume, source reuse, manual save, multi-image extraction/provenance, partial-upload resume, and failed-save retry.`);
   await context.close();
 }finally{await browser.close()}
