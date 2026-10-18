@@ -33,7 +33,7 @@ function handlerFor(slug, responses, options={}) {
     fetch:async(url,init)=>{
       if(url.includes('/auth/v1/user'))return json({id:userId});
       if(url.includes('/rpc/get_my_access'))return json({editor:options.editor!==false});
-      if(url.includes('/rest/v1/'))return json([]);
+      if(url.includes('/rest/v1/'))return options.rest?options.rest(url,init):json([]);
       if(url.includes('/storage/v1/'))return options.storage?options.storage(url,init):new Response('Revenue = GBP 4,000.');
       assert.match(url,/^https:\/\/generativelanguage.googleapis.com\/v1beta\/models\/gemini-3\.5-flash-lite:generateContent$/);
       const request=JSON.parse(init.body);
@@ -239,3 +239,17 @@ const routeBatch=handlerFor('icaew-ai-route',[{status:429,body:quota('GenerateRe
 assert.equal((await routeBatch.call({...input,files:imageFiles})).status,429);
 assert.equal(routeBatch.requests[0].contents[0].parts.filter(p=>p.inlineData).length,3,'Routing ignored later images');
 console.log('PASS: multi-image import/routing, combined questions, source provenance, size/ownership guards, free-tier requests and retry recovery.');
+
+// A successful import is saved before the HTTP response, independently of the tab.
+const persisted={id:'22222222-2222-4222-8222-222222222222',target_type:'questions',status:'draft',created_by:userId,updated_at:'2026-10-17T00:00:00.123456Z',payload:{files:[{storagePath:input.storagePath,mimeType:input.mimeType}],questions:[],lesson:null,processing:{state:'processing'}}};
+let patchCount=0;
+const durable=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess(output)}],{rest:(url,init)=>{
+  assert.match(url,/created_by=eq\./);assert.match(url,/status=eq.draft/);
+  if(init.method==='PATCH'){patchCount++;assert.ok(url.includes('updated_at=eq.'+encodeURIComponent(persisted.updated_at)));const patch=JSON.parse(init.body);assert.equal(patch.payload.processing.state,'ready');assert.equal(patch.payload.questions[0].correct_answer,1);return json([{...persisted,...patch}])}
+  return json([persisted]);
+}});
+const durableResult=await (await durable.call({...input,draftId:persisted.id})).json();assert.equal(patchCount,1);assert.equal(durableResult.draft.id,persisted.id);assert.equal(durable.requests.length,1);
+const cachedDraft={...persisted,payload:{...persisted.payload,...output,processing:{state:'ready'}}};
+const cachedImport=handlerFor('icaew-ai-import',[],{rest:()=>json([cachedDraft])});
+assert.equal((await (await cachedImport.call({...input,draftId:persisted.id})).json()).draft.id,persisted.id);assert.equal(cachedImport.requests.length,0);
+console.log('PASS durable import: owned source-bound draft, server-side ready save, CAS guard and cached-result reuse.');

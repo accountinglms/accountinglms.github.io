@@ -15,7 +15,9 @@ export function importAnswerError(question){
   return 'Loại câu hỏi chưa hợp lệ.';
 }
 export function importContentError(item){
-  const fields=[item?.prompt,...(Array.isArray(item?.options)?item.options:[]),item?.explanation_en,item?.explanation_vi,item?.practical_example_en,item?.practical_example_vi,item?.content_markdown,item?.content_markdown_vi];
+  // Optional examples can be hidden while their translation is repaired. Core source
+  // content and answers still block publication when incomplete.
+  const fields=[item?.prompt,...(Array.isArray(item?.options)?item.options:[]),item?.explanation_en,item?.explanation_vi,item?.content_markdown,item?.content_markdown_vi];
   return fields.some(value=>typeof value==='string'&&/\[\s*UNREADABLE(?:\s*:[^\]\r\n]*)?\s*\]/i.test(value))?'Có phần [UNREADABLE] chưa đọc rõ. Hãy đối chiếu tệp nguồn và điền đầy đủ nội dung trước khi xuất bản.':'';
 }
 export function assertImportAnswers(questions){

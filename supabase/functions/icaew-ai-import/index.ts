@@ -243,6 +243,17 @@ Deno.serve(async (req: Request) => {
     const targetType = input?.targetType;
     if (!["questions","lesson"].includes(targetType)) return json(req, {error:"INVALID_INPUT"}, 400);
     const sources = await loadImportSources(input, String(user.id), {url:SUPABASE_URL,anonKey:SUPABASE_ANON_KEY,token,fetch});
+    // New clients bind the request to a persisted, owned draft. Save the result on
+    // the server before returning it, so a reload cannot lose a successful import.
+    let persistedDraft: any = null;
+    const draftHeaders={apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+token,'Content-Type':'application/json',Prefer:'return=representation'};
+    if(input.draftId!==undefined){
+      if(typeof input.draftId!=='string'||!/^[0-9a-f-]{36}$/i.test(input.draftId))return json(req,{error:'INVALID_DRAFT'},400);
+      const saved=await fetch(SUPABASE_URL+'/rest/v1/import_drafts?id=eq.'+encodeURIComponent(input.draftId)+'&created_by=eq.'+encodeURIComponent(user.id)+'&status=eq.draft&select=*',{headers:draftHeaders});
+      const rows=saved.ok?await saved.json():[];persistedDraft=rows[0];
+      if(!persistedDraft||persistedDraft.target_type!==targetType||!Array.isArray(persistedDraft.payload?.files)||persistedDraft.payload.files.length!==sources.files.length||persistedDraft.payload.files.some((f: any,i: number)=>f.storagePath!==sources.files[i].storagePath||f.mimeType!==sources.files[i].mimeType))return json(req,{error:'Bản nháp hoặc tệp nguồn đã thay đổi. Hãy mở lại bản nháp.',code:'DRAFT_CHANGED'},409);
+      if(persistedDraft.payload?.processing?.state==='ready'&&(targetType==='questions'?persistedDraft.payload.questions?.length:persistedDraft.payload.lesson))return json(req,{...persistedDraft.payload,model_name:persistedDraft.model_name,provider:'gemini',draft:persistedDraft});
+    }
 
     const subjectTitle = safeText(input?.subjectTitle, "subjectTitle", 300, true)!;
     const chapterTitle = safeText(input?.chapterTitle, "chapterTitle", 300, true)!;
@@ -367,6 +378,14 @@ Deno.serve(async (req: Request) => {
         item.verification_note = !wasVerified && item.verification_note ? item.verification_note + " " + note : note;
       }
       validated.warnings.push("AI không tra cứu web. Hãy đối chiếu đáp án và giải thích trước khi xuất bản.");
+      if(persistedDraft){
+        const saved=await fetch(SUPABASE_URL+'/rest/v1/import_drafts?id=eq.'+encodeURIComponent(persistedDraft.id)+'&created_by=eq.'+encodeURIComponent(user.id)+'&status=eq.draft&updated_at=eq.'+encodeURIComponent(persistedDraft.updated_at),{
+          method:'PATCH',headers:draftHeaders,body:JSON.stringify({title:validated.title,model_name:GEMINI_MODEL,updated_by:user.id,payload:{...persistedDraft.payload,questions:validated.questions,lesson:validated.lesson,warnings:validated.warnings,processing:{state:'ready'}}})
+        });
+        const rows=saved.ok?await saved.json():[];
+        if(!rows[0]?.id)return json(req,{...validated,model_name:GEMINI_MODEL,provider:'gemini',save_pending:true,warnings:[...validated.warnings,'Kết quả AI đã nhận nhưng chưa lưu do bản nháp thay đổi hoặc lỗi kết nối. Hãy lưu lại bản nháp; không cần chạy lại AI.']});
+        return json(req,{...validated,model_name:GEMINI_MODEL,provider:'gemini',draft:rows[0]});
+      }
       return json(req, {
         ...validated,
         model_name: GEMINI_MODEL,

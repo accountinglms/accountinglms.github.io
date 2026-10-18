@@ -24,11 +24,12 @@ assert.ok(importAnswerError({question_type:'tf',options:['A','B'],correct_answer
 const raw={...question,correct_answer:['true','false']};normalizeImportQuestion(raw);assert.deepEqual(raw.correct_answer,['true','false'],'Normalization mutated provider data');
 assert.deepEqual(normalizeImportQuestion(fidelityQuestion).prompt,fidelityQuestion.prompt);
 assert.doesNotThrow(()=>assertImportAnswers([fidelityQuestion]));
-for(const field of ['prompt','explanation_en','explanation_vi','practical_example_en','practical_example_vi']){
+for(const field of ['prompt','explanation_en','explanation_vi']){
   const pending={...fidelityQuestion,[field]:'The amount is [UNREADABLE].'};
   assert.ok(importContentError(pending));assert.throws(()=>assertImportAnswers([pending]),/Câu 1.*UNREADABLE/);
   assert.equal(normalizeImportQuestion(pending).verification_status,'needs_review');
 }
+for(const field of ['practical_example_en','practical_example_vi']){const pending={...fidelityQuestion,[field]:'[UNREADABLE]'};assert.equal(importContentError(pending),'');assert.doesNotThrow(()=>assertImportAnswers([pending]));}
 assert.ok(importContentError({...fidelityQuestion,options:['[UNREADABLE: figure]','Readable choice']}));
 assert.ok(importContentError({content_markdown:'Full lesson\n[UNREADABLE]'}));
 assert.equal(importContentError({prompt:'UNREADABLE is a word, [a note] is a note.'}),'');
