@@ -126,6 +126,8 @@ function updateGenerateState(){
   if(btn){btn.disabled=importBusy||structureBusy||!valid||remaining>0;if(!importBusy)btn.textContent=remaining?'Thử AI lại sau '+remaining+' giây':'Tạo bản nháp bằng AI'}
   const save=$('#save-import');
   if(save)save.disabled=importBusy||structureBusy||!valid;
+  const publishOriginal=$('#publish-source-fallback');
+  if(publishOriginal)publishOriginal.disabled=importBusy||structureBusy||!valid;
   const route=$('#ai-route');
   if(route)route.disabled=importBusy||structureBusy||!file||!importFilesAvailable()||remaining>0;
   for(const selector of ['#import-file','#import-target','#subject','#chapter','#exercise','#confirm-destination']){
@@ -188,6 +190,7 @@ function renderImportRecovery(){
   $('#continue-manual-import').classList.toggle('hidden',!pending);
   $('#download-import-source').classList.toggle('hidden',total!==1);
   $('#manual-source-row').classList.toggle('hidden',!pending||total<2);
+  renderPublishedSourceLink();
   const old=$('#manual-import-source').value;
   $('#manual-import-source').innerHTML=(preparedImport?.files||[]).map((f,i)=>f.sourceId?`<option value="${i}">${esc(f.name)}</option>`:'').join('');
   if([...$('#manual-import-source').options].some(o=>o.value===old))$('#manual-import-source').value=old;
@@ -232,6 +235,85 @@ async function persistImportSource(files,subject,chapter,exercise){
   setImportProgress(`Đã lưu ${files.length}/${files.length} tệp nguồn.`);
   return prepared;
 }
+
+
+function publishedSourceLesson(){
+  return lessons.find(lesson=>lesson.status==='published'&&lesson.content_json?.source_fallback===true
+    &&lesson.content_json?.import_draft_id===importDraftId);
+}
+function renderPublishedSourceLink(){
+  const node=$('#source-published-info');
+  if(!node)return;
+  const published=publishedSourceLesson();
+  node.classList.toggle('hidden',!published);
+  node.replaceChildren();
+  if(!published)return;
+  const link=document.createElement('a');
+  link.href='lessons.html?lesson='+encodeURIComponent(published.id);
+  link.textContent='✓ Tài liệu gốc đã xuất bản · Mở để học';
+  node.append(link);
+}
+
+// Publish is the editor's choice and does not depend on AI output or repair.
+// Persist source bytes and import-draft first; publish a linked read-only
+// lesson so the saved original can be studied now and extracted later.
+async function publishSourceFallback(){
+  const button=$('#publish-source-fallback');
+  if(importBusy||button?.disabled)return;
+  importBusy=true;button.textContent='Đang lưu và xuất bản…';updateGenerateState();
+  try{
+    const files=currentImportFiles();validateImportFiles(files);
+    if(!destinationComplete()||!destinationConfirmed||destinationSignature!==currentDestinationSignature())
+      throw Error('Chọn và xác nhận nơi lưu trước khi xuất bản tài liệu gốc.');
+    const subject=subjects.find(row=>row.id===selected('#subject'));
+    const chapter=chapters.find(row=>row.id===selected('#chapter'));
+    const exercise=currentTargetType()==='questions'?exercises.find(row=>row.id===selected('#exercise')):null;
+    if(!subject||!chapter||(currentTargetType()==='questions'&&!exercise))
+      throw Error('Nơi lưu đã thay đổi. Hãy xác nhận lại.');
+    await persistImportSource(files,subject,chapter,exercise);
+    const sourceFiles=preparedImport.files;
+    if(!sourceFiles.length||sourceFiles.some(file=>!file.storagePath||!file.sourceId))
+      throw Error('Tệp nguồn chưa được lưu đầy đủ. Hãy thử lại, không cần chạy AI.');
+    // Read from DB on every attempt; handles lost responses and other tabs.
+    const existing=await restGet('lessons','select=*&chapter_id=eq.'+encodeURIComponent(chapter.id));
+    let published=existing.find(row=>row.content_json?.source_fallback===true
+      &&row.content_json?.import_draft_id===importDraftId);
+    if(!published){
+      const current=existing.filter(row=>row.chapter_id===chapter.id);
+      const sort_order=current.length?Math.max(...current.map(row=>Number(row.sort_order)||0))+1:0;
+      const user=await ensureEditorSession();
+      const title=(sourceFiles.length===1?'Tài liệu gốc · '+sourceFiles[0].name
+        :'Tài liệu gốc · '+sourceFiles[0].name+' + '+(sourceFiles.length-1)+' tệp').slice(0,280);
+      const created=await restInsert('lessons',{
+        chapter_id:chapter.id,title,summary:'Tài liệu nguồn đã xuất bản, không yêu cầu AI. Có thể đọc ngay; câu hỏi sẽ được tạo và xuất bản riêng sau.',
+        content_markdown:'',content_markdown_vi:null,
+        content_json:{source_fallback:true,import_draft_id:importDraftId,
+          source_ids:sourceFiles.map(file=>file.sourceId),
+          source_files:sourceFiles.map(file=>({
+            sourceId:file.sourceId,storagePath:file.storagePath,name:file.name,mimeType:file.mimeType
+          }))},
+        source_id:sourceFiles[0].sourceId,status:'published',sort_order,
+        verification_status:'source_only',
+        verification_note:'Xuất bản tài liệu gốc theo lựa chọn của quản trị viên, không qua xác minh AI.',
+        created_by:user.user.id,updated_by:user.user.id
+      });
+      published=created[0];
+      if(!published?.id)throw Error('Không nhận được thông tin bài học đã xuất bản.');
+    }
+    await reload();
+    renderImportRecovery();
+    notice('Đã xuất bản tài liệu gốc để học ngay. AI có thể được chạy lại từ bản nháp bất cứ lúc nào.','ok');
+    const link=$('#source-published-info a');
+    if(link){link.focus({preventScroll:true});link.scrollIntoView({block:'nearest'});}
+  }catch(error){
+    // Source bytes saved before any subsequent failure; do not remove a draft.
+    notice((error?.message||'Chưa xuất bản được tệp gốc')+' Tệp đã lưu vẫn được giữ để thử lại.','error');
+  }finally{
+    importBusy=false;button.textContent='Xuất bản tệp gốc ngay';
+    renderImportRecovery();updateGenerateState();
+  }
+}
+$('#publish-source-fallback').addEventListener('click',publishSourceFallback);
 
 async function resumeSavedImport(id){
   if(!id||importBusy)return;

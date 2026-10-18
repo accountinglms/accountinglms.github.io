@@ -286,6 +286,7 @@ body.page-admin button.deleteItem:disabled{opacity:1!important;color:var(--vg-mu
             <div class="importActions">
               <button id="ai-generate" type="button" class="aiBtn" disabled>Tạo bản nháp bằng AI</button>
               <button id="save-import" type="button" class="ghost" disabled>Lưu bản nháp không dùng AI</button>
+              <button id="publish-source-fallback" type="button" class="primary" disabled>Xuất bản tệp gốc ngay</button>
             </div>
           </div>
         </div>
@@ -362,6 +363,7 @@ body.page-admin button.deleteItem:disabled{opacity:1!important;color:var(--vg-mu
         <label id="manual-source-row" class="field hidden"><span>Tệp dùng để nhập thủ công</span><select id="manual-import-source"></select></label>
         <button id="download-import-source" type="button" class="ghost">Tải tệp nguồn</button>
         <button id="continue-manual-import" type="button" class="ghost">Nhập thủ công</button>
+        <div id="source-published-info" class="hidden" role="status"></div>
       </div>
       <div id="import-warning" class="warning hidden"></div>
       <div id="review-area" class="reviewArea hidden"></div>

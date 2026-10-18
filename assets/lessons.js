@@ -1,4 +1,4 @@
-import { ensureSession, isRetryableError, restGet, callUniversalTranslate } from './common.js';
+import { ensureSession, isRetryableError, restGet, callUniversalTranslate, downloadImportFile } from './common.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -11,6 +11,93 @@ let currentLessonId = null;
 let translatedView = false;
 let translationRequest = 0;
 const memoryCache = new Map();
+let currentSourceLoad = 0;
+let activeSourceUrl = null;
+function releaseSourceUrl(){
+  currentSourceLoad++;
+  if(activeSourceUrl){URL.revokeObjectURL(activeSourceUrl);activeSourceUrl=null;}
+}
+function sourceFilesForLesson(lesson){
+  return lesson?.content_json?.source_fallback===true&&Array.isArray(lesson?.content_json?.source_files)
+    ?lesson.content_json.source_files.filter(f=>f&&typeof f.storagePath==='string'&&
+      ['application/pdf','image/png','image/jpeg','image/webp','text/plain'].includes(f.mimeType))
+    :[];
+}
+async function showSavedSource(file,host){
+  releaseSourceUrl();
+  const request=currentSourceLoad;
+  host.replaceChildren();
+  const state=document.createElement('p');
+  state.textContent='Đang tải tài liệu gốc an toàn từ thư viện…';
+  host.append(state);
+  try{
+    const blob=await downloadImportFile(file.storagePath);
+    if(request!==currentSourceLoad)return;
+    // Enforce the declared media type; never interpret uploaded HTML.
+    const content=new Blob([blob],{type:file.mimeType});
+    const url=URL.createObjectURL(content);
+    activeSourceUrl=url;
+    host.replaceChildren();
+    const actions=document.createElement('div');
+    actions.className='sourceActions';
+    const open=document.createElement('a');
+    open.href=url;open.target='_blank';open.rel='noopener';
+    open.textContent='Mở tệp gốc';
+    const download=document.createElement('a');
+    download.href=url;download.download=String(file.name||'source').replace(/[\\/]/g,'_');
+    download.textContent='Tải xuống';
+    actions.append(open,download);host.append(actions);
+    if(file.mimeType==='application/pdf'){
+      const frame=document.createElement('iframe');
+      frame.src=url;frame.title='Tài liệu PDF: '+String(file.name||'');
+      frame.className='sourcePdf';
+      host.append(frame);
+      const help=document.createElement('p');
+      help.className='sourceHelp';
+      help.textContent='Nếu Safari không hiển thị PDF trong khung, hãy chọn “Mở tệp gốc” hoặc “Tải xuống”.';
+      host.append(help);
+    }else if(file.mimeType.startsWith('image/')){
+      const img=document.createElement('img');
+      img.src=url;img.alt='Nội dung gốc: '+String(file.name||'Ảnh');
+      img.className='sourceImage';host.append(img);
+    }else{
+      const pre=document.createElement('pre');pre.className='sourceText';
+      pre.textContent=await content.text();
+      if(request!==currentSourceLoad)return;
+      host.append(pre);
+    }
+  }catch(error){
+    if(request!==currentSourceLoad)return;
+    state.textContent='Chưa mở được tệp gốc: '+(error?.message||'Lỗi tải tệp')+'. Bạn có thể thử lại.';
+    host.replaceChildren(state);
+    const retry=document.createElement('button');retry.type='button';retry.textContent='Thử tải lại';
+    retry.addEventListener('click',()=>showSavedSource(file,host));host.append(retry);
+  }
+}
+function renderSavedSourceLesson(lesson){
+  releaseSourceUrl();
+  const files=sourceFilesForLesson(lesson),reader=document.querySelector('#reader');
+  reader.innerHTML=`
+    <div class="readerMeta">TÀI LIỆU NGUỒN · ĐÃ XUẤT BẢN</div>
+    <h2>${esc(lesson.title)}</h2>
+    <p class="summary">Tệp gốc được giữ nguyên. Bạn có thể đọc ngay mà không cần chờ AI tạo câu hỏi.</p>
+    <div class="sourceTabs" id="source-tabs"></div>
+    <div id="source-viewer" class="sourceViewer" aria-live="polite"></div>
+  `;
+  const tabs=reader.querySelector('#source-tabs'),viewer=reader.querySelector('#source-viewer');
+  if(!files.length){viewer.textContent='Bài học này chưa có tệp nguồn hợp lệ.';return;}
+  files.forEach((file,i)=>{
+    const button=document.createElement('button');button.type='button';
+    button.textContent=(i+1)+'. '+String(file.name||'Tệp nguồn');
+    button.addEventListener('click',()=>{
+      tabs.querySelectorAll('button').forEach(btn=>btn.setAttribute('aria-pressed',String(btn===button)));
+      void showSavedSource(file,viewer);
+    });
+    tabs.append(button);
+  });
+  tabs.querySelector('button')?.click();
+}
+window.addEventListener('pagehide',releaseSourceUrl);
 
 function guessSourceLanguage(text) {
   const value = String(text || '');
@@ -33,6 +120,8 @@ function translationTarget(lesson) {
 
 function renderReaderBody(lesson, translated = null) {
   const reader = document.querySelector('#reader');
+  if(lesson?.content_json?.source_fallback===true){renderSavedSourceLesson(lesson);return;}
+  releaseSourceUrl();
   const target = translationTarget(lesson);
   const title = translated?.title ?? lesson.title;
   const summary = translated?.summary ?? lesson.summary;
