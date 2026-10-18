@@ -356,6 +356,32 @@ try{
   await page.locator('.sourceTabs button').nth(1).click();
   await page.waitForFunction(()=>document.querySelector('.sourceViewer img')?.getAttribute('src')?.startsWith('blob:'));
   
+
+  // Convert a previously published original lesson using Gemini later.
+  await open();
+  await page.setInputFiles('#import-file',{name:'lesson-original.txt',mimeType:'text/plain',buffer:Buffer.from(sourceText)});
+  await page.selectOption('#import-target','lesson');
+  await page.selectOption('#subject','accounting');
+  await page.selectOption('#chapter','revenue');
+  await page.click('#confirm-destination');
+  await page.click('#publish-source-fallback');
+  await page.waitForFunction(()=>document.querySelector('#notice')?.textContent.includes('Đã xuất bản tài liệu gốc'));
+  const sourceLesson=lessons.filter(x=>x.content_json?.source_fallback).at(-1);
+  const sourceId=sourceLesson.id,draftId=sourceLesson.content_json.import_draft_id;
+  lessonNextAI=true;
+  await page.click('#ai-generate');
+  await page.waitForFunction(()=>document.querySelector('#publish-lesson')?.disabled===false);
+  await page.click('#publish-lesson');
+  await page.waitForFunction(()=>document.querySelector('#notice')?.textContent.includes('Đã xuất bản bài học'));
+  assert.equal(lessons.filter(x=>x.content_json?.import_draft_id===draftId).length,1);
+  const updated=lessons.find(x=>x.id===sourceId);
+  assert.equal(updated.content_json.source_fallback,true);
+  assert.equal(updated.content_json.ai_converted,true);
+  await page.goto(baseURL+'/lessons.html?lesson='+encodeURIComponent(sourceId),{waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.querySelector('.sourceViewer .content')?.textContent.includes('original source is preserved'));
+  await page.locator('.sourceTabs button').nth(1).click();
+  await page.waitForFunction(text=>document.querySelector('.sourceText')?.textContent===text,sourceText);
+  assert.equal(drafts.get(draftId).status,'published');
   console.log(`PASS ${browserName}: draft before AI, quota recovery, reload/resume, source reuse, manual save, multi-image extraction/provenance, partial-upload resume, and failed-save retry.`);
   await context.close();
 }finally{await browser.close()}
