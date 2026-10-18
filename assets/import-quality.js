@@ -61,7 +61,7 @@ export function buildRepairTargets(questions=[],lesson=null){
 export function cleanImportWarnings(warnings,questions,lesson){
   const keep=(warnings||[]).filter(text=>!/^Câu [\d, ]+ có phần \[UNREADABLE\]/.test(text)&&!/^Đã chuẩn hoá ký tự trong phản hồi AI\./.test(text)&&!/^Cần kiểm tra nội dung hoặc đáp án câu /.test(text)&&!/^Một số ví dụ bổ sung chưa hoàn thiện/.test(text));
   const issues=scanImportQuality(questions,lesson),core=[...new Set(issues.filter(x=>x.blocking&&x.question_index>=0).map(x=>x.question_index+1))];
-  if(core.length)keep.push(`Cần kiểm tra nội dung hoặc đáp án câu ${core.join(', ')} trước khi xuất bản.`);
+  if(core.length)keep.push(`AI đánh dấu nội dung hoặc đáp án câu ${core.join(', ')} cần sửa; bạn vẫn có thể xuất bản ngay.`);
   if(issues.some(x=>!x.blocking))keep.push('Một số ví dụ bổ sung chưa hoàn thiện sẽ được ẩn khi xuất bản.');
   return [...new Set(keep)];
 }
