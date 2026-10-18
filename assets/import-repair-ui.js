@@ -18,7 +18,7 @@ export function createImportRepairController({getDraft,getPayload,isDirty,savePa
     const latest=runs.find(r=>r.mode==='auto'||r.mode==='manual');
     const pending=runs.find(r=>r.state==='running'&&Date.parse(r.lease_expires_at)>Date.now());
     const waiting=Date.now()<retryAt;
-    const status=busy||pending?'Đang kiểm tra và sửa phần lỗi…':blocking.length?`Cần kiểm tra ${qnums.length?qnums.length+' câu':'nội dung bài học'} trước khi xuất bản.`:all.length?'Câu hỏi đã đủ nội dung. Ví dụ bổ sung chưa sửa được sẽ được ẩn.':'Đã kiểm tra định dạng và các dấu hiệu lỗi; bạn vẫn cần duyệt nội dung trước khi xuất bản.';
+    const status=busy||pending?'Đang kiểm tra và sửa phần lỗi…':blocking.length?`Phát hiện ${qnums.length?qnums.length+' câu':'nội dung bài học'} cần sửa; bạn vẫn có thể xuất bản ngay.`:all.length?'Câu hỏi đã đủ nội dung. Ví dụ bổ sung chưa sửa được sẽ được ẩn.':'Đã kiểm tra định dạng và các dấu hiệu lỗi; bạn vẫn cần duyệt nội dung trước khi xuất bản.';
     const changes=(patch,heading)=>`<div class="repairChange"><strong>${esc(heading)}</strong>${Object.entries(patch.changes).map(([field,value])=>`<div class="repairDiff"><div><span>${esc(FIELD_LABELS[field]||field)} · Trước</span><pre>${esc(display(patch.before[field]))}</pre></div><div><span>Sau</span><pre>${esc(display(value))}</pre></div></div>`).join('')}<p>${esc(patch.reason)}</p>${patch.source_quote?`<p><strong>AI trích dẫn tệp ${esc(patch.source_file)}, trang ${esc(patch.source_page)} · cần đối chiếu:</strong></p><blockquote>${esc(patch.source_quote)}</blockquote>`:''}</div>`;
     const proposals=runs.filter(r=>r.state==='ready').flatMap(r=>(r.suggestions||[]).map((p,i)=>({r,p,i}))).filter(({p})=>{const current=p.question_index<0?getPayload().lesson:getPayload().questions?.[p.question_index];return current&&Object.entries(p.before).every(([k,v])=>JSON.stringify(current[k]??null)===JSON.stringify(v))});
     const hasUncovered=all.some(issue=>!proposals.some(({p})=>p.question_index===issue.question_index&&Object.hasOwn(p.changes,issue.field)));
@@ -68,14 +68,14 @@ export function createImportRepairController({getDraft,getPayload,isDirty,savePa
       notify(message(error), 'error');
     }finally{busy=false;setBusy(false);render();if(retryAt>Date.now())setTimeout(render,retryAt-Date.now()+20)}
   }
-  async function load({auto=true}={}){
+  async function load({auto=false}={}){
     if(loading||busy)return render();
     const d=getDraft();if(!d||!editable())return render();
     const id=d.id;if(draftId!==id){runs=[];draftId=id}loading=true;render();
     try{
       const data=await readRuns(id);if(!same(id))return;
       const active=data.find(r=>r.state==='running'&&Date.parse(r.lease_expires_at)>Date.now());
-      if(active){busy=true;setBusy(true);try{await waitForRun(id,active.id)}finally{busy=false;setBusy(false)}}
+      if(active){render(); /* Existing background repair is advisory; never lock the Publish button. */}
       else if(auto&&issues().length&&!data.some(r=>r.mode==='auto')&&!isDirty()){loading=false;await start('auto')}
     }catch(error){notify('Chưa đọc được trạng thái sửa. Bạn vẫn có thể chỉnh sửa bản nháp. '+message(error),'error')}
     finally{loading=false;render();if(!same(id))void load()}
