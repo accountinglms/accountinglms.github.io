@@ -1968,3 +1968,14 @@ html[data-theme="light"] .auth-boot-card i {
 html[data-theme="light"] .history-result-link {
     text-decoration:none;
 }
+
+/* Numeric entry: match source answer boxes; readable on iPhone and desktop. */
+.numeric-answer-list{display:flex;flex-direction:column;gap:16px;margin:14px 0 20px}
+.numeric-answer-field{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:1rem;color:inherit}
+.numeric-answer-field>span{min-width:125px;font-weight:600}
+.numeric-answer-field input{width:160px;max-width:100%;box-sizing:border-box;border:1.5px solid #87949f;border-radius:6px;padding:10px 12px;font:inherit;font-variant-numeric:tabular-nums;color:#10252d;background:#fff}
+.numeric-answer-field input:focus-visible{outline:3px solid #549ed5;outline-offset:2px}
+.numeric-answer-field input.numeric-correct{border:2px solid #28875d;background:#e8f8ed;color:#123c2a}
+.numeric-answer-field input.numeric-wrong{border:2px solid #bd423e;background:#fff0ee;color:#70231e}
+.numeric-answer-field small{display:block;width:100%;margin-left:137px;color:inherit}
+@media(max-width:600px){.numeric-answer-field{align-items:stretch;flex-direction:column;gap:7px}.numeric-answer-field>span{min-width:0}.numeric-answer-field input{width:100%;min-height:46px}.numeric-answer-field small{margin-left:0}}
