@@ -88,7 +88,7 @@ function validateQuestion(raw: any, index: number, fileCount = 1) {
   if (!raw || typeof raw !== "object") throw new Error(`questions[${index}] must be an object`);
   raw = normalizeImportQuestion(raw);
   const type = raw.question_type;
-  if (!["single", "multiple", "tf"].includes(type)) throw new Error(`questions[${index}].question_type is invalid`);
+  if (!["single", "multiple", "tf", "numeric"].includes(type)) throw new Error(`questions[${index}].question_type is invalid`);
 
   const prompt = safeText(raw.prompt, `questions[${index}].prompt`, 12_000, true)!;
   // Gemini may omit or truncate choices in one question of a multi-file import.
@@ -98,7 +98,7 @@ function validateQuestion(raw: any, index: number, fileCount = 1) {
     ? raw.options.slice(0, 30).filter((v: unknown) => typeof v === "string" && !!v.trim())
         .map((v: unknown, i: number) => safeText(v, `questions[${index}].options[${i}]`, 5_000, true)!)
     : [];
-  const missingOptions = options.length < 2 || !Array.isArray(raw.options) || raw.options.length > 30;
+  const missingOptions = options.length < (type === "numeric" ? 1 : 2) || !Array.isArray(raw.options) || raw.options.length > 30;
   if (missingOptions) {
     raw.answer_needs_review = true;
     raw.answer_issue = "Các lựa chọn chưa được AI trích xuất đầy đủ.";
@@ -110,7 +110,16 @@ function validateQuestion(raw: any, index: number, fileCount = 1) {
 
   if (raw.answer_needs_review === true || missingOptions) {
     correct_answer = null;
-    required_selections = type === "single" ? 1 : null;
+    required_selections = type === "single" ? 1 : type === "numeric" ? options.length : null;
+  } else if (type === "numeric") {
+    if (!Array.isArray(raw.correct_answer) || raw.correct_answer.length !== options.length ||
+        raw.correct_answer.some((value: unknown) => typeof value !== "number" || !Number.isFinite(value))) {
+      correct_answer = null; // Preserve fields while waiting for an answer key.
+      raw.answer_needs_review = true;
+      raw.answer_issue = "Chưa có đủ đáp án số hợp lệ để chấm tự động.";
+      raw.verification_status = "needs_review";
+    } else correct_answer = raw.correct_answer;
+    required_selections = options.length;
   } else if (type === "single") {
     if (!Number.isInteger(raw.correct_answer) || raw.correct_answer < 0 || raw.correct_answer >= options.length) {
       throw new Error(`questions[${index}].correct_answer is out of range`);
@@ -196,7 +205,7 @@ function validateOutput(raw: any, targetType: string, fileCount = 1) {
   raw.questions.forEach((q: any, i: number) => {
     try {
       const item = validateQuestion(q, i, fileCount);
-      if (item.options.length < 2) recoveryWarnings.push(`Câu ${i + 1}: AI chưa trích xuất đủ lựa chọn; giữ câu hỏi để biên tập sau.`);
+      if (item.options.length < (item.question_type === "numeric" ? 1 : 2)) recoveryWarnings.push(`Câu ${i + 1}: AI chưa trích xuất đủ lựa chọn; giữ câu hỏi để biên tập sau.`);
       if (item.source_file == null) recoveryWarnings.push(`Câu ${i + 1}: AI chưa xác định được tệp nguồn; không tự gán sang tệp khác.`);
       if (q?.source_file != null && String(item.source_file) !== String(q.source_file)) recoveryWarnings.push(`Câu ${i + 1}: đã chuẩn hóa hoặc đánh dấu không rõ số tệp nguồn.`);
       questions.push(item);
@@ -316,6 +325,8 @@ Deno.serve(async (req: Request) => {
       "single: correct_answer is one zero-based option index.",
       "multiple: correct_answer is an array of zero-based option indexes.",
       "tf: options are statements and correct_answer is a same-length boolean array.",
+      "numeric: for a question asking the learner to enter a number (such as closing inventory cost under FIFO and AVCO), use question_type numeric. Put EACH original answer-box label into options, e.g. [\"FIFO basis £\",\"AVCO basis £\"]. No multiple-choice options. correct_answer is a same-length array of finite NUMBERS, not strings. If the source has no explicit numeric answer key or you cannot establish the correct method confidently, use null and mark needs_review; never guess.",
+      "Numeric input requires all labeled fields to be filled; the learner gets a correct mark only when EVERY field matches its expected number. Different methods such as periodic vs perpetual AVCO must not be silently conflated.",
       "If options are just True and False for a single proposition, use single, with correct_answer 0 or 1 matching the option order. Do not use tf for this case.",
       "If an answer is unknown or incomplete, use correct_answer:null and needs_review. Preserve the entire question; never guess a missing boolean or index.",
       "confidence must be a number from 0 to 1, never a percentage like 90 or a string.",
@@ -334,7 +345,7 @@ Deno.serve(async (req: Request) => {
       "processed_files must list EVERY SOURCE_FILE number (1-based), including files containing only continuations, answer keys, or no questions. Do not silently skip any file. Add a warning identifying any unreadable or irrelevant file.",
       "For each question, source_file is the 1-based SOURCE_FILE where it starts; source_files lists all SOURCE_FILE numbers needed for its question/options/answer key. source_page is the page within that file (1 for an image). Preserve question order across all files.",
       "Each question must be:",
-      "{\"question_type\":\"single\"|\"multiple\"|\"tf\",\"prompt\":string,\"options\":string[],\"correct_answer\":number|number[]|boolean[]|null,\"required_selections\":number|null,\"explanation_en\":string|null,\"explanation_vi\":string|null,\"practical_example_en\":string|null,\"practical_example_vi\":string|null,\"standard_reference\":string|null,\"verification_status\":\"verified\"|\"needs_review\"|\"conflict\"|\"source_only\",\"verification_note\":string|null,\"source_page\":number|null,\"source_file\":number,\"source_files\":number[],\"confidence\":number,\"review_note\":string|null}",
+      "{\"question_type\":\"single\"|\"multiple\"|\"tf\"|\"numeric\",\"prompt\":string,\"options\":string[],\"correct_answer\":number|number[]|boolean[]|null,\"required_selections\":number|null,\"explanation_en\":string|null,\"explanation_vi\":string|null,\"practical_example_en\":string|null,\"practical_example_vi\":string|null,\"standard_reference\":string|null,\"verification_status\":\"verified\"|\"needs_review\"|\"conflict\"|\"source_only\",\"verification_note\":string|null,\"source_page\":number|null,\"source_file\":number,\"source_files\":number[],\"confidence\":number,\"review_note\":string|null}",
       targetType === "lesson"
         ? "Primary task: create lesson {title,summary,content_markdown,content_markdown_vi,standard_references,verification_status,verification_note}; content_markdown must contain the COMPLETE verbatim original lesson, all paragraphs, tables and worked examples. content_markdown_vi must be a full faithful Vietnamese translation, never a condensed lesson. summary is only a separate optional overview and must not replace full content. Also extract explicit questions if present."
         : "Primary task: extract explicit questions and answer keys; lesson must be null.",
