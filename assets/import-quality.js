@@ -84,6 +84,7 @@ export function applyRepairSuggestion(payload,suggestion){
   if(i>=0){
     if(Object.hasOwn(suggestion.changes,'options')&&!Object.hasOwn(suggestion.changes,'correct_answer'))item.correct_answer=null;
     Object.assign(item,normalizeImportQuestion(item));
+    item.required_selections=item.question_type==='single'?1:item.question_type==='tf'?item.options.length:Array.isArray(item.correct_answer)?item.correct_answer.length:null;
   }
   item.verification_status='needs_review';item.review_note='Đã áp dụng đề xuất đối chiếu nguồn. Người biên tập cần kiểm tra trước khi xuất bản.';
   next.warnings=cleanImportWarnings(next.warnings,next.questions||[],next.lesson);return next;
