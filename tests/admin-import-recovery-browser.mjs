@@ -40,6 +40,11 @@ try{
     if(path==='/rest/v1/questions'||path==='/rest/v1/lessons'){
       const rows=path.endsWith('questions')?questions:lessons;
       if(method==='GET')return json(route,rows);
+      if(method==='PATCH'){
+        const id=url.searchParams.get('id')?.slice(3),row=rows.find(v=>v.id===id);
+        if(!row)return json(route,[]);
+        Object.assign(row,req.postDataJSON());return json(route,[row]);
+      }
       const body=req.postDataJSON();const incoming=(Array.isArray(body)?body:[body]).map(x=>({...x,id:'record-'+(rows.length+1)}));
       rows.push(...incoming);return json(route,incoming,201);
     }
