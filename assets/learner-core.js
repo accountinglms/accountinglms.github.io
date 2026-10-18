@@ -1416,6 +1416,15 @@
         updateNavUI();
     }
 
+    function numericValue(raw) {
+        if(typeof raw==='number')return Number.isFinite(raw)?raw:null;
+        if(typeof raw!=='string')return null;
+        const text=raw.trim().replace(/[£$€\s]/g,'');
+        if(!/^-?(?:\d+(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)$/.test(text))return null;
+        const n=Number(text.replace(/,/g,''));
+        return Number.isFinite(n)?n:null;
+    }
+
     function draftComplete(index) {
         if (!activeSectionData || !activeSectionId) return false;
         const state = progressStore[activeSectionId];
@@ -1424,6 +1433,8 @@
         if (state.isAnswered[index]) return true;
 
         const draft = state.draftSelections[index];
+        if (question.type === 'numeric') return Array.isArray(draft) && draft.length===question.options.length
+            && draft.every(value=>numericValue(value)!==null);
         if (question.type === 'single') return Number.isInteger(draft);
         if (question.type === 'multiple') {
             const required = Number(question.required || (Array.isArray(question.answer) ? question.answer.length : 0));
@@ -1543,7 +1554,9 @@
         const state = progressStore[activeSectionId];
         if (state.isAnswered[currentQuestion]) return;
 
-        if (question.type === 'single') {
+        if (question.type === 'numeric') {
+            state.draftSelections[currentQuestion] = [...optionsContainer.querySelectorAll('input[data-numeric-index]')].map(el=>el.value);
+        } else if (question.type === 'single') {
             state.draftSelections[currentQuestion] = selectedOptions.size ? Array.from(selectedOptions)[0] : null;
         } else if (question.type === 'multiple') {
             state.draftSelections[currentQuestion] = Array.from(selectedOptions).sort((a, b) => a - b);
@@ -1754,6 +1767,7 @@
         } else {
             const draft = state.draftSelections[currentQuestion];
             if (question.type === 'tf') renderTFQuestion(question, draft);
+            else if (question.type === 'numeric') renderNumericQuestion(question, draft);
             else renderChoiceQuestion(question, draft);
             submitBtn.style.display = 'block';
             submitBtn.textContent = 'Kiểm tra đáp án (tùy chọn)';
@@ -1791,6 +1805,28 @@
             : (Array.isArray(draft) ? draft : []);
         selectedOptions = new Set(initial);
         q.options.forEach((opt, index) => optionsContainer.appendChild(createChoiceOption(opt, index, q.type, selectedOptions.has(index))));
+    }
+
+    function renderNumericQuestion(q, draft) {
+        const list=document.createElement('div');
+        list.className='numeric-answer-list';
+        q.options.forEach((labelText,index)=>{
+            const row=document.createElement('label');row.className='numeric-answer-field';
+            const label=document.createElement('span');
+            label.textContent=safePlainText(labelText);
+            const input=document.createElement('input');
+            input.type='text';input.inputMode='decimal';input.autocomplete='off';input.spellcheck=false;
+            input.setAttribute('aria-label',safePlainText(labelText));
+            input.dataset.numericIndex=String(index);
+            input.placeholder='Nhập kết quả bằng số';
+            input.value=Array.isArray(draft)?String(draft[index]??''):'';
+            input.addEventListener('input',()=>{
+                saveDraftForCurrentQuestion();updateSubmitState();
+                validationMsg.textContent='';
+            });
+            row.append(label,input);list.appendChild(row);
+        });
+        optionsContainer.appendChild(list);
     }
 
     function renderTFQuestion(q, draft) {
@@ -1868,6 +1904,10 @@
 
     function isDraftComplete() {
         const q = activeSectionData[currentQuestion];
+        if (q.type === 'numeric') {
+            const inputs=[...optionsContainer.querySelectorAll('input[data-numeric-index]')];
+            return inputs.length===q.options.length && inputs.every(input=>numericValue(input.value)!==null);
+        }
         if (q.type === 'single') return selectedOptions.size === 1;
         if (q.type === 'multiple') return selectedOptions.size === q.required;
         return tfDraft.length === q.options.length && tfDraft.every(v => typeof v === 'boolean');
@@ -1889,12 +1929,24 @@
     }
 
     function getCurrentDraft(q) {
+        if (q.type === 'numeric') return [...optionsContainer.querySelectorAll('input[data-numeric-index]')].map(input=>input.value);
         if (q.type === 'single') return Array.from(selectedOptions)[0];
         if (q.type === 'multiple') return Array.from(selectedOptions).sort((a,b) => a-b);
         return tfDraft.slice();
     }
 
     function gradeAnswer(q, selection) {
+        if (q.type === 'numeric') {
+            if(!Array.isArray(q.answer)||!Array.isArray(selection)||selection.length!==q.answer.length
+                ||q.answer.length!==q.options.length)return false;
+            return q.answer.every((expected,index)=>{
+                const actual=numericValue(selection[index]);
+                // Accept rounded pennies and equivalent numeric formatting,
+                // but never accept a missing, nonnumeric or arbitrary near answer.
+                return typeof expected==='number'&&Number.isFinite(expected)&&actual!==null
+                    && Math.abs(expected-actual)<=0.010000001;
+            });
+        }
         if (q.type === 'single') return selection === q.answer;
         if (q.type === 'multiple') {
             if (!Array.isArray(selection) || selection.length !== q.answer.length) return false;
@@ -1924,6 +1976,27 @@
     }
 
     function renderAnsweredQuestion(q, selection) {
+        if(q.type==='numeric'){
+            const list=document.createElement('div');list.className='numeric-answer-list';
+            q.options.forEach((labelText,index)=>{
+                const row=document.createElement('div');row.className='numeric-answer-field numeric-readonly';
+                const label=document.createElement('span');label.textContent=safePlainText(labelText);
+                const display=document.createElement('input');
+                display.type='text';display.value=Array.isArray(selection)?String(selection[index]??''):'';
+                display.disabled=true;display.setAttribute('aria-label',safePlainText(labelText));
+                if(Array.isArray(q.answer)&&typeof q.answer[index]==='number'){
+                    const value=numericValue(display.value),correct=value!==null&&Math.abs(value-q.answer[index])<=0.010000001;
+                    display.classList.add(correct?'numeric-correct':'numeric-wrong');
+                    const hint=document.createElement('small');hint.textContent=correct?'✓ Đúng':'Đáp án: '+q.answer[index];
+                    row.append(label,display,hint);
+                } else {
+                    const hint=document.createElement('small');hint.textContent='Chưa có đáp án chuẩn để chấm.';
+                    row.append(label,display,hint);
+                }
+                list.appendChild(row);
+            });
+            optionsContainer.appendChild(list);return;
+        }
         if (q.type === 'tf') {
             // V2 stored True selections as option indexes; V3 stores one boolean per statement.
             // Convert old saved progress on the fly so existing users do not lose history.
