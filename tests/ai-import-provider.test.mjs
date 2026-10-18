@@ -162,6 +162,19 @@ const oldClientResponse=await oldClient.call(input);assert.equal(oldClientRespon
 const booleanWords=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[{...question,question_type:'tf',correct_answer:['true','false']}]})}]);
 assert.deepEqual((await (await booleanWords.call(input)).json()).questions[0].correct_answer,[true,false]);
 
+// Two source-style numeric boxes: preserve both labels and expected amounts.
+for(const answer of [[550,503.94],null]){
+  const numericQuestion={...question,question_type:'numeric',
+    prompt:'Calculate Jack closing inventory under FIFO and AVCO.',
+    options:['FIFO basis £','AVCO basis £'],correct_answer:answer};
+  const numericProvider=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[numericQuestion]})}]);
+  const numericResponse=await numericProvider.call({...input,answerReviewVersion:2});
+  assert.equal(numericResponse.status,200,'Numeric-answer AI extraction was rejected');
+  const numericData=await numericResponse.json();
+  assert.equal(numericData.questions[0].question_type,'numeric');
+  assert.deepEqual(numericData.questions[0].options,['FIFO basis £','AVCO basis £']);
+  assert.deepEqual(numericData.questions[0].correct_answer,answer);
+}
 const lesson=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[],lesson:{
   title:'Revenue',content_markdown:'Revenue = GBP 4,000.',verification_status:'verified'
 }})}]);
