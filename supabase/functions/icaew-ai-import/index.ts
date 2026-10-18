@@ -99,6 +99,7 @@ function validateQuestion(raw: any, index: number, fileCount = 1) {
         .map((v: unknown, i: number) => safeText(v, `questions[${index}].options[${i}]`, 5_000, true)!)
     : [];
   const missingOptions = options.length < (type === "numeric" ? 1 : 2) || !Array.isArray(raw.options) || raw.options.length > 30;
+  if (type === "numeric" && options.length === 0) throw new Error(`questions[${index}] has no numeric answer field labels`);
   if (missingOptions) {
     raw.answer_needs_review = true;
     raw.answer_issue = "Các lựa chọn chưa được AI trích xuất đầy đủ.";
