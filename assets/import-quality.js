@@ -66,6 +66,17 @@ export function cleanImportWarnings(warnings,questions,lesson){
   return [...new Set(keep)];
 }
 export function publishableExample(value){return hasUnreadable(value)?null:value||null}
+export function importRevisionDiff(before,after){
+  const patches=[];
+  const compare=(oldItem,newItem,index,fields)=>{
+    const changes={},previous={};
+    for(const field of fields)if(JSON.stringify(oldItem?.[field]??null)!==JSON.stringify(newItem?.[field]??null)){previous[field]=oldItem?.[field]??null;changes[field]=newItem?.[field]??null;}
+    if(Object.keys(changes).length)patches.push({question_index:index,before:previous,changes,reason:'Thay đổi đã lưu trong bản nháp.'});
+  };
+  for(let i=0;i<Math.max(before?.questions?.length||0,after?.questions?.length||0);i++)compare(before?.questions?.[i],after?.questions?.[i],i,['prompt','options','correct_answer','explanation_en','explanation_vi',...EXAMPLE_FIELDS]);
+  if(before?.lesson||after?.lesson)compare(before?.lesson,after?.lesson,-1,['content_markdown','content_markdown_vi']);
+  return patches;
+}
 export function applyRepairSuggestion(payload,suggestion){
   const next=structuredClone(payload),i=suggestion.question_index,item=i<0?next.lesson:next.questions[i];
   if(!item||Object.entries(suggestion.before).some(([key,value])=>JSON.stringify(item[key]??null)!==JSON.stringify(value)))throw Error('Nội dung đã thay đổi. Hãy kiểm tra lại đề xuất trước khi áp dụng.');

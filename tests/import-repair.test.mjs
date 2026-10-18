@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {scanImportQuality,buildRepairTargets,hasArithmeticMismatch,applyRepairSuggestion,publishableExample} from '../assets/import-quality.js';
+import {scanImportQuality,buildRepairTargets,hasArithmeticMismatch,applyRepairSuggestion,publishableExample,importRevisionDiff} from '../assets/import-quality.js';
 import {validateRepairs,repairInstructions} from '../supabase/functions/_shared/import-repair.js';
 import {fidelityQuestion} from './helpers/import-fidelity-fixture.mjs';
 
@@ -30,6 +30,7 @@ assert.equal(result.payload.questions[0].explanation_en,questions[0].explanation
 const accepted=applyRepairSuggestion(result.payload,result.suggestions[0]);
 assert.equal(accepted.questions[0].explanation_en,repairs[0].changes.explanation_en);
 assert.equal(accepted.questions[0].verification_status,'needs_review');
+assert.equal(importRevisionDiff(result.payload,accepted)[0].changes.explanation_en,repairs[0].changes.explanation_en);
 const edited=structuredClone(result.payload);edited.questions[0].explanation_en='My manual edit';
 assert.throws(()=>applyRepairSuggestion(edited,result.suggestions[0]),/thay đổi/);
 assert.equal(publishableExample('[UNREADABLE] example'),null);assert.equal(publishableExample('Readable'),'Readable');
@@ -40,6 +41,8 @@ for(const changes of [{prompt:'Rewritten question'},{correct_answer:true},{pract
 }
 const unsupported=validateRepairs({repairs:[{question_index:0,changes:{explanation_en:'Corrected explanation.'},reason:'No source evidence'}]},payload,targets,1);
 assert.equal(unsupported.suggestions.length,0);
+const partlyValid=validateRepairs({repairs:[{question_index:3,changes:{prompt:'Unauthorized rewrite',practical_example_vi:'Một doanh nghiệp nhận £4,000.'},reason:'Only the translation may be used.'}]},payload,targets,1);
+assert.equal(partlyValid.applied.length,1);assert.equal(partlyValid.payload.questions[3].prompt,payload.questions[3].prompt);
 const lesson={content_markdown:'[UNREADABLE]',content_markdown_vi:'[UNREADABLE]'};
 assert.equal(buildRepairTargets([],lesson)[0].question_index,-1);
 console.log('PASS repair: 17-question source preservation, six independent translations, bounded source proposals, numeric guards, unsafe/ambiguous rejection and optional-example isolation.');

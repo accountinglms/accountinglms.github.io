@@ -8,7 +8,8 @@ declare const EdgeRuntime: {waitUntil(task: Promise<unknown>): void};
 const URL = Deno.env.get('SUPABASE_URL')!;
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
 const KEY = Deno.env.get('GEMINI_API_KEY') || '';
-const MODEL = Deno.env.get('GEMINI_MODEL') || 'gemini-3.5-flash-lite';
+const configuredModel = Deno.env.get('GEMINI_MODEL') || '';
+const MODEL = configuredModel && !['gemini-2.5-flash','gemini-3.8-flash','gemini-3.7-flash'].includes(configuredModel) ? configuredModel : 'gemini-3.5-flash-lite';
 const ORIGIN = 'https://accountinglms.github.io';
 const uuid = (value: unknown) => typeof value==='string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 function response(body: unknown,status=200){return new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','access-control-allow-origin':ORIGIN,'access-control-allow-methods':'POST, OPTIONS','access-control-allow-headers':'authorization, apikey, content-type','cache-control':'no-store','vary':'Origin'}})}

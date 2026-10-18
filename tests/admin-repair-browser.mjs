@@ -44,6 +44,7 @@ try{
     if(path==='/rest/v1/questions'){if(req.method()==='POST')published++;return json([])}
     if(['/rest/v1/lessons','/rest/v1/content_audit_log','/rest/v1/content_snapshots'].includes(path))return json([]);
     if(path==='/rest/v1/import_drafts')return json([await draft()]);
+    if(path==='/rest/v1/import_repair_runs'&&url.searchParams.get('select')==='base_payload,after_payload')return json((await db.query('select base_payload,after_payload from public.import_repair_runs where id=$1',[url.searchParams.get('id').slice(3)])).rows);
     if(path==='/rest/v1/import_repair_runs')return json((await db.query('select id,draft_id,mode,state,applied,suggestions,issues,error,created_at,lease_expires_at,finished_at from public.import_repair_runs order by created_at desc')).rows);
     if(path==='/functions/v1/icaew-ai-repair'){
       repairs++;const body=req.postDataJSON(),claim=await rpc('begin_import_repair',{p_draft_id:body.draftId,p_request_id:body.requestId,p_expected_updated_at:body.expectedUpdatedAt,p_mode:body.mode});
@@ -63,7 +64,7 @@ try{
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   const open=async()=>{await page.goto(base+'/admin.html');await page.waitForSelector('[data-resume-import]');await page.click('[data-resume-import]')};
   await open();await page.waitForFunction(()=>document.querySelector('#import-repair-panel')?.textContent.includes('Đang kiểm tra'));
-  assert.equal(repairs,1);assert.equal(published,0);
+  for(let i=0;repairs<1&&i<50;i++)await new Promise(r=>setTimeout(r,50));assert.equal(repairs,1);assert.equal(published,0);
   await page.reload();await page.waitForSelector('[data-resume-import]');await page.click('[data-resume-import]');
   release();await Promise.all(tasks);
   await page.waitForFunction(()=>document.querySelectorAll('.repairProposal').length===2);
@@ -75,9 +76,11 @@ try{
     await page.locator('.repairProposal summary').first().click();await page.locator('[data-repair-apply]').first().click();
     await page.waitForFunction(n=>document.querySelectorAll('.repairProposal').length===n,1-i);
   }
+  await page.waitForFunction(()=>document.querySelector('#publish-imported')?.disabled===false);
   assert.equal(await page.isDisabled('#publish-imported'),false);assert.equal(published,0,'Applying repair published content');
-  await page.locator('.repairHistory summary').first().click();await page.locator('[data-repair-undo]').click();
-  await page.waitForFunction(()=>document.querySelector('#publish-imported')?.disabled);
+  await page.locator('.repairHistory summary').first().click();await page.locator('[data-repair-diff] summary').first().click();await page.waitForFunction(()=>document.querySelector('[data-repair-diff] .repairSavedDiff')?.textContent.includes('2 + 2 = 4'));await page.locator('[data-repair-undo]').click();
+  await page.waitForFunction(()=>document.querySelector('#notice')?.textContent.includes('Đã hoàn tác'));
+  assert.equal(await page.isDisabled('#publish-imported'),true);
   assert.equal((await draft()).payload.questions[2].explanation_en,'2 + 2 = 5');
   assert.equal((await draft()).payload.questions[0].explanation_en,'2 + 2 = 4');
   for(const theme of ['light','dark']){
@@ -92,6 +95,6 @@ try{
   await page.locator('[data-i="0"][data-k="prompt"]').fill('Old tab tries to overwrite');await page.click('#save-reviewed-import');
   await page.waitForFunction(()=>document.querySelector('#notice')?.textContent.includes('thay đổi ở nơi khác'));
   assert.equal((await draft()).payload.questions[0].prompt,'A concurrent edit in another tab');
-  assert.equal(repairs,1);assert.equal(published,0);assert.deepEqual(errors,[]);
+  for(let i=0;repairs<1&&i<50;i++)await new Promise(r=>setTimeout(r,50));assert.equal(repairs,1);assert.equal(published,0);assert.deepEqual(errors,[]);
   console.log('PASS admin repair '+(process.env.BROWSER||'chromium')+': real Postgres history, 17-question preservation, six translations, reload without another AI call, proposal review, undo, concurrent-edit safety and mobile light/dark accessibility.');
 }finally{release();await browser.close();await db.close()}

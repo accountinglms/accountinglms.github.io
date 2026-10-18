@@ -32,13 +32,12 @@ export function validateRepairs(raw,payload,targets,fileCount){
     const target=targets.find(t=>t.question_index===item?.question_index),index=item?.question_index;
     if(!target||seen.has(index)||!item.changes||typeof item.changes!=='object'||Array.isArray(item.changes)){rejected.push(index);continue}
     seen.add(index);const original=index<0?payload.lesson:payload.questions[index],changes={};
-    let bad=false;
     for(const [field,value] of Object.entries(item.changes)){
       const paired=field==='explanation_en'&&target.fields.includes('explanation_vi')||field==='explanation_vi'&&target.fields.includes('explanation_en');
-      if((!target.fields.includes(field)&&!paired)||(!coreFields.has(field)&&!EXAMPLE_FIELDS.includes(field))||!validValue(field,value)){bad=true;break}
+      if((!target.fields.includes(field)&&!paired)||(!coreFields.has(field)&&!EXAMPLE_FIELDS.includes(field))||!validValue(field,value)){rejected.push(index);continue}
       if(JSON.stringify(value)!==JSON.stringify(original[field]))changes[field]=value;
     }
-    if(bad||!Object.keys(changes).length){rejected.push(index);continue}
+    if(!Object.keys(changes).length){rejected.push(index);continue}
     const reason=typeof item.reason==='string'?item.reason.slice(0,2000):'AI đề xuất sửa phần bị lỗi; cần kiểm tra trước khi xuất bản.';
     if(hasUnsafeMarkup(reason)){rejected.push(index);continue}
     const automatic={},proposed={};

@@ -1,5 +1,5 @@
 import {restGet,restRpc,callAiRepair} from './common.js';
-import {scanImportQuality,FIELD_LABELS,applyRepairSuggestion} from './import-quality.js';
+import {scanImportQuality,FIELD_LABELS,applyRepairSuggestion,importRevisionDiff} from './import-quality.js';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const display=value=>typeof value==='string'?value:JSON.stringify(value,null,2);
@@ -27,7 +27,7 @@ export function createImportRepairController({getDraft,getPayload,isDirty,savePa
       ${latest?.state==='failed'?`<p class="warning">${esc(latest.error?.error||'Lượt sửa chưa hoàn tất; bản nháp vẫn được giữ.')} Bạn có thể sửa tay.</p>`:''}
       ${latest?.state==='conflict'?'<p class="warning">Bản nháp đã thay đổi trong lúc AI chạy. Kết quả cũ không ghi đè chỉnh sửa của bạn.</p>':''}
       ${proposals.map(({r,p,i})=>`<details class="repairProposal"><summary>Đề xuất sửa ${p.question_index<0?'bài học':'câu '+(p.question_index+1)} · cần bạn duyệt</summary>${changes(p,'Đối chiếu trước khi áp dụng')}<button class="ghost" type="button" data-repair-apply="${esc(r.id)}" data-proposal-index="${i}" ${busy?'disabled':''}>Áp dụng đề xuất vào bản nháp</button></details>`).join('')}
-      ${runs.length?`<details class="repairHistory"><summary>Lịch sử chỉnh sửa · ${runs.length} lượt gần nhất</summary>${runs.slice(0,8).map((r,i)=>`<div class="repairRun"><p><strong>${esc({auto:'Tự động sửa',manual:'Sửa bằng AI',save:'Lưu chỉnh sửa',apply:'Áp dụng đề xuất'}[r.mode]||'Chỉnh sửa')}</strong> · ${esc(new Date(r.created_at).toLocaleString('vi-VN'))} · ${esc({running:'Đang xử lý',ready:'Đã lưu',failed:'Chưa hoàn tất',conflict:'Có chỉnh sửa mới',undone:'Đã hoàn tác'}[r.state]||r.state)}</p>${(r.applied||[]).map(p=>`<details><summary>Xem thay đổi câu ${p.question_index+1}</summary>${changes(p,'Bản dịch ví dụ')}</details>`).join('')}${r.state==='ready'&&r.id===runs.find(x=>x.state==='ready')?.id?`<button class="ghost" type="button" data-repair-undo="${esc(r.id)}" ${busy?'disabled':''}>Hoàn tác lượt này</button>`:''}</div>`).join('')}</details>`:''}`;
+      ${runs.length?`<details class="repairHistory"><summary>Lịch sử chỉnh sửa · ${runs.length} lượt gần nhất</summary>${runs.slice(0,8).map((r,i)=>`<div class="repairRun"><p><strong>${esc({auto:'Tự động sửa',manual:'Sửa bằng AI',save:'Lưu chỉnh sửa',apply:'Áp dụng đề xuất'}[r.mode]||'Chỉnh sửa')}</strong> · ${esc(new Date(r.created_at).toLocaleString('vi-VN'))} · ${esc({running:'Đang xử lý',ready:'Đã lưu',failed:'Chưa hoàn tất',conflict:'Có chỉnh sửa mới',undone:'Đã hoàn tác'}[r.state]||r.state)}</p>${(r.applied||[]).map(p=>`<details><summary>Xem thay đổi câu ${p.question_index+1}</summary>${changes(p,'Bản dịch ví dụ')}</details>`).join('')}${['save','apply'].includes(r.mode)?`<details data-repair-diff="${esc(r.id)}"><summary>Xem nội dung trước và sau</summary><div class="repairSavedDiff"></div></details>`:''}${r.state==='ready'&&r.id===runs.find(x=>x.state==='ready')?.id?`<button class="ghost" type="button" data-repair-undo="${esc(r.id)}" ${busy?'disabled':''}>Hoàn tác lượt này</button>`:''}</div>`).join('')}</details>`:''}`;
   }
   async function readRuns(id){
     const data=await restGet('import_repair_runs',`select=${columns}&draft_id=eq.${encodeURIComponent(id)}&order=created_at.desc&limit=12`);
@@ -69,6 +69,7 @@ export function createImportRepairController({getDraft,getPayload,isDirty,savePa
     }finally{busy=false;setBusy(false);render();if(retryAt>Date.now())setTimeout(render,retryAt-Date.now()+20)}
   }
   async function load({auto=true}={}){
+    if(loading||busy)return render();
     const d=getDraft();if(!d||!editable())return render();
     const id=d.id;if(draftId!==id){runs=[];draftId=id}loading=true;render();
     try{
@@ -77,9 +78,19 @@ export function createImportRepairController({getDraft,getPayload,isDirty,savePa
       if(active){busy=true;setBusy(true);try{await waitForRun(id,active.id)}finally{busy=false;setBusy(false)}}
       else if(auto&&issues().length&&!data.some(r=>r.mode==='auto')&&!isDirty()){loading=false;await start('auto')}
     }catch(error){notify('Chưa đọc được trạng thái sửa. Bạn vẫn có thể chỉnh sửa bản nháp. '+message(error),'error')}
-    finally{loading=false;render()}
+    finally{loading=false;render();if(!same(id))void load()}
   }
   function message(error){return /DRAFT_CHANGED/.test(error.message)?'Bản nháp đã thay đổi. Hãy mở lại bản mới nhất để tránh ghi đè.':/REPAIR_BUSY/.test(error.message)?'AI đang sửa bản nháp. Hãy chờ lượt đó hoàn tất.':error.message}
+  document.addEventListener('toggle',async event=>{
+    const details=event.target;if(!details.matches?.('[data-repair-diff]')||!details.open||details.dataset.loaded)return;
+    const box=details.querySelector('.repairSavedDiff');box.textContent='Đang tải lịch sử…';
+    try{
+      const rows=await restGet('import_repair_runs','select=base_payload,after_payload&id=eq.'+encodeURIComponent(details.dataset.repairDiff));
+      if(!rows[0])throw Error('Không còn dữ liệu lịch sử.');
+      const diff=importRevisionDiff(rows[0].base_payload,rows[0].after_payload);
+      box.innerHTML=diff.map(p=>`<strong>${p.question_index<0?'Bài học':'Câu '+(p.question_index+1)}</strong>${Object.entries(p.changes).map(([f,v])=>`<div class="repairDiff"><div><span>${esc(FIELD_LABELS[f]||f)} · Trước</span><pre>${esc(display(p.before[f]))}</pre></div><div><span>Sau</span><pre>${esc(display(v))}</pre></div></div>`).join('')}`).join('')||'Không có thay đổi nội dung.';details.dataset.loaded='true';
+    }catch(error){box.textContent=message(error)}
+  },true);
   document.addEventListener('click',async event=>{
     const button=event.target.closest('[data-repair-start],[data-repair-apply],[data-repair-undo]');if(!button||button.disabled||busy||loading)return;
     if(button.hasAttribute('data-repair-start'))return start();
