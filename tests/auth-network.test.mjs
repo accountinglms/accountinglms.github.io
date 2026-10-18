@@ -96,6 +96,23 @@ try{
     if(scope==='local'){await api.authSignOut(scope);assert.equal(api.loadSession(),null);}
     else{await assert.rejects(api.authSignOut(scope),e=>e.retryable);assert.equal(api.loadSession().access_token,fresh.access_token,'Unconfirmed remote logout must allow retry');}
   }
+  for(const duplicate of ['source bytes','other bytes!']){
+    const api=await setup();let uploads=0;
+    globalThis.fetch=async(url,init)=>{
+      if(String(url).includes('/auth/v1/user'))return json(user);
+      if(String(url).includes('/get_my_access'))return json({allowed:true,editor:true,mfa_required:false});
+      if(init.method==='POST'){
+        uploads++;assert.equal(new Headers(init.headers).get('x-upsert'),'false');
+        assert.ok(String(url).endsWith('/member-a/stable-import'));
+        return json({message:'The resource already exists'},409);
+      }
+      return new Response(duplicate);
+    };
+    const operation=api.uploadImportFile(new File(['source bytes'],'source.txt',{type:'text/plain'}),{storagePath:'member-a/stable-import'});
+    if(duplicate==='source bytes')assert.deepEqual(await operation,{storagePath:'member-a/stable-import'});
+    else await assert.rejects(operation,/khác nội dung/);
+    assert.equal(uploads,1,'Recovery silently retried with a new upload path');
+  }
   {
     const api=await setup();globalThis.fetch=async()=>new Response(null,{status:204});
     await api.authSignOut('global');assert.equal(api.loadSession(),null);

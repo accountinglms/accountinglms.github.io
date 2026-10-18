@@ -28,13 +28,15 @@ All selected files are sent together in one extraction request and produce one c
 
 Each file has its own `content_sources` row. The draft's `payload.files` manifest retains all Storage paths and source IDs; `source_id` is the first source for compatibility with older drafts. Published questions point to the file where they start and retain every contributing source in `metadata.source_ids`. Lessons retain the entire source list in `content_json.source_ids`. Publishing preserves the draft's manifest and destination.
 
-Upload progress is saved after each file. If a later upload fails, reopen the draft and choose only the missing files with their original names and sizes; files already saved are reused. AI stays disabled while a missing file is unavailable. Every source download requires the editor session, and the server checks ownership, file signatures and individual/aggregate size limits before calling Gemini. Old single-file drafts still reopen normally.
+Before uploading, Admin keeps the selected file bytes, order, destination and progress in account-scoped IndexedDB. **Bản nháp đã lưu → Khôi phục** restores a selection interrupted before its first cloud draft; **Tiếp tục** restores the remaining local files in a partially uploaded cloud draft. Completed cloud files are reused. Only files unavailable both locally and remotely require re-selection. This local recovery works in the same browser profile; clearing website data or browser eviction can remove it. If local storage is denied/full, Admin reports that fact and still allows uploading and publishing.
+
+Upload paths and source/draft IDs are allocated before sending and retained for retries. An existing object is accepted only after its bytes match the original; it is never overwritten. Lost database responses are reconciled by ID with an owner-scoped read. Successful AI output awaiting a database save is also checkpointed, preventing an unnecessary second AI call after reload. Locally cached AI output is discarded once the server acknowledges it. Local source bytes are released only after their cloud manifest is acknowledged. Every source download still requires the editor session. Old single-file drafts continue to work.
 
 If Gemini returns quota error 429, the draft and source remain saved. Retry uses the same storage object and draft. Admin shows the provider's retry delay when supplied and does not automatically retry daily quotas. Open **Bản nháp đã lưu → Tiếp tục** after reloading the page. **Lưu bản nháp không dùng AI** and **Nhập thủ công** work without Gemini; manual items retain the source link. **Tải tệp nguồn** requires the editor's session.
 
-The AI receives the selected Subject, Chapter and Exercise as context. If the source is clearly unrelated, it returns `SOURCE_CONTEXT_MISMATCH` and Admin disables publishing.
+The AI receives the selected Subject, Chapter and Exercise as context. `SOURCE_CONTEXT_MISMATCH` is an advisory warning; the editor's confirmed destination and choice to publish remain authoritative. **Xuất bản tệp gốc ngay** saves the sources and publishes a linked reading lesson without requesting AI or external verification. A working connection is needed to finish the cloud save/publication.
 
-Gemini output should never be treated as an authoritative answer key when the source does not contain enough evidence. Low-confidence drafts require manual review.
+Gemini output is not an authoritative answer key when the source lacks evidence. Review flags remain visible without blocking publication; missing answer keys remain ungraded.
 
 ## Course visibility
 
