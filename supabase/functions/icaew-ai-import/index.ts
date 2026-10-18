@@ -414,7 +414,7 @@ Deno.serve(async (req: Request) => {
         const note = "AI chưa kiểm chứng nguồn bên ngoài; bạn có thể xuất bản ngay và chỉnh sửa sau.";
         item.verification_note = !wasVerified && item.verification_note ? item.verification_note + " " + note : note;
       }
-      validated.warnings.push("Phần kiểm chứng AI chỉ để tham khảo, không chặn xuất bản.");
+      validated.warnings.push("AI không tra cứu web; bạn có thể xuất bản ngay và chỉnh sửa sau.");
       if(persistedDraft){
         const saved=await fetch(SUPABASE_URL+'/rest/v1/import_drafts?id=eq.'+encodeURIComponent(persistedDraft.id)+'&created_by=eq.'+encodeURIComponent(user.id)+'&status=eq.draft&updated_at=eq.'+encodeURIComponent(persistedDraft.updated_at),{
           method:'PATCH',headers:draftHeaders,body:JSON.stringify({title:validated.title,model_name:GEMINI_MODEL,updated_by:user.id,payload:{...persistedDraft.payload,questions:validated.questions,lesson:validated.lesson,warnings:validated.warnings,processing:{state:'ready'}}})
