@@ -1979,3 +1979,6 @@ html[data-theme="light"] .history-result-link {
 .numeric-answer-field input.numeric-wrong{border:2px solid #bd423e;background:#fff0ee;color:#70231e}
 .numeric-answer-field small{display:block;width:100%;margin-left:137px;color:inherit}
 @media(max-width:600px){.numeric-answer-field{align-items:stretch;flex-direction:column;gap:7px}.numeric-answer-field>span{min-width:0}.numeric-answer-field input{width:100%;min-height:46px}.numeric-answer-field small{margin-left:0}}
+
+/* Preserve the source layout of multi-line inventory tables and calculations. */
+.question-text{white-space:pre-wrap;overflow-wrap:anywhere}
