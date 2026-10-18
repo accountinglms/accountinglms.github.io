@@ -21,6 +21,7 @@ const drafts=new Map(),sources=new Map(),objects=new Map(),questions=[],lessons=
 let uploads=0,aiCalls=0,failReadyPatch=false,failNextAI=false,failUploadAt=0;
 let emptyNextAI=false;
 let repairNextAI=false;
+let lessonNextAI=false;
 const routeInputs=[];
 
 const browser=await engine.launch({headless:true});
