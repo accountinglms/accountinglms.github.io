@@ -91,17 +91,24 @@ function validateQuestion(raw: any, index: number, fileCount = 1) {
   if (!["single", "multiple", "tf"].includes(type)) throw new Error(`questions[${index}].question_type is invalid`);
 
   const prompt = safeText(raw.prompt, `questions[${index}].prompt`, 12_000, true)!;
-  if (!Array.isArray(raw.options) || raw.options.length < 2 || raw.options.length > 30) {
-    throw new Error(`questions[${index}].options must contain 2-30 items`);
+  // Gemini may omit or truncate choices in one question of a multi-file import.
+  // Keep its source prompt and the original choices that exist, never invent them.
+  // Missing choices are marked as incomplete, but do not discard other questions.
+  const options = Array.isArray(raw.options)
+    ? raw.options.slice(0, 30).filter((v: unknown) => typeof v === "string" && !!v.trim())
+        .map((v: unknown, i: number) => safeText(v, `questions[${index}].options[${i}]`, 5_000, true)!)
+    : [];
+  const missingOptions = options.length < 2 || !Array.isArray(raw.options) || raw.options.length > 30;
+  if (missingOptions) {
+    raw.answer_needs_review = true;
+    raw.answer_issue = "Các lựa chọn chưa được AI trích xuất đầy đủ.";
+    raw.verification_status = "needs_review";
   }
-  const options = raw.options.map((v: unknown, i: number) =>
-    safeText(v, `questions[${index}].options[${i}]`, 5_000, true)!
-  );
 
   let correct_answer: number | number[] | boolean[] | null;
   let required_selections: number | null = null;
 
-  if (raw.answer_needs_review === true) {
+  if (raw.answer_needs_review === true || missingOptions) {
     correct_answer = null;
     required_selections = type === "single" ? 1 : null;
   } else if (type === "single") {
@@ -135,14 +142,22 @@ function validateQuestion(raw: any, index: number, fileCount = 1) {
   }
 
   const sourcePage = raw.source_page == null ? null : Number(raw.source_page);
-  if (sourcePage != null && (!Number.isInteger(sourcePage) || sourcePage < 1)) {
-    throw new Error(`questions[${index}].source_page is invalid`);
-  }
+  const checkedPage = sourcePage != null && Number.isInteger(sourcePage) && sourcePage >= 1 ? sourcePage : null;
 
-  const sourceFile = raw.source_file == null && fileCount === 1 ? 1 : raw.source_file;
-  if (!Number.isInteger(sourceFile) || sourceFile < 1 || sourceFile > fileCount) throw new Error(`questions[${index}].source_file is invalid`);
-  const sourceFiles: number[] = raw.source_files == null ? [sourceFile] : raw.source_files;
-  if (!Array.isArray(sourceFiles) || !sourceFiles.length || sourceFiles.length > fileCount || !sourceFiles.includes(sourceFile) || sourceFiles.some(v => !Number.isInteger(v) || v < 1 || v > fileCount) || new Set(sourceFiles).size !== sourceFiles.length) throw new Error(`questions[${index}].source_files is invalid`);
+  // Numeric strings are safe to normalise. Unknown/mismatched file references
+  // remain unknown rather than silently attributing content to source file 1.
+  const fileIndex = (value: unknown): number | null => {
+    if (typeof value !== "number" && !(typeof value === "string" && /^\\d+$/.test(value.trim()))) return null;
+    const n = Number(value);
+    return Number.isInteger(n) && n >= 1 && n <= fileCount ? n : null;
+  };
+  const declaredFile = fileIndex(raw.source_file);
+  const references = Array.isArray(raw.source_files)
+    ? [...new Set<number>(raw.source_files.map(fileIndex).filter((n: number | null): n is number => n !== null))]
+    : [];
+  let sourceFile: number | null = declaredFile || references[0] || (fileCount === 1 ? 1 : null);
+  const sourceFiles: number[] = [...new Set([...(sourceFile == null ? [] : [sourceFile]), ...references])].sort((a, b) => a - b);
+  if (sourceFile == null) raw.verification_status = "needs_review";
   return {
     question_type: type,
     prompt,
@@ -160,7 +175,7 @@ function validateQuestion(raw: any, index: number, fileCount = 1) {
       ? raw.verification_status
       : "needs_review",
     verification_note: safeText(raw.verification_note, `questions[${index}].verification_note`, 5_000),
-    source_page: sourcePage,
+    source_page: checkedPage,
     source_file: sourceFile,
     source_files: sourceFiles,
     confidence,
@@ -175,12 +190,33 @@ function validateOutput(raw: any, targetType: string, fileCount = 1) {
   if (!Array.isArray(raw.questions) || raw.questions.length > 150) {
     throw new Error("questions must be an array with at most 150 items");
   }
-  const questions = raw.questions.map((q: any, i: number) => validateQuestion(q, i, fileCount));
+  const recoveryWarnings: string[] = [];
+  const questions: any[] = [];
+  raw.questions.forEach((q: any, i: number) => {
+    try {
+      const item = validateQuestion(q, i, fileCount);
+      if (item.options.length < 2) recoveryWarnings.push(`Câu ${i + 1}: AI chưa trích xuất đủ lựa chọn; giữ câu hỏi để biên tập sau.`);
+      if (item.source_file == null) recoveryWarnings.push(`Câu ${i + 1}: AI chưa xác định được tệp nguồn; không tự gán sang tệp khác.`);
+      if (q?.source_file != null && String(item.source_file) !== String(q.source_file)) recoveryWarnings.push(`Câu ${i + 1}: đã chuẩn hóa hoặc đánh dấu không rõ số tệp nguồn.`);
+      questions.push(item);
+    } catch (err) {
+      // Security/empty-prompt failures are isolated to their own question. Never
+      // publish unsafe markup or fabricate a question from missing source text.
+      recoveryWarnings.push(`Câu ${i + 1}: không trích xuất được nội dung hợp lệ (${err instanceof Error ? err.message : "invalid"}); các câu khác vẫn được giữ.`);
+    }
+  });
   if (targetType === "questions" && questions.length === 0) {
+    if (raw.questions.length) throw new Error("No safe, usable question could be extracted");
     throw new Error("AI_NO_QUESTIONS");
   }
-  const processedFiles: number[] = raw.processed_files == null && fileCount === 1 ? [1] : raw.processed_files;
-  if (!Array.isArray(processedFiles) || processedFiles.length !== fileCount || new Set(processedFiles).size !== fileCount || processedFiles.some(v => !Number.isInteger(v) || v < 1 || v > fileCount)) throw new Error("processed_files must account for every uploaded file");
+  const reportedFiles = Array.isArray(raw.processed_files) ? raw.processed_files : [];
+  const completeManifest = reportedFiles.length === fileCount
+    && new Set(reportedFiles).size === fileCount
+    && reportedFiles.every((v: unknown) => Number.isInteger(v) && v >= 1 && v <= fileCount);
+  if (!completeManifest) recoveryWarnings.push("AI không xác nhận đủ danh sách tệp đã xử lý. Toàn bộ tệp gốc vẫn được lưu; chỉ xuất bản nội dung AI đã trích xuất.");
+  const processedFiles: number[] = completeManifest
+    ? reportedFiles
+    : Array.from({ length: fileCount }, (_, i) => i + 1);
 
   let lesson = null;
   if (raw.lesson != null) {
@@ -205,8 +241,10 @@ function validateOutput(raw: any, targetType: string, fileCount = 1) {
   if (targetType === "lesson" && !lesson) throw new Error("lesson output is required for lesson import");
 
   const warnings = Array.isArray(raw.warnings)
-    ? raw.warnings.slice(0, 50).map((w: unknown, i: number) => safeText(w, `warnings[${i}]`, 1_000, true)!)
+    ? raw.warnings.slice(0, 50).filter((w: unknown) => typeof w === "string" && !!w.trim())
+        .map((w: unknown, i: number) => safeText(w, `warnings[${i}]`, 1_000, true)!)
     : [];
+  warnings.push(...recoveryWarnings);
   const pendingAnswers = questions.map((question: any, index: number) => question.answer_needs_review ? index + 1 : null).filter(Boolean);
   if (pendingAnswers.length) warnings.push(`Cần bổ sung đáp án cho câu ${pendingAnswers.join(", ")}. Nội dung các câu được giữ trong bản nháp; hãy hoàn thiện trước khi xuất bản.`);
   const unreadableQuestions = questions.map((question: any, index: number) => importContentError(question) ? index + 1 : null).filter(Boolean);
@@ -361,23 +399,19 @@ Deno.serve(async (req: Request) => {
       const parsed = parseImportJson(stripFence(text));
       const validated = validateOutput(parsed.value, targetType, sources.files.length);
       if (parsed.repaired) validated.warnings.push("Đã chuẩn hoá ký tự trong phản hồi AI. Phần mã Unicode chưa xác định được giữ kèm [UNREADABLE] để đối chiếu nguồn trước khi xuất bản.");
-      if ([...validated.questions, ...(validated.lesson ? [validated.lesson] : [])].some(importContentError) && input.answerReviewVersion !== 2) {
-        return json(req, {error:"Tệp nguồn đã được giữ. Hãy cập nhật hoặc mở lại website để đối chiếu và bổ sung phần AI chưa đọc rõ trước khi xuất bản.",code:"AI_SOURCE_REVIEW_REQUIRED",provider:"gemini"},422);
-      }
-      if (validated.questions.some((question: any) => question.answer_needs_review) && ![1,2].includes(input.answerReviewVersion)) {
-        return json(req, {error:"Đã giữ tệp nguồn. Hãy cập nhật hoặc mở lại website để bổ sung đáp án AI chưa hợp lệ trong bản nháp, rồi xuất bản.",code:"AI_ANSWER_REVIEW_REQUIRED",provider:"gemini"},422);
-      }
+      // Review is optional; keep usable AI extraction for the editor regardless
+      // of confidence, unreadable spans, or malformed answer/source references.
       for (const question of validated.questions) {
-        if (sources.files[question.source_file - 1].mimeType.startsWith("image/")) question.source_page = 1;
+        if (question.source_file != null && sources.files[question.source_file - 1]?.mimeType.startsWith("image/")) question.source_page = 1;
       }
       // A model can overstate its own verification. Enforce the actual request capabilities.
       for (const item of [...validated.questions, ...(validated.lesson ? [validated.lesson] : [])]) {
         const wasVerified = item.verification_status === "verified";
         if (wasVerified) item.verification_status = "needs_review";
-        const note = "AI không tra cứu nguồn bên ngoài; cần đối chiếu giải thích và chuẩn tham chiếu trước khi xuất bản.";
+        const note = "AI chưa kiểm chứng nguồn bên ngoài; bạn có thể xuất bản ngay và chỉnh sửa sau.";
         item.verification_note = !wasVerified && item.verification_note ? item.verification_note + " " + note : note;
       }
-      validated.warnings.push("AI không tra cứu web. Hãy đối chiếu đáp án và giải thích trước khi xuất bản.");
+      validated.warnings.push("Phần kiểm chứng AI chỉ để tham khảo, không chặn xuất bản.");
       if(persistedDraft){
         const saved=await fetch(SUPABASE_URL+'/rest/v1/import_drafts?id=eq.'+encodeURIComponent(persistedDraft.id)+'&created_by=eq.'+encodeURIComponent(user.id)+'&status=eq.draft&updated_at=eq.'+encodeURIComponent(persistedDraft.updated_at),{
           method:'PATCH',headers:draftHeaders,body:JSON.stringify({title:validated.title,model_name:GEMINI_MODEL,updated_by:user.id,payload:{...persistedDraft.payload,questions:validated.questions,lesson:validated.lesson,warnings:validated.warnings,processing:{state:'ready'}}})
