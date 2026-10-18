@@ -88,6 +88,7 @@ try{
   assert.equal(await page.isDisabled('#publish-imported'),false);assert.equal(published,0,'Applying repair published content');
   await page.locator('.repairHistory summary').first().click();await page.locator('[data-repair-diff] summary').first().click();await page.waitForFunction(()=>document.querySelector('[data-repair-diff] .repairSavedDiff')?.textContent.includes('2 + 2 = 4'));await page.locator('[data-repair-undo]').click();
   await page.waitForFunction(()=>document.querySelector('#notice')?.textContent.includes('Đã hoàn tác'));
+  await page.waitForFunction(()=>document.querySelector('#publish-imported')?.disabled===false);
   assert.equal(await page.isDisabled('#publish-imported'),false);
   assert.equal((await draft()).payload.questions[2].explanation_en,'2 + 2 = 5');
   assert.equal((await draft()).payload.questions[0].explanation_en,'2 + 2 = 4');
