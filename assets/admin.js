@@ -702,6 +702,8 @@ async function runImport(useAI){
     }else notice(err.message,'error');
   }finally{
     importBusy=false;$('#save-import').textContent='Lưu bản nháp không dùng AI';renderImportFiles();updateGenerateState();
+    // renderReview ran while importBusy was true; re-enable Publish on completion.
+    updateReviewPublishState();
     if(isReadyImport(activeDraft))void repairController.load({auto:false});
   }
 }
