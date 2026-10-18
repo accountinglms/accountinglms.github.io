@@ -107,6 +107,14 @@ try{
         const mode=emptyNextAI;emptyNextAI=false;
         return mode==='server'?json(route,{error:'AI chưa trích xuất được câu hỏi nào. Hãy kiểm tra ảnh rồi thử lại.',code:'AI_NO_QUESTIONS'},422):json(route,{...aiResult,questions:[]});
       }
+      if(lessonNextAI){
+        lessonNextAI=false;
+        return json(route,{...aiResult,questions:[],lesson:{
+          title:'Converted revenue lesson',summary:'AI-assisted conversion',
+          content_markdown:'The original source is preserved after conversion.',
+          content_markdown_vi:null,standard_references:[],verification_status:'source_only'
+        }});
+      }
       if(repairNextAI){
         repairNextAI=false;
         return json(route,{...aiResult,questions:Array.from({length:12},(_,i)=>normalizeImportQuestion(i===0?{...fidelityQuestion,prompt:fidelityQuestion.prompt.replace('£12,000','[UNREADABLE]')}:{...aiResult.questions[0],source_file:1,source_files:[1],prompt:'Recovered question '+(i+1),...(i===11?{question_type:'tf',options:['Statement A','Statement B'],correct_answer:[true]}:{})})),warnings:['Cần bổ sung đáp án cho câu 12.','Câu 1 có phần [UNREADABLE] cần đối chiếu nguồn.']});
