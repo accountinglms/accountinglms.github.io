@@ -63,20 +63,22 @@ try{
   });
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   const open=async()=>{await page.goto(base+'/admin.html');await page.waitForSelector('[data-resume-import]');await page.click('[data-resume-import]')};
-  await open();await page.waitForFunction(()=>document.querySelector('#import-repair-panel')?.textContent.includes('Đang kiểm tra'));
+  await open();await page.waitForFunction(()=>document.querySelector('[data-repair-start]')?.disabled===false);
+  assert.equal(await page.isDisabled('#publish-imported'),false,'Quality warnings must not block publication');
+  await page.click('[data-repair-start]');
+  await page.waitForFunction(()=>document.querySelector('#import-repair-panel')?.textContent.includes('Đang kiểm tra'));
   for(let i=0;repairs<1&&i<50;i++)await new Promise(r=>setTimeout(r,50));assert.equal(repairs,1);assert.equal(published,0);
   await page.waitForLoadState('networkidle');
   await page.reload();await page.waitForSelector('[data-resume-import]');await page.click('[data-resume-import]');
   await page.waitForFunction(()=>document.querySelector('#import-repair-panel')?.textContent.includes('Đang kiểm tra'));
   await page.waitForLoadState('networkidle');
-  // Simulate returning from a backgrounded phone after the UI polling deadline.
-  await page.evaluate(()=>{window.repairRealNow=Date.now;Date.now=()=>window.repairRealNow()+120000});
+  // Reopening a completed optional repair refreshes suggestions without forcing publication.
   release();await Promise.all(tasks);
+  await page.reload();await page.waitForSelector('[data-resume-import]');await page.click('[data-resume-import]');
   await page.waitForFunction(()=>document.querySelectorAll('.repairProposal').length===2&&!document.querySelector('[data-i="0"][data-k="practical_example_vi"]').value.includes('[UNREADABLE]'));
-  await page.evaluate(()=>{Date.now=window.repairRealNow;delete window.repairRealNow});
   assert.equal(repairs,1,'Reload started a second AI request');assert.equal((await draft()).payload.questions.length,17);
   for(let i=0;i<17;i++){assert.equal((await draft()).payload.questions[i].prompt,initial.questions[i].prompt);assert.deepEqual((await draft()).payload.questions[i].options,initial.questions[i].options)}
-  assert.equal(await page.isDisabled('#publish-imported'),true,'Unresolved source explanations allowed publication');
+  assert.equal(await page.isDisabled('#publish-imported'),false,'Warnings cannot block an editor from publishing');
   assert.match(await page.locator('#import-repair-panel').innerText(),/2 câu/);
   for(let i=0;i<2;i++){
     await page.locator('.repairProposal summary').first().click();await page.locator('[data-repair-apply]').first().click();
@@ -86,7 +88,7 @@ try{
   assert.equal(await page.isDisabled('#publish-imported'),false);assert.equal(published,0,'Applying repair published content');
   await page.locator('.repairHistory summary').first().click();await page.locator('[data-repair-diff] summary').first().click();await page.waitForFunction(()=>document.querySelector('[data-repair-diff] .repairSavedDiff')?.textContent.includes('2 + 2 = 4'));await page.locator('[data-repair-undo]').click();
   await page.waitForFunction(()=>document.querySelector('#notice')?.textContent.includes('Đã hoàn tác'));
-  assert.equal(await page.isDisabled('#publish-imported'),true);
+  assert.equal(await page.isDisabled('#publish-imported'),false);
   assert.equal((await draft()).payload.questions[2].explanation_en,'2 + 2 = 5');
   assert.equal((await draft()).payload.questions[0].explanation_en,'2 + 2 = 4');
   for(const theme of ['light','dark']){
