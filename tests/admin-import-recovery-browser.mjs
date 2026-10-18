@@ -21,6 +21,7 @@ const drafts=new Map(),sources=new Map(),objects=new Map(),questions=[],lessons=
 let uploads=0,aiCalls=0,failReadyPatch=false,failNextAI=false,failUploadAt=0;
 let emptyNextAI=false;
 let repairNextAI=false;
+let lessonNextAI=false;
 const routeInputs=[];
 
 const browser=await engine.launch({headless:true});
@@ -39,6 +40,11 @@ try{
     if(path==='/rest/v1/questions'||path==='/rest/v1/lessons'){
       const rows=path.endsWith('questions')?questions:lessons;
       if(method==='GET')return json(route,rows);
+      if(method==='PATCH'){
+        const id=url.searchParams.get('id')?.slice(3),row=rows.find(v=>v.id===id);
+        if(!row)return json(route,[]);
+        Object.assign(row,req.postDataJSON());return json(route,[row]);
+      }
       const body=req.postDataJSON();const incoming=(Array.isArray(body)?body:[body]).map(x=>({...x,id:'record-'+(rows.length+1)}));
       rows.push(...incoming);return json(route,incoming,201);
     }
@@ -100,6 +106,14 @@ try{
       if(emptyNextAI){
         const mode=emptyNextAI;emptyNextAI=false;
         return mode==='server'?json(route,{error:'AI chưa trích xuất được câu hỏi nào. Hãy kiểm tra ảnh rồi thử lại.',code:'AI_NO_QUESTIONS'},422):json(route,{...aiResult,questions:[]});
+      }
+      if(lessonNextAI){
+        lessonNextAI=false;
+        return json(route,{...aiResult,questions:[],lesson:{
+          title:'Converted revenue lesson',summary:'AI-assisted conversion',
+          content_markdown:'The original source is preserved after conversion.',
+          content_markdown_vi:null,standard_references:[],verification_status:'source_only'
+        }});
       }
       if(repairNextAI){
         repairNextAI=false;
@@ -342,6 +356,32 @@ try{
   await page.locator('.sourceTabs button').nth(1).click();
   await page.waitForFunction(()=>document.querySelector('.sourceViewer img')?.getAttribute('src')?.startsWith('blob:'));
   
+
+  // Convert a previously published original lesson using Gemini later.
+  await open();
+  await page.setInputFiles('#import-file',{name:'lesson-original.txt',mimeType:'text/plain',buffer:Buffer.from(sourceText)});
+  await page.selectOption('#import-target','lesson');
+  await page.selectOption('#subject','accounting');
+  await page.selectOption('#chapter','revenue');
+  await page.click('#confirm-destination');
+  await page.click('#publish-source-fallback');
+  await page.waitForFunction(()=>document.querySelector('#notice')?.textContent.includes('Đã xuất bản tài liệu gốc'));
+  const sourceLesson=lessons.filter(x=>x.content_json?.source_fallback).at(-1);
+  const sourceId=sourceLesson.id,draftId=sourceLesson.content_json.import_draft_id;
+  lessonNextAI=true;
+  await page.click('#ai-generate');
+  await page.waitForFunction(()=>document.querySelector('#publish-lesson')?.disabled===false);
+  await page.click('#publish-lesson');
+  await page.waitForFunction(()=>document.querySelector('#notice')?.textContent.includes('Đã xuất bản bài học'));
+  assert.equal(lessons.filter(x=>x.content_json?.import_draft_id===draftId).length,1);
+  const updated=lessons.find(x=>x.id===sourceId);
+  assert.equal(updated.content_json.source_fallback,true);
+  assert.equal(updated.content_json.ai_converted,true);
+  await page.goto(baseURL+'/lessons.html?lesson='+encodeURIComponent(sourceId),{waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.querySelector('.sourceViewer .content')?.textContent.includes('original source is preserved'));
+  await page.locator('.sourceTabs button').nth(1).click();
+  await page.waitForFunction(text=>document.querySelector('.sourceText')?.textContent===text,sourceText);
+  assert.equal(drafts.get(draftId).status,'published');
   console.log(`PASS ${browserName}: draft before AI, quota recovery, reload/resume, source reuse, manual save, multi-image extraction/provenance, partial-upload resume, and failed-save retry.`);
   await context.close();
 }finally{await browser.close()}
