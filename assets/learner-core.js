@@ -1421,7 +1421,8 @@
         if(typeof raw!=='string')return null;
         const text=raw.trim().replace(/[£$€\s]/g,'');
         if(!/^-?(?:\d+(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)$/.test(text))return null;
-        const n=Number(text.replace(/,/g,''));
+        const normalized=/^-?\\d+,\\d{1,2}$/.test(text) ? text.replace(',','.') : text.replace(/,/g,'');
+        const n=Number(normalized);
         return Number.isFinite(n)?n:null;
     }
 
@@ -1944,7 +1945,7 @@
                 // Accept rounded pennies and equivalent numeric formatting,
                 // but never accept a missing, nonnumeric or arbitrary near answer.
                 return typeof expected==='number'&&Number.isFinite(expected)&&actual!==null
-                    && Math.abs(expected-actual)<=0.010000001;
+                    && Math.abs(expected-actual)<=0.005000001;
             });
         }
         if (q.type === 'single') return selection === q.answer;
@@ -1985,7 +1986,7 @@
                 display.type='text';display.value=Array.isArray(selection)?String(selection[index]??''):'';
                 display.disabled=true;display.setAttribute('aria-label',safePlainText(labelText));
                 if(Array.isArray(q.answer)&&typeof q.answer[index]==='number'){
-                    const value=numericValue(display.value),correct=value!==null&&Math.abs(value-q.answer[index])<=0.010000001;
+                    const value=numericValue(display.value),correct=value!==null&&Math.abs(value-q.answer[index])<=0.005000001;
                     display.classList.add(correct?'numeric-correct':'numeric-wrong');
                     const hint=document.createElement('small');hint.textContent=correct?'✓ Đúng':'Đáp án: '+q.answer[index];
                     row.append(label,display,hint);
