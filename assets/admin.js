@@ -276,8 +276,19 @@ async function publishSourceFallback(){
       throw Error('Tệp nguồn chưa được lưu đầy đủ. Hãy thử lại, không cần chạy AI.');
     // Read from DB on every attempt; handles lost responses and other tabs.
     const existing=await restGet('lessons','select=*&chapter_id=eq.'+encodeURIComponent(chapter.id));
-    let published=existing.find(row=>row.content_json?.source_fallback===true
-      &&row.content_json?.import_draft_id===importDraftId);
+    let published=existing.find(row=>row.content_json?.import_draft_id===importDraftId);
+    if(published&&!published.content_json?.source_fallback){
+      // A previous AI lesson for this draft exists. Attach the original rather
+      // than violating the draft's unique index by inserting a second lesson.
+      const updated=await restPatch('lessons','id=eq.'+encodeURIComponent(published.id),{
+        status:'published',content_json:{...published.content_json,source_fallback:true,
+          source_ids:sourceFiles.map(file=>file.sourceId),
+          source_files:sourceFiles.map(file=>({
+            sourceId:file.sourceId,storagePath:file.storagePath,name:file.name,mimeType:file.mimeType
+          }))}
+      });
+      published=updated[0]||published;
+    }
     if(!published){
       const current=existing.filter(row=>row.chapter_id===chapter.id);
       const sort_order=current.length?Math.max(...current.map(row=>Number(row.sort_order)||0))+1:0;
@@ -921,7 +932,21 @@ $('#review-area').addEventListener('click',async e=>{
       const chapter_id=selected('#chapter');if(!chapter_id)throw Error('Hãy chọn Chapter đích.');
       const session=await ensureSession(),ls=lessons.filter(x=>x.chapter_id===chapter_id);
       const previous=ls.find(x=>x.content_json?.import_draft_id===importDraftId);
-      if(!previous){
+      if(previous?.content_json?.source_fallback===true){
+        // Upgrade the existing original-file lesson without duplicating the
+        // import_draft_id or invalidating the original PDF's access policy.
+        await restPatch('lessons','id=eq.'+encodeURIComponent(previous.id),{
+          title:String(lesson?.title||'').trim()||previous.title,
+          summary:lesson?.summary?.trim()||previous.summary,
+          content_markdown:String(lesson?.content_markdown||''),
+          content_markdown_vi:lesson?.content_markdown_vi||null,
+          standard_references:lesson?.standard_references||[],
+          verification_status:['source_only','needs_review','conflict'].includes(lesson?.verification_status)
+            ?lesson.verification_status:'needs_review',
+          verification_note:lesson?.verification_note||null,verified_at:null,
+          content_json:{...previous.content_json,ai_imported:true,ai_converted:true}
+        });
+      }else if(!previous){
         const sort_order=ls.length?Math.max(...ls.map(x=>x.sort_order))+1:0;
         await restInsert('lessons',{
           chapter_id,title:String(lesson?.title||'').trim()||'Imported lesson',
