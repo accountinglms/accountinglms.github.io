@@ -48,6 +48,7 @@ jobs:
           node --check assets/chat-updates.js
           node --check assets/chat-images.js
           node --check assets/import-result.js
+          node --check assets/import-checkpoints.js
           node --check assets/import-answers.js
           node --check assets/import-quality.js
           node --check assets/import-repair-ui.js
@@ -191,6 +192,12 @@ jobs:
           BROWSER: ${{ matrix.browser }}
           TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/admin-import-recovery-browser.mjs
+
+      - name: Run interrupted upload and durable checkpoint tests
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/admin-upload-checkpoints-browser.mjs
 
       - name: Run owner-only course deletion and restore test
         env:

@@ -45,7 +45,8 @@ These exercises use `content_mode = database`, so Supabase is authoritative when
 - Creation reuses an existing title within the same parent; database locking rejects concurrent duplicate creation.
 - Content INSERT/UPDATE activity is recorded in `content_audit_log`.
 - Manual content backups are stored in `content_snapshots`.
-- AI Import blocks publishing when the uploaded source clearly mismatches the selected Subject/Chapter/Exercise.
+- AI Import shows source-context warnings without blocking the editor's choice to publish. Saved originals can be published as a reading lesson without Gemini.
+- Interrupted imports retain local file bytes and progress per account. Reopen the saved selection/draft on the same browser to continue; stable upload paths and record IDs prevent duplicates after lost responses.
 
 ## AI Import
 

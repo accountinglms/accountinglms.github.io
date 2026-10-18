@@ -5,6 +5,8 @@ import {importAnswerError} from './import-answers.js';
 import {COURSE_KINDS,findCourseItem,courseItemPath,courseItemCounts,courseParentDeleted} from './content-management.js';
 import {scanImportQuality,cleanImportWarnings,publishableExample} from './import-quality.js';
 import {createImportRepairController} from './import-repair-ui.js';
+import {createImportCheckpoints,checkpointFiles} from './import-checkpoints.js';
+import {loadSession} from './common.js';
 
 const $ = s => document.querySelector(s);
 let subjects=[], chapters=[], exercises=[], questions=[], lessons=[], audits=[], snapshots=[];
@@ -13,6 +15,7 @@ let preparedImport=null, routeSuggestion=null, destinationConfirmed=false, desti
 let savedImports=[], selectedImportFiles=[], importBusy=false, activeDraft=null, manualImportContext=null;
 let aiRetryAt=0, retryTimer=null;
 let contentOwner=false, structureBusy=false, pendingDeletion=null;
+let checkpointStore=null,checkpointOwner=null,localImports=[],localBatchId=null,checkpointVersion=0;
 const courseCatalog=()=>({subjects,chapters,exercises,questions,lessons});
 const itemDate=v=>v?new Date(v).toLocaleString('vi-VN'):'Chưa có ngày tạo';
 function reviewPayload(){
@@ -62,6 +65,67 @@ function ensurePreparedBatch(){
   return preparedImport;
 }
 function importManifest(){return (preparedImport?.files||[]).map(f=>({...f}))}
+function importDestination(){return {target_type:currentTargetType(),subject_id:selected('#subject'),chapter_id:selected('#chapter'),exercise_id:selected('#exercise')}}
+function localImportStatus(text){const node=$('#import-local-status');if(node)node.textContent=text;}
+async function checkpointBatch(){
+  if(!checkpointStore||!currentImportFiles().length||loadSession()?.user?.id!==checkpointOwner)return;
+  const prepared=ensurePreparedBatch(),id=localBatchId||=crypto.randomUUID();
+  const version=++checkpointVersion;localImportStatus('Đang tự lưu tệp và tiến độ trên thiết bị…');
+  const previous=localImports.find(row=>row.id===id);
+  const record={id,title:currentImportFile().name,draftId:importDraftId,prepared:structuredClone(prepared),
+    destination:importDestination(),confirmed:destinationConfirmed&&destinationSignature===currentDestinationSignature(),
+    files:prepared.files.map((entry,i)=>{
+      // Release local bytes only after their manifest is acknowledged remotely.
+      const remote=activeDraft?.payload?.files?.find(file=>file.key===entry.key);
+      const acknowledged=entry.sourceId&&entry.storagePath&&remote?.sourceId===entry.sourceId&&remote?.storagePath===entry.storagePath;
+      const cached=previous?.files?.find(f=>f.key===entry.key);
+      const file=currentImportFiles()[i],blob=acknowledged?null:typeof file.slice==='function'?file.slice(0,file.size,file.type):cached?.blob||(cached?.bytes?new Blob([cached.bytes],{type:entry.mimeType}):null);
+      return {key:entry.key,blob};
+    })};
+  try{
+    const saved=await checkpointStore.put(record);
+    if(loadSession()?.user?.id!==checkpointOwner)return;
+    localImports=[saved,...localImports.filter(row=>row.id!==id)];renderSavedImports();
+    if(localBatchId===id&&version===checkpointVersion)localImportStatus('Đã tự lưu tiến độ trên thiết bị này. Có thể mở lại để tiếp tục.');
+  }catch{
+    if(localBatchId===id&&version===checkpointVersion)localImportStatus('Thiết bị chưa lưu được bản khôi phục. Hãy giữ trang mở đến khi tệp được lưu trực tuyến; vẫn có thể xuất bản ngay.');
+  }
+}
+async function forgetCheckpoint(){
+  const id=localBatchId;localBatchId=null;
+  if(!id||!checkpointStore)return;
+  try{await checkpointStore.remove(id);localImports=localImports.filter(row=>row.id!==id);renderSavedImports();}catch{}
+}
+function restoreDestination(destination,confirmed){
+  $('#import-target').value=destination.target_type||'questions';
+  $('#subject').value=destination.subject_id||'';renderStructure();
+  $('#chapter').value=destination.chapter_id||'';renderStructure();
+  $('#exercise').value=destination.exercise_id||'';
+  destinationConfirmed=Boolean(confirmed&&destinationComplete());
+  destinationSignature=destinationConfirmed?currentDestinationSignature():'';
+  updateDestinationStatus();
+}
+async function resumeLocalImport(id){
+  if(importBusy||loadSession()?.user?.id!==checkpointOwner)return;
+  const record=await checkpointStore.get(id).catch(()=>null);if(!record)return;
+  if(record.draftId)return resumeSavedImport(record.draftId);
+  localBatchId=id;preparedImport=record.prepared;
+  selectedImportFiles=checkpointFiles(record,preparedImport.files);
+  activeDraft=null;importDraftId=null;importSourceId=preparedImport.files[0]?.sourceId||null;
+  importedQuestions=[];importedLesson=null;manualImportContext=null;$('#import-file').value='';
+  clearRouteSuggestion();restoreDestination(record.destination,record.confirmed);
+  $('#review-area').classList.add('hidden');$('#import-warning').classList.add('hidden');
+  renderImportRecovery();updateGenerateState();setImportProgress('Đã khôi phục tệp và tiến độ trên thiết bị này.');
+  notice('Đã khôi phục tệp. Bạn có thể tiếp tục lưu hoặc xuất bản ngay.','ok');
+}
+// Stable primary keys let a retry recover a write whose response was lost.
+async function insertImportRecord(table,body){
+  try{return (await restInsert(table,body))[0];}
+  catch(error){
+    const rows=await restGet(table,'select=*&id=eq.'+encodeURIComponent(body.id)+'&created_by=eq.'+encodeURIComponent(checkpointOwner)).catch(()=>[]);
+    if(rows[0])return rows[0];throw error;
+  }
+}
 function aiSourceInput(){
   const files=preparedImport.files.map(f=>({storagePath:f.storagePath,fileName:f.name,mimeType:f.mimeType}));
   return files.length===1?files[0]:{files};
@@ -117,6 +181,7 @@ function invalidateDestination(message=''){
   destinationSignature='';
   updateDestinationStatus(message||'',message?'warning':'');
   updateGenerateState();
+  void checkpointBatch();
 }
 function updateGenerateState(){
   const file=currentImportFile();
@@ -133,7 +198,7 @@ function updateGenerateState(){
   for(const selector of ['#import-file','#import-target','#subject','#chapter','#exercise','#confirm-destination']){
     if($(selector))$(selector).disabled=importBusy||structureBusy;
   }
-  document.querySelectorAll('[data-resume-import],[data-move-source]').forEach(btn=>{if(importBusy)btn.disabled=true;else if(btn.hasAttribute('data-resume-import'))btn.disabled=false});
+  document.querySelectorAll('[data-resume-import],[data-resume-local],[data-move-source]').forEach(btn=>{if(importBusy)btn.disabled=true;else if(btn.hasAttribute('data-resume-import')||btn.hasAttribute('data-resume-local'))btn.disabled=false});
   $('#continue-manual-import').disabled=importBusy;
   updateStructureActions();
   clearTimeout(retryTimer);
@@ -149,8 +214,10 @@ async function ensurePreparedUpload(file){
   const entry=prepared.files.find(f=>f.key===importFileKey(file));
   if(entry.storagePath)return entry;
   if(typeof file.arrayBuffer!=='function')throw new Error('Hãy chọn lại tệp chưa được lưu: '+file.name);
-  const up=await uploadImportFile(file);
+  if(!entry.uploadPath){entry.uploadPath=checkpointOwner+'/'+crypto.randomUUID();await checkpointBatch();}
+  const up=await uploadImportFile(file,{storagePath:entry.uploadPath});
   entry.storagePath=up.storagePath;
+  await checkpointBatch();
   renderImportFiles();
   return entry;
 }
@@ -170,11 +237,14 @@ function rememberImport(draft){
   const row={...draft,content_sources:source};
   savedImports=[row,...savedImports.filter(x=>x.id!==draft.id)].slice(0,20);
   renderSavedImports();
+  void checkpointBatch();
 }
 function renderSavedImports(){
   const list=$('#saved-import-list');
-  $('#saved-imports').classList.toggle('hidden',!savedImports.length);
+  const local=localImports.filter(row=>!savedImports.some(d=>d.id===row.draftId||d.id===row.prepared?.pendingDraftId));
+  $('#saved-imports').classList.toggle('hidden',!savedImports.length&&!local.length);
   list.innerHTML=savedImports.map(d=>`<div class="savedImport"><div><strong>${esc(d.title)}</strong><small>${esc(d.payload?.destination?.subject_title||'')} · ${d.payload?.files?.length||1} tệp · ${isReadyImport(d)?'Sẵn sàng kiểm tra':'Đã lưu nguồn · chưa xử lý xong'}</small></div><button type="button" class="ghost" data-resume-import="${esc(d.id)}">Tiếp tục</button></div>`).join('');
+  list.insertAdjacentHTML('beforeend',local.map(row=>`<div class="savedImport"><div><strong>${esc(row.title)}</strong><small>${row.prepared.files.length} tệp · Đã giữ trên thiết bị này · chưa lưu trực tuyến đầy đủ</small></div><button type="button" class="ghost" data-resume-local="${esc(row.id)}">Khôi phục</button></div>`).join(''));
   updateGenerateState();
 }
 function renderImportRecovery(){
@@ -186,7 +256,7 @@ function renderImportRecovery(){
   const count=preparedImport?.files?.filter(f=>f.sourceId).length||0;
   const total=currentImportFiles().length;
   const failure=activeDraft.payload?.processing?.state==='ready'&&pending?EMPTY_QUESTIONS_MESSAGE:activeDraft.payload?.processing?.message||'';
-  $('#import-recovery-text').textContent=pending?`${failure?failure+' ':''}Đã lưu bản nháp và ${count}/${total} tệp nguồn. ${count<total?'Chọn lại các tệp còn thiếu để tiếp tục.':'Bạn có thể thử AI lại hoặc nhập nội dung thủ công.'}`:'Bản nháp đã được lưu. Hãy kiểm tra nội dung trước khi xuất bản.';
+  $('#import-recovery-text').textContent=pending?`${failure?failure+' ':''}Đã lưu bản nháp và ${count}/${total} tệp nguồn. ${count<total?(importFilesAvailable()?'Tệp còn lại đã được giữ trên thiết bị. Bấm lưu hoặc xuất bản để tiếp tục.':'Chọn lại các tệp còn thiếu để tiếp tục.'):'Bạn có thể xuất bản tệp gốc ngay, thử AI lại hoặc nhập nội dung thủ công.'}`:'Bản nháp đã được lưu. Bạn có thể xuất bản ngay.';
   $('#continue-manual-import').classList.toggle('hidden',!pending);
   $('#download-import-source').classList.toggle('hidden',total!==1);
   $('#manual-source-row').classList.toggle('hidden',!pending||total<2);
@@ -201,27 +271,40 @@ async function persistImportSource(files,subject,chapter,exercise){
   const session=await ensureSession();
   const destination={target_type:currentTargetType(),subject_id:subject.id,subject_title:subject.title,chapter_id:chapter.id,chapter_title:chapter.title,exercise_id:exercise?.id||null,exercise_title:exercise?.title||null};
   const signature=currentDestinationSignature();
+  await checkpointBatch();
+  // The server may have completed a previous AI/save request while the page closed.
+  if(importDraftId&&prepared.draftSignature===signature){
+    const rows=await restGet('import_drafts','select=*&id=eq.'+encodeURIComponent(importDraftId)+'&created_by=eq.'+encodeURIComponent(session.user.id));
+    if(!rows[0]||rows[0].status!=='draft')throw Error('Bản nháp đã thay đổi hoặc được xuất bản. Hãy mở lại danh sách.');
+    rememberImport(rows[0]);
+  }
   for(let i=0;i<files.length;i++){
     const file=files[i];
     setImportProgress(`Đang lưu tệp ${i+1}/${files.length}: ${file.name}`);
     const entry=await ensurePreparedUpload(file);
     if(!entry.sourceId){
-      const source=(await restInsert('content_sources',{
+      entry.pendingSourceId||=crypto.randomUUID();await checkpointBatch();
+      const source=await insertImportRecord('content_sources',{
+        id:entry.pendingSourceId,
         source_type:file.type==='application/pdf'?'pdf':file.type==='text/plain'?'text':'image',
         file_name:file.name,mime_type:file.type,storage_key:entry.storagePath,page_count:null,
         metadata:{routed:true,destination,file_index:i+1,file_count:files.length,route_confidence:routeSuggestion?.confidence??null,mixed_subjects:routeSuggestion?.mixed_subjects??false},created_by:session.user.id
-      }))[0];
+      });
       if(!source?.id)throw new Error('Chưa lưu được thông tin tệp nguồn. Hãy thử lại.');
       entry.sourceId=source.id;
+      await checkpointBatch();
     }
     importSourceId=prepared.files[0].sourceId;
     if(!activeDraft||prepared.draftSignature!==signature){
-      const draft=(await restInsert('import_drafts',{
+      if(prepared.pendingSignature!==signature){prepared.pendingDraftId=crypto.randomUUID();prepared.pendingSignature=signature;}
+      await checkpointBatch();
+      const draft=await insertImportRecord('import_drafts',{
+        id:prepared.pendingDraftId,
         title:files.length>1?files[0].name+' + '+(files.length-1)+' tệp':files[0].name,
         source_id:importSourceId,target_type:currentTargetType(),
         payload:{files:importManifest(),questions:[],lesson:null,warnings:[],destination,routing:routeSuggestion||null,processing:{state:'pending'}},
         status:'draft',model_name:null,created_by:session.user.id,updated_by:session.user.id
-      }))[0];
+      });
       if(!draft?.id)throw new Error('Chưa lưu được bản nháp. Hãy thử lại.');
       prepared.draftSignature=signature;importDraftId=draft.id;
       importedQuestions=[];importedLesson=null;manualImportContext=null;
@@ -231,6 +314,7 @@ async function persistImportSource(files,subject,chapter,exercise){
       await patchActiveImport({payload:{...activeDraft.payload,files:importManifest()}});
     }
     renderImportRecovery();
+    await checkpointBatch();
   }
   setImportProgress(`Đã lưu ${files.length}/${files.length} tệp nguồn.`);
   return prepared;
@@ -331,6 +415,7 @@ async function resumeSavedImport(id){
   setRepairBusy(true);let resumed=false;
   try{
     const session=await ensureSession();
+    if(session.user.id!==checkpointOwner)throw Error('Phiên đăng nhập đã thay đổi. Hãy mở lại trang.');
     const rows=await restGet('import_drafts','select=*,content_sources(id,file_name,mime_type,storage_key)&id=eq.'+encodeURIComponent(id)+'&created_by=eq.'+encodeURIComponent(session.user.id)+'&status=eq.draft');
     const draft=rows.find(row=>row.id===id);
     if(!draft)throw Error('Bản nháp không còn tồn tại hoặc đã được xuất bản. Hãy tải lại danh sách.');
@@ -338,8 +423,16 @@ async function resumeSavedImport(id){
   const manifest=draft.payload?.files?.length?draft.payload.files:source?.storage_key?[{name:source.file_name||draft.title,mimeType:source.mime_type,size:0,lastModified:0,storagePath:source.storage_key,sourceId:source.id||draft.source_id}]:[];
   if(!manifest.length||!destination)return notice('Bản nháp này chưa có tệp nguồn hoặc nơi lưu. Hãy chọn lại tệp.','error');
   $('#import-file').value='';
-  selectedImportFiles=manifest.map(f=>({name:f.name,type:f.mimeType,size:f.size||0,lastModified:f.lastModified||0}));
-  preparedImport={key:JSON.stringify(selectedImportFiles.map(importFileKey)),files:manifest.map((f,i)=>({...f,key:importFileKey(selectedImportFiles[i])}))};
+  const cached=localImports.find(row=>row.draftId===id||row.prepared?.pendingDraftId===id);
+  const local=cached?await checkpointStore.get(cached.id).catch(()=>null):null;
+  const entries=manifest.map(f=>{
+    const key=f.key||JSON.stringify([f.name,f.size||0,f.mimeType]);
+    const progress=local?.prepared?.files?.find(entry=>entry.key===key);
+    return {...progress,...f,key,storagePath:f.storagePath||progress?.storagePath||null,sourceId:f.sourceId||progress?.sourceId||null};
+  });
+  selectedImportFiles=checkpointFiles(local,entries);
+  preparedImport={...local?.prepared,key:JSON.stringify(selectedImportFiles.map(importFileKey)),files:entries};
+  localBatchId=local?.id||crypto.randomUUID();
   importSourceId=preparedImport.files[0].sourceId;importDraftId=draft.id;activeDraft=draft;manualImportContext=null;
   $('#import-target').value=draft.target_type;
   $('#subject').value=destination.subject_id;renderStructure();
@@ -363,6 +456,7 @@ async function resumeSavedImport(id){
   if(resumed)void repairController.load({auto:false});
 }
 $('#saved-import-list').addEventListener('click',e=>{const id=e.target.closest('[data-resume-import]')?.dataset.resumeImport;if(id)void resumeSavedImport(id)});
+$('#saved-import-list').addEventListener('click',e=>{const id=e.target.closest('[data-resume-local]')?.dataset.resumeLocal;if(id)void resumeLocalImport(id).catch(error=>notice(error.message,'error'))});
 
 async function downloadSource(index){
   try{
@@ -384,6 +478,7 @@ $('#import-file-list').addEventListener('click',e=>{
   if(to<0||to>=selectedImportFiles.length)return;
   [selectedImportFiles[from],selectedImportFiles[to]]=[selectedImportFiles[to],selectedImportFiles[from]];
   ensurePreparedBatch();clearRouteSuggestion();invalidateDestination();renderImportFiles();
+  void checkpointBatch();
 });
 $('#continue-manual-import').addEventListener('click',async()=>{
   if(!activeDraft||!destinationConfirmed||preparedImport?.draftSignature!==currentDestinationSignature())return notice('Hãy xác nhận lại nơi lưu của bản nháp trước.','error');
@@ -605,6 +700,7 @@ $('#confirm-destination').addEventListener('click',()=>{
   destinationSignature=currentDestinationSignature();
   updateDestinationStatus();
   updateGenerateState();
+  void checkpointBatch();
 });
 
 function renderRouteSuggestion(result){
@@ -725,14 +821,22 @@ $('#import-file').addEventListener('change',e=>{
     renderImportRecovery();updateGenerateState();notice('Đã nhận lại tệp còn thiếu. Bấm tạo bản nháp để tiếp tục.','ok');return;
   }
   selectedImportFiles=picked;preparedImport=null;activeDraft=null;manualImportContext=null;
+  localBatchId=null;localImportStatus(picked.length?'Đang tự lưu tệp trên thiết bị…':'');
   importSourceId=null;importDraftId=null;importedQuestions=[];importedLesson=null;
   clearRouteSuggestion();renderImportRecovery();setImportProgress('');
   $('#review-area').classList.add('hidden');$('#import-warning').classList.add('hidden');
   invalidateDestination(picked.length?'Đã chọn '+picked.length+' tệp. Hãy để AI gợi ý hoặc chọn nơi lưu thủ công.':'');
   updateGenerateState();
+  void checkpointBatch();
 });
 async function patchActiveImport(patch){
-  const rows=await restPatch('import_drafts','id=eq.'+encodeURIComponent(importDraftId)+(activeDraft.updated_at?'&updated_at=eq.'+encodeURIComponent(activeDraft.updated_at):''),patch);
+  let rows;
+  try{rows=await restPatch('import_drafts','id=eq.'+encodeURIComponent(importDraftId)+(activeDraft.updated_at?'&updated_at=eq.'+encodeURIComponent(activeDraft.updated_at):''),patch);}
+  catch(error){
+    const latest=await restGet('import_drafts','select=*&id=eq.'+encodeURIComponent(importDraftId)+'&created_by=eq.'+encodeURIComponent(checkpointOwner)).catch(()=>[]);
+    if(!latest[0]||!Object.entries(patch).every(([key,value])=>JSON.stringify(latest[0][key])===JSON.stringify(value)))throw error;
+    rows=latest;
+  }
   if(!rows[0]?.id)throw new Error('Chưa cập nhật được bản nháp. Hãy thử lại.');
   rememberImport({...activeDraft,...patch,...rows[0]});
 }
@@ -775,9 +879,12 @@ async function runImport(useAI){
     requireImportContent(ai,currentTargetType());
     // Keep a successful response if saving it fails, so retrying does not use AI quota again.
     prepared.result=ai;prepared.resultKey=resultKey;
+    await checkpointBatch();
     if(ai.draft)rememberImport(ai.draft);else await patchActiveImport({title:ai.title||f.name,model_name:ai.model_name||'configured-provider',payload:{
       ...activeDraft.payload,questions:ai.questions||[],lesson:ai.lesson||null,warnings:ai.warnings||[],processing:{state:'ready'}
     }});
+    delete prepared.result;delete prepared.resultKey;
+    await checkpointBatch();
     importedQuestions=structuredClone(activeDraft.payload.questions||[]);importedLesson=structuredClone(activeDraft.payload.lesson||null);
     setImportProgress(`Hoàn tất ${files.length} tệp · ${importedQuestions.length} câu hỏi${importedLesson?' · 1 bài học':''}.`);
     renderReview(ai.warnings||[]);renderImportRecovery();
@@ -918,6 +1025,7 @@ $('#review-area').addEventListener('click',async e=>{
       if(rows.length)await restInsert('questions',rows);
       if(importDraftId)await restPatch('import_drafts','id=eq.'+encodeURIComponent(importDraftId),{status:'published',payload:{...activeDraft.payload,questions:importedQuestions,published_to_exercise:exercise_id}});
       importedQuestions=[];await reload();
+      await forgetCheckpoint();
       if(importedLesson)renderReview([]);else $('#review-area').classList.add('hidden');
       notice('Đã xuất bản '+(rows.length+priorIndexes.size)+' câu hỏi. Bạn có thể sửa hoặc ẩn chúng sau.','ok');
     }catch(err){notice(err.message,'error')}
@@ -962,6 +1070,7 @@ $('#review-area').addEventListener('click',async e=>{
       }
       if(importDraftId)await restPatch('import_drafts','id=eq.'+encodeURIComponent(importDraftId),{status:'published',payload:{...activeDraft.payload,lesson,published_to_chapter:chapter_id}});
       importedLesson=null;await reload();
+      await forgetCheckpoint();
       if(importedQuestions.length)renderReview([]);else $('#review-area').classList.add('hidden');
       notice('Đã xuất bản bài học. Bạn có thể chỉnh sửa sau.','ok');
     }catch(err){notice(err.message,'error')}
@@ -969,4 +1078,11 @@ $('#review-area').addEventListener('click',async e=>{
   }
 });
 
-(async()=>{try{const s=await ensureEditorSession();$('#admin-user').textContent='Quản lý nội dung · '+s.user.email;$('#app').classList.remove('hidden');await reload();try{const access=await restRpc('get_my_content_access');contentOwner=access?.content_owner===true;renderStructure()}catch{contentOwner=false;renderStructure()}}catch(err){$('#auth-block').classList.remove('hidden')}})();
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')void checkpointBatch();});
+window.addEventListener('online',()=>{if(currentImportFiles().length&&!importBusy)notice('Kết nối đã trở lại. Bấm lưu, tạo bản nháp hoặc xuất bản để tiếp tục.');});
+(async()=>{try{
+  const s=await ensureEditorSession();checkpointOwner=s.user.id;checkpointStore=createImportCheckpoints(checkpointOwner);
+  localImports=await checkpointStore.list().catch(()=>[]);
+  $('#admin-user').textContent='Quản lý nội dung · '+s.user.email;$('#app').classList.remove('hidden');await reload();
+  try{const access=await restRpc('get_my_content_access');contentOwner=access?.content_owner===true;renderStructure()}catch{contentOwner=false;renderStructure()}
+}catch(err){$('#auth-block').classList.remove('hidden')}})();

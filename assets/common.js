@@ -368,15 +368,15 @@ export async function authMfaUnenroll(factorId) {
   return text ? JSON.parse(text) : null;
 }
 
-export async function authedFetch(path, init = {}, retry = true) {
+export async function authedFetch(path, init = {}, retry = true, timeoutMs = 15_000) {
   let session = await ensureSession();
   const headers = new Headers(init.headers || {});
   headers.set('apikey', SUPABASE_KEY);
   headers.set('Authorization', `Bearer ${session.access_token}`);
-  const res = await fetchWithTimeout(`${SUPABASE_URL}${path}`, { ...init, headers });
+  const res = await fetchWithTimeout(`${SUPABASE_URL}${path}`, { ...init, headers }, timeoutMs);
   if (res.status === 401 && retry && session.refresh_token) {
     session = await refreshSession(session);
-    return authedFetch(path, init, false);
+    return authedFetch(path, init, false, timeoutMs);
   }
   return res;
 }
@@ -569,12 +569,13 @@ export function createRealtimeClient(session, subscriptions, onEvent, onStatus=(
   }};
 }
 
-export async function uploadImportFile(file) {
+export async function uploadImportFile(file, {storagePath: requestedPath} = {}) {
   const session = await ensureSession();
   const safe = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]+/g,'_').slice(0,120) || 'source';
-  const storagePath = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${safe}`;
+  const storagePath = requestedPath || `${session.user.id}/${crypto.randomUUID()}-${safe}`;
+  if(!storagePath.startsWith(session.user.id+'/'))throw Error('Tệp thuộc phiên đăng nhập khác. Hãy mở lại trang.');
   const encoded = storagePath.split('/').map(encodeURIComponent).join('/');
-  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/content-imports/${encoded}`, {
+  const res = await authedFetch(`/storage/v1/object/content-imports/${encoded}`, {
     method: 'POST',
     headers: {
       apikey: SUPABASE_KEY,
@@ -583,9 +584,20 @@ export async function uploadImportFile(file) {
       'x-upsert': 'false'
     },
     body: file
-  });
+  }, true, 60_000);
   const text = await res.text();
-  if (!res.ok) throw new Error(text || 'Không upload được file.');
+  if (!res.ok) {
+    // The server may have saved the file before a connection lost its reply.
+    // Never overwrite it or accept a different file merely because a path exists.
+    if(res.status===409||(res.status===400&&/already exists|duplicate/i.test(text))){
+      const saved=await downloadImportFile(storagePath);
+      if(saved.size!==file.size)throw Error('Tệp đã lưu khác nội dung. Hãy bắt đầu lượt nhập mới.');
+      const digest=async blob=>new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer()));
+      const [left,right]=await Promise.all([digest(saved),digest(file)]);
+      if(!left.every((byte,i)=>byte===right[i]))throw Error('Tệp đã lưu khác nội dung. Hãy bắt đầu lượt nhập mới.');
+    }else throw responseError(res,text,'Không tải lên được tệp. Hãy thử lại.');
+  }
+  if(loadSession()?.user?.id!==session.user.id)throw Error('Phiên đăng nhập đã thay đổi. Hãy mở lại trang.');
   return { storagePath };
 }
 

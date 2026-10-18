@@ -231,9 +231,8 @@ try{
   assert.equal(uploads,7);assert.equal(aiCalls,5);assert.equal(drafts.size,5);assert.equal(sources.size,6);
   assert.equal(drafts.get('draft-5').payload.files.filter(f=>f.sourceId).length,1);
   await open();await resume('[data-resume-import="draft-5"]');
-  assert.equal(await page.isDisabled('#ai-generate'),true,'Missing original file was silently skipped');
-  await page.setInputFiles('#import-file',image('retry-2.png'));
-  assert.equal(await page.locator('.importFile').count(),2,'Re-selecting the missing file discarded the saved first image');
+  assert.equal(await page.isDisabled('#ai-generate'),false,'The unfinished local file was not restored');
+  assert.equal(await page.locator('.importFile').count(),2,'Restoring the missing file discarded the saved first image');
   await page.click('#ai-generate');await page.waitForFunction(()=>document.querySelectorAll('.importCard').length===2);
   assert.equal(uploads,8,'Previously saved image was uploaded again');assert.equal(aiCalls,6);
   assert.equal(drafts.size,5);assert.equal(sources.size,7);assert.equal(drafts.get('draft-5').payload.processing.state,'ready');
