@@ -58,6 +58,12 @@ try{
       assert.equal(method,'POST');const row={...req.postDataJSON(),id:'source-'+(sources.size+1)};
       sources.set(row.id,row);return json(route,[row],201);
     }
+    if(path==='/rest/v1/import_repair_runs')return json(route,[{id:'previous-auto',draft_id:url.searchParams.get('draft_id')?.slice(3),mode:'auto',state:'failed',created_at:new Date().toISOString(),error:{error:'Fixture giữ kết quả chưa sửa để kiểm tra thao tác thủ công.'}}]);
+    if(path==='/rest/v1/rpc/save_import_revision'){
+      const body=req.postDataJSON(),saved=drafts.get(body.p_draft_id);
+      assert.equal(body.p_expected_updated_at,saved.updated_at,'Manual save omitted the draft version');
+      const row={...saved,payload:body.p_payload,updated_at:new Date().toISOString()};drafts.set(row.id,row);return json(route,row);
+    }
     if(path==='/rest/v1/import_drafts'){
       if(method==='GET'){
         assert.equal(url.searchParams.get('created_by'),'eq.'+user.id,'Recovery list was not scoped to the editor');
@@ -66,13 +72,13 @@ try{
       const body=req.postDataJSON();
       if(method==='POST'){
         assert.ok(sources.has(body.source_id),'Draft was created without a persisted source');
-        const row={...body,id:'draft-'+(drafts.size+1)};drafts.set(row.id,row);return json(route,[row],201);
+        const row={...body,id:'draft-'+(drafts.size+1),updated_at:new Date().toISOString()};drafts.set(row.id,row);return json(route,[row],201);
       }
       const id=url.searchParams.get('id')?.slice(3);assert.ok(drafts.has(id));
       if(failReadyPatch&&body.payload?.processing?.state==='ready'){
         failReadyPatch=false;return json(route,{message:'Temporary save error'},500);
       }
-      const row={...drafts.get(id),...body};drafts.set(id,row);return json(route,[row]);
+      const row={...drafts.get(id),...body,updated_at:new Date().toISOString()};drafts.set(id,row);return json(route,[row]);
     }
     if(path==='/functions/v1/icaew-ai-route'){
       routeInputs.push(req.postDataJSON());

@@ -49,6 +49,8 @@ jobs:
           node --check assets/chat-images.js
           node --check assets/import-result.js
           node --check assets/import-answers.js
+          node --check assets/import-quality.js
+          node --check assets/import-repair-ui.js
           node --check assets/progress.js
 
       - uses: denoland/setup-deno@v2
@@ -84,9 +86,17 @@ jobs:
           node tests/import-json.test.mjs
           node tests/chat-updates.test.mjs
 
+      - name: Targeted AI repair and Postgres concurrency tests
+        run: |
+          npm install --no-save @electric-sql/pglite@0.5.10
+          node tests/import-repair.test.mjs
+          node tests/import-repair-db.test.mjs
+          node tests/ai-repair-provider.test.mjs
+
       - name: Edge Function typecheck
         run: |
           deno check supabase/functions/icaew-ai-import/index.ts
+          deno check supabase/functions/icaew-ai-repair/index.ts
           deno check supabase/functions/icaew-ai-route/index.ts
           deno check supabase/functions/icaew-question-translate/index.ts
           deno check supabase/functions/icaew-translate/index.ts
@@ -128,7 +138,7 @@ jobs:
 
       - name: Install Playwright
         run: |
-          npm install --no-save playwright@1.56.1 @axe-core/playwright@4.13.0
+          npm install --no-save playwright@1.56.1 @axe-core/playwright@4.13.0 @electric-sql/pglite@0.5.10
           npx playwright install --with-deps ${{ matrix.browser }}
 
       - name: Start local HTTPS LMS
@@ -144,6 +154,12 @@ jobs:
           BROWSER: ${{ matrix.browser }}
           TEST_BASE_URL: https://127.0.0.1:4173
         run: node tests/session-browser.mjs
+
+      - name: Run targeted repair browser test
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TEST_BASE_URL: https://127.0.0.1:4173
+        run: node tests/admin-repair-browser.mjs
 
       - name: Run audited explanation browser test
         env:

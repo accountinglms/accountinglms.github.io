@@ -792,8 +792,9 @@ export async function callAiRoute({storagePath, fileName, mimeType, files, targe
   return data;
 }
 
-export async function callAiImport({storagePath, fileName, mimeType, files, targetType, subjectTitle, chapterTitle, exerciseTitle, answerReviewVersion=0}) {
-  const session = await ensureSession();
+export async function callAiImport({storagePath, fileName, mimeType, files, targetType, subjectTitle, chapterTitle, exerciseTitle, answerReviewVersion=0,draftId}) {
+  let session = await ensureSession();
+  if(session.refresh_token&&Number(session.expires_at||0)-Date.now()/1000<180)session=await refreshSession(session);
   const res = await fetch(`${SUPABASE_URL}/functions/v1/icaew-ai-import`, {
     method: 'POST',
     headers: {
@@ -801,12 +802,22 @@ export async function callAiImport({storagePath, fileName, mimeType, files, targ
       Authorization: `Bearer ${session.access_token}`,
       'content-type': 'application/json'
     },
-    body: JSON.stringify({ storagePath, fileName, mimeType, files, targetType, subjectTitle, chapterTitle, exerciseTitle, answerReviewVersion })
+    body: JSON.stringify({ storagePath, fileName, mimeType, files, targetType, subjectTitle, chapterTitle, exerciseTitle, answerReviewVersion,draftId })
   });
   const text = await res.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = { error: text }; }
   if (!res.ok) throw aiRequestError(data, res.status, 'AI Import chưa được cấu hình.');
+  return data;
+}
+
+export async function callAiRepair(input){
+  const session=await ensureEditorSession();
+  if(session.refresh_token&&Number(session.expires_at||0)-Date.now()/1000<180)await refreshSession(session);
+  const res=await authedFetch('/functions/v1/icaew-ai-repair',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(input)});
+  const text=await res.text();let data;try{data=JSON.parse(text)}catch{data={error:'Chưa đọc được trạng thái sửa. Bản nháp vẫn được giữ.'}}
+  const messages={DRAFT_CHANGED:'Bản nháp đã thay đổi ở nơi khác. Hãy mở lại bản mới nhất.',REPAIR_BUSY:'Đang có một lượt sửa khác. Hãy chờ lượt đó hoàn tất.',REPAIR_COOLDOWN:'Hãy chờ 15 giây trước khi thử sửa lại.',REPAIR_DAILY_LIMIT:'Đã đạt giới hạn lượt sửa trong ngày. Bạn vẫn có thể chỉnh sửa bản nháp thủ công.'};
+  if(!res.ok)throw aiRequestError({...data,error:messages[data.code]||data.error},res.status,'Chưa bắt đầu được lượt sửa.');
   return data;
 }
 

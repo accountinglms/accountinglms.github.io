@@ -1,0 +1,53 @@
+import {PGlite} from '@electric-sql/pglite';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {randomUUID} from 'node:crypto';
+
+// Isolated Postgres with synthetic identities. Never impersonates production users.
+const db=new PGlite();
+try{
+  await db.exec(`create role anon;create role authenticated;create schema auth;create schema private;
+    create table auth.users(id uuid primary key);grant usage on schema auth,private to authenticated;
+    create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;
+    create function private.is_editor() returns boolean language sql stable as $$select coalesce(current_setting('test.editor',true),'')='true' and coalesce(current_setting('test.aal',true),'')='aal2'$$;
+    create table public.import_drafts(id uuid primary key,title text,source_id uuid,target_type text,payload jsonb not null,status text default 'draft',model_name text,created_by uuid,updated_by uuid,created_at timestamptz default now(),updated_at timestamptz default clock_timestamp());
+    create function private.touch() returns trigger language plpgsql as $$begin new.updated_at=clock_timestamp();return new;end$$;
+    create trigger touch before update on public.import_drafts for each row execute function private.touch();
+    alter table public.import_drafts enable row level security;grant select,insert,update on public.import_drafts to authenticated;
+    create policy editor_drafts on public.import_drafts to authenticated using(private.is_editor()) with check(private.is_editor());`);
+  const migration=fs.readdirSync('supabase/migrations').find(p=>p.endsWith('_import_draft_targeted_repair.sql'));
+  await db.exec(fs.readFileSync('supabase/migrations/'+migration,'utf8'));
+  const owner=randomUUID(),other=randomUUID(),draftId=randomUUID();
+  const baseline={questions:[{prompt:'Full source wording',options:['A','B'],correct_answer:0,explanation_en:'Source solution',practical_example_en:'A readable example.',practical_example_vi:'[UNREADABLE]'}],lesson:null,files:[{storagePath:owner+'/source.pdf'}],destination:{exercise_id:'exercise'},warnings:[]};
+  await db.query('insert into auth.users(id) values($1),($2)',[owner,other]);
+  await db.query('insert into public.import_drafts(id,created_by,payload) values($1,$2,$3)',[draftId,owner,JSON.stringify(baseline)]);
+  const rpc=async(name,args)=>{const keys=Object.keys(args);return (await db.query(`select public.${name}(${keys.map((k,i)=>k+'=> $'+(i+1)).join(',')}) as result`,Object.values(args))).rows[0].result};
+  const as=async(uid,editor=true,aal='aal2')=>{await db.exec('reset role');await db.query("select set_config('test.uid',$1,false),set_config('test.editor',$2,false),set_config('test.aal',$3,false)",[uid,String(editor),aal]);await db.exec('set role authenticated')};
+  const current=async()=> (await db.query('select * from public.import_drafts where id=$1',[draftId])).rows[0];
+  const begin=async(id,mode='auto',stamp)=>rpc('begin_import_repair',{p_draft_id:draftId,p_request_id:id,p_expected_updated_at:stamp||(await current()).updated_at,p_mode:mode});
+  await as(owner,false);await assert.rejects(begin(randomUUID(),'auto','2026-01-01'),/FORBIDDEN/);
+  await as(owner,true,'aal1');await assert.rejects(begin(randomUUID(),'auto','2026-01-01'),/FORBIDDEN/);
+  await as(other);await assert.rejects(begin(randomUUID(),'auto','2026-01-01'),/DRAFT_NOT_EDITABLE/);
+  await as(owner);const id=randomUUID(),claimed=await begin(id);assert.equal(claimed.state,'claimed');
+  assert.equal((await begin(id)).state,'running');assert.equal((await begin(randomUUID(),'manual')).run_id,id);
+  assert.equal((await db.query('select count(*)::int as n from public.import_repair_runs')).rows[0].n,1);
+  const next=structuredClone(baseline);next.questions[0].practical_example_vi='Ví dụ đã dịch.';
+  const changedSource=structuredClone(next);changedSource.questions[0].prompt='Invented source';
+  await assert.rejects(rpc('finish_import_repair',{p_run_id:id,p_result:{payload:changedSource}}),/REPAIR_CHANGED_SOURCE/);
+  assert.equal((await current()).payload.questions[0].prompt,'Full source wording');
+  assert.equal((await rpc('finish_import_repair',{p_run_id:id,p_result:{payload:next,applied:[],suggestions:[],issues:[]}})).state,'ready');
+  assert.deepEqual((await current()).payload,next);assert.equal((await current()).status,'draft');
+  const stamp=(await current()).updated_at;
+  await assert.rejects(rpc('save_import_revision',{p_draft_id:draftId,p_expected_updated_at:'2020-01-01',p_payload:baseline}),/DRAFT_CHANGED/);
+  await rpc('undo_import_repair',{p_run_id:id,p_expected_updated_at:stamp});assert.deepEqual((await current()).payload,baseline);
+  assert.equal((await begin(randomUUID())).already_attempted,true,'Undo or refresh repeated automatic AI');
+  await db.exec('reset role');await db.exec("update public.import_repair_runs set created_at=now()-interval '1 minute'");await as(owner);
+  const manualId=randomUUID();assert.equal((await begin(manualId,'manual')).state,'claimed');
+  await db.query("update public.import_drafts set payload=jsonb_set(payload,'{questions,0,prompt}','\"Manual edit in another tab\"') where id=$1",[draftId]);
+  assert.equal((await rpc('finish_import_repair',{p_run_id:manualId,p_result:{payload:next}})).state,'conflict');
+  assert.equal((await current()).payload.questions[0].prompt,'Manual edit in another tab');
+  await assert.rejects(rpc('undo_import_repair',{p_run_id:id,p_expected_updated_at:(await current()).updated_at}),/DRAFT_CHANGED/);
+  await as(other);assert.equal((await db.query('select count(*)::int as n from public.import_repair_runs')).rows[0].n,0,'Another owner read private repair history');
+  await db.exec('reset role;set role anon');await assert.rejects(db.query('select * from public.import_repair_runs'),/permission denied/);
+  console.log('PASS repair Postgres: schema/RLS, MFA and ownership guards, idempotent claims, source protection, CAS saves, concurrent-edit preservation, undo and one automatic attempt.');
+}finally{await db.close()}
