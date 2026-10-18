@@ -147,7 +147,7 @@ function validateQuestion(raw: any, index: number, fileCount = 1) {
   // Numeric strings are safe to normalise. Unknown/mismatched file references
   // remain unknown rather than silently attributing content to source file 1.
   const fileIndex = (value: unknown): number | null => {
-    if (typeof value !== "number" && !(typeof value === "string" && /^\\d+$/.test(value.trim()))) return null;
+    if (typeof value !== "number" && !(typeof value === "string" && /^\d+$/.test(value.trim()))) return null;
     const n = Number(value);
     return Number.isInteger(n) && n >= 1 && n <= fileCount ? n : null;
   };
