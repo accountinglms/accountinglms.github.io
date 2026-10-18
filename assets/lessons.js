@@ -80,12 +80,25 @@ function renderSavedSourceLesson(lesson){
   reader.innerHTML=`
     <div class="readerMeta">TÀI LIỆU NGUỒN · ĐÃ XUẤT BẢN</div>
     <h2>${esc(lesson.title)}</h2>
-    <p class="summary">Tệp gốc được giữ nguyên. Bạn có thể đọc ngay mà không cần chờ AI tạo câu hỏi.</p>
+    <p class="summary">${lesson.content_markdown ? 'Đã có nội dung AI; tài liệu gốc vẫn được lưu và có thể mở bất cứ lúc nào.' : 'Tệp gốc được giữ nguyên. Bạn có thể đọc ngay mà không cần chờ AI tạo câu hỏi.'}</p>
     <div class="sourceTabs" id="source-tabs"></div>
     <div id="source-viewer" class="sourceViewer" aria-live="polite"></div>
   `;
   const tabs=reader.querySelector('#source-tabs'),viewer=reader.querySelector('#source-viewer');
-  if(!files.length){viewer.textContent='Bài học này chưa có tệp nguồn hợp lệ.';return;}
+  const aiContent=String(lesson.content_markdown||'').trim();
+  if(aiContent){
+    const aiButton=document.createElement('button');
+    aiButton.type='button';aiButton.textContent='Nội dung AI';
+    aiButton.addEventListener('click',()=>{
+      releaseSourceUrl();
+      tabs.querySelectorAll('button').forEach(btn=>btn.setAttribute('aria-pressed',String(btn===aiButton)));
+      const body=document.createElement('div');body.className='content';
+      body.textContent=lesson.content_markdown;
+      viewer.replaceChildren(body);
+    });
+    tabs.append(aiButton);
+  }
+  if(!files.length&&!aiContent){viewer.textContent='Bài học này chưa có tệp nguồn hợp lệ.';return;}
   files.forEach((file,i)=>{
     const button=document.createElement('button');button.type='button';
     button.textContent=(i+1)+'. '+String(file.name||'Tệp nguồn');
