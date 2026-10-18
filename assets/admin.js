@@ -233,10 +233,14 @@ async function persistImportSource(files,subject,chapter,exercise){
   return prepared;
 }
 
-$('#saved-import-list').addEventListener('click',e=>{
-  const id=e.target.closest('[data-resume-import]')?.dataset.resumeImport;
-  const draft=savedImports.find(x=>x.id===id);
-  if(!draft||importBusy)return;
+async function resumeSavedImport(id){
+  if(!id||importBusy)return;
+  setRepairBusy(true);let resumed=false;
+  try{
+    const session=await ensureSession();
+    const rows=await restGet('import_drafts','select=*,content_sources(id,file_name,mime_type,storage_key)&id=eq.'+encodeURIComponent(id)+'&created_by=eq.'+encodeURIComponent(session.user.id)+'&status=eq.draft');
+    const draft=rows.find(row=>row.id===id);
+    if(!draft)throw Error('Bản nháp không còn tồn tại hoặc đã được xuất bản. Hãy tải lại danh sách.');
   const source=draft.content_sources, destination=draft.payload?.destination;
   const manifest=draft.payload?.files?.length?draft.payload.files:source?.storage_key?[{name:source.file_name||draft.title,mimeType:source.mime_type,size:0,lastModified:0,storagePath:source.storage_key,sourceId:source.id||draft.source_id}]:[];
   if(!manifest.length||!destination)return notice('Bản nháp này chưa có tệp nguồn hoặc nơi lưu. Hãy chọn lại tệp.','error');
@@ -260,8 +264,12 @@ $('#saved-import-list').addEventListener('click',e=>{
   updateDestinationStatus();renderImportRecovery();updateGenerateState();
   $('#import-recovery').scrollIntoView({behavior:'smooth',block:'center'});
   notice('Đã mở lại bản nháp và tệp nguồn.','ok');
-  if(isReadyImport(draft))void repairController.load();
-});
+    rememberImport(draft);resumed=isReadyImport(draft);
+  }catch(error){notice(error.message,'error')}
+  finally{setRepairBusy(false)}
+  if(resumed)void repairController.load();
+}
+$('#saved-import-list').addEventListener('click',e=>{const id=e.target.closest('[data-resume-import]')?.dataset.resumeImport;if(id)void resumeSavedImport(id)});
 
 async function downloadSource(index){
   try{

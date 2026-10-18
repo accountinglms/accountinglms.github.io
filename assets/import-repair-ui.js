@@ -39,7 +39,7 @@ export function createImportRepairController({getDraft,getPayload,isDirty,savePa
   }
   async function waitForRun(id,runId){
     const until=Date.now()+115000;
-    while(same(id)&&Date.now()<until){
+    while(same(id)){
       const data=await readRuns(id),run=data.find(r=>r.id===runId);
       if(run&&run.state!=='running'){
         if(run.state==='ready')await refreshDraft(id);
@@ -48,7 +48,7 @@ export function createImportRepairController({getDraft,getPayload,isDirty,savePa
         else if(run.state==='ready')notify(`Đã lưu kết quả sửa: ${run.applied?.length||0} câu cập nhật ví dụ · ${run.suggestions?.length||0} đề xuất cần duyệt.`,'ok');
         return;
       }
-      if(run&&Date.parse(run.lease_expires_at)<=Date.now())break;
+      if(Date.now()>=until||(run&&Date.parse(run.lease_expires_at)<=Date.now()))break;
       await delay(1800);
     }
     notify('Lượt sửa đang bị gián đoạn. Bản nháp được giữ; hãy mở lại để xem trạng thái mới nhất.','error');

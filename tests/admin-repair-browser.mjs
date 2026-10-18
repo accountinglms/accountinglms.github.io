@@ -65,9 +65,15 @@ try{
   const open=async()=>{await page.goto(base+'/admin.html');await page.waitForSelector('[data-resume-import]');await page.click('[data-resume-import]')};
   await open();await page.waitForFunction(()=>document.querySelector('#import-repair-panel')?.textContent.includes('Đang kiểm tra'));
   for(let i=0;repairs<1&&i<50;i++)await new Promise(r=>setTimeout(r,50));assert.equal(repairs,1);assert.equal(published,0);
+  await page.waitForLoadState('networkidle');
   await page.reload();await page.waitForSelector('[data-resume-import]');await page.click('[data-resume-import]');
+  await page.waitForFunction(()=>document.querySelector('#import-repair-panel')?.textContent.includes('Đang kiểm tra'));
+  await page.waitForLoadState('networkidle');
+  // Simulate returning from a backgrounded phone after the UI polling deadline.
+  await page.evaluate(()=>{window.repairRealNow=Date.now;Date.now=()=>window.repairRealNow()+120000});
   release();await Promise.all(tasks);
-  await page.waitForFunction(()=>document.querySelectorAll('.repairProposal').length===2);
+  await page.waitForFunction(()=>document.querySelectorAll('.repairProposal').length===2&&!document.querySelector('[data-i="0"][data-k="practical_example_vi"]').value.includes('[UNREADABLE]'));
+  await page.evaluate(()=>{Date.now=window.repairRealNow;delete window.repairRealNow});
   assert.equal(repairs,1,'Reload started a second AI request');assert.equal((await draft()).payload.questions.length,17);
   for(let i=0;i<17;i++){assert.equal((await draft()).payload.questions[i].prompt,initial.questions[i].prompt);assert.deepEqual((await draft()).payload.questions[i].options,initial.questions[i].options)}
   assert.equal(await page.isDisabled('#publish-imported'),true,'Unresolved source explanations allowed publication');

@@ -67,7 +67,7 @@ try{
     if(path==='/rest/v1/import_drafts'){
       if(method==='GET'){
         assert.equal(url.searchParams.get('created_by'),'eq.'+user.id,'Recovery list was not scoped to the editor');
-        return json(route,[...drafts.values()].filter(d=>d.status==='draft').reverse().map(d=>({...d,content_sources:sources.get(d.source_id)})));
+        return json(route,[...drafts.values()].filter(d=>d.status==='draft'&&(!url.searchParams.has('id')||d.id===url.searchParams.get('id').slice(3))).reverse().map(d=>({...d,content_sources:sources.get(d.source_id)})));
       }
       const body=req.postDataJSON();
       if(method==='POST'){
@@ -116,6 +116,7 @@ try{
     await page.goto(baseURL+'/admin.html',{waitUntil:'domcontentloaded'});
     await page.waitForFunction(()=>document.querySelector('#subject')?.options.length>1);
   };
+  const resume=async selector=>{await page.click(selector);await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã mở lại bản nháp và tệp nguồn.')&&!document.querySelector('#import-file').disabled)};
   const confirm=async()=>{
     await page.selectOption('#subject','accounting');await page.selectOption('#chapter','revenue');
     await page.selectOption('#exercise','practice');await page.click('#confirm-destination');
@@ -136,7 +137,7 @@ try{
   const download=await downloadEvent;assert.equal(download.suggestedFilename(),'revenue.txt');
 
   await open();
-  await page.click('[data-resume-import="draft-1"]');
+  await resume('[data-resume-import="draft-1"]');
   assert.equal(await page.inputValue('#exercise'),'practice');
   assert.equal(await page.evaluate(()=>document.querySelector('#import-file').files.length),0,'Recovery required choosing the file again');
   await page.click('#continue-manual-import');
@@ -152,7 +153,7 @@ try{
   assert.equal(uploads,1);assert.equal(sources.size,1);assert.equal(drafts.size,1);
   assert.equal(drafts.get('draft-1').payload.processing.state,'ready');
 
-  await open();await page.click('[data-resume-import="draft-1"]');await page.click('#ai-generate');
+  await open();await resume('[data-resume-import="draft-1"]');await page.click('#ai-generate');
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('AI đã lưu'));
   assert.equal(aiCalls,2,'Opening a ready draft consumed quota again');
   await page.selectOption('#import-target','lesson');await page.click('#confirm-destination');
@@ -189,7 +190,7 @@ try{
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('được giữ lại'));
   assert.equal(aiCalls,4);assert.equal(drafts.size,4);assert.equal(sources.size,5);assert.equal(uploads,5);
   assert.equal(drafts.get('draft-4').payload.files.length,3);assert.ok(drafts.get('draft-4').payload.files.every(f=>f.sourceId));
-  await open();await page.click('[data-resume-import="draft-4"]');
+  await open();await resume('[data-resume-import="draft-4"]');
   assert.equal(await page.locator('.importFile').count(),3);
   await page.setViewportSize({width:390,height:844});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'Multi-image recovery overflowed a phone viewport');
@@ -200,7 +201,7 @@ try{
   await page.waitForFunction(()=>document.querySelectorAll('.importCard').length===3);
   assert.equal(aiCalls,5);assert.equal(uploads,5);assert.equal(drafts.size,4);
   assert.match(await page.locator('#import-progress').innerText(),/3 tệp · 3 câu/);
-  await open();await page.click('[data-resume-import="draft-4"]');
+  await open();await resume('[data-resume-import="draft-4"]');
   assert.equal(await page.locator('.importCard').count(),3,'Ready batch lost questions after reload');
   await page.click('#publish-imported');
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã publish AI question'));
@@ -215,7 +216,7 @@ try{
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('được giữ lại'));
   assert.equal(uploads,7);assert.equal(aiCalls,5);assert.equal(drafts.size,5);assert.equal(sources.size,6);
   assert.equal(drafts.get('draft-5').payload.files.filter(f=>f.sourceId).length,1);
-  await open();await page.click('[data-resume-import="draft-5"]');
+  await open();await resume('[data-resume-import="draft-5"]');
   assert.equal(await page.isDisabled('#ai-generate'),true,'Missing original file was silently skipped');
   await page.setInputFiles('#import-file',image('retry-2.png'));
   assert.equal(await page.locator('.importFile').count(),2,'Re-selecting the missing file discarded the saved first image');
@@ -225,7 +226,7 @@ try{
 
   // Existing single-file drafts still reopen without a batch manifest.
   const legacy=drafts.get('draft-1');delete legacy.payload.files;
-  await open();await page.click('[data-resume-import="draft-1"]');
+  await open();await resume('[data-resume-import="draft-1"]');
   assert.equal(await page.locator('.importFile').count(),1);assert.equal(await page.locator('.importCard').count(),1);
 
   // Reject an oversized selection before any upload or AI call.
@@ -246,7 +247,7 @@ try{
   assert.equal(await page.isVisible('#publish-imported'),true,'Valid retry did not offer publication');
   // Old drafts already marked ready with no questions must be repairable after reload.
   drafts.get('draft-6').payload.questions=[];
-  await open();await page.click('[data-resume-import="draft-6"]');
+  await open();await resume('[data-resume-import="draft-6"]');
   assert.match(await page.locator('#import-recovery-text').innerText(),/chưa trích xuất được câu hỏi/);
   assert.equal(await page.isVisible('#publish-imported'),false);
   emptyNextAI='server';await page.click('#ai-generate');
@@ -290,7 +291,7 @@ try{
   await page.click('#save-reviewed-import');
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã lưu chỉnh sửa'));
   assert.deepEqual(drafts.get(repairDraft.id).payload.questions[11].correct_answer,[true,false]);
-  await open();await page.click('[data-resume-import="'+repairDraft.id+'"]');
+  await open();await resume('[data-resume-import="'+repairDraft.id+'"]');
   assert.equal(await page.inputValue('[data-i="0"][data-k="prompt"]'),fidelityQuestion.prompt,'Source detail lost after save/reload');
   assert.equal(await page.inputValue('[data-answer-question="11"][data-answer-option="1"]'),'false','False answer was lost on reload');
   assert.equal(await page.isDisabled('#publish-imported'),false);
