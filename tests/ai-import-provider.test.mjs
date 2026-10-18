@@ -133,7 +133,7 @@ assert.equal(unclearResponse.status,200);assert.equal(unclearData.questions[0].p
 assert.equal(unclearData.questions[0].verification_status,'needs_review');assert.ok(unclearData.warnings.some(w=>w.includes('Câu 1')&&w.includes('UNREADABLE')));
 const cachedEditor=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess(unclearOutput)}]);
 const cachedResponse=await cachedEditor.call({...input,answerReviewVersion:1});
-assert.equal(cachedResponse.status,422);assert.equal((await cachedResponse.json()).code,'AI_SOURCE_REVIEW_REQUIRED');
+assert.equal(cachedResponse.status,200,'Warnings must not block publishing from a previously cached editor');
 
 const empty=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[]})}]);
 const emptyResponse=await empty.call(input),emptyData=await emptyResponse.json();
@@ -158,7 +158,7 @@ assert.equal(compatibleResponse.status,200,'Configured model still received the 
 assert.equal(compatible.requests.length,1,'Compatibility recovery sent extra provider requests');
 assert.equal(compatibleData.questions.length,12);assert.equal(compatibleData.questions[11].correct_answer,null,'Local answer recovery was removed with the remote schema');
 const oldClient=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:twelveQuestions})}]);
-const oldClientResponse=await oldClient.call(input);assert.equal(oldClientResponse.status,422);assert.equal((await oldClientResponse.json()).code,'AI_ANSWER_REVIEW_REQUIRED');
+const oldClientResponse=await oldClient.call(input);assert.equal(oldClientResponse.status,200,'Incomplete answers must remain publishable');
 const booleanWords=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[{...question,question_type:'tf',correct_answer:['true','false']}]})}]);
 assert.deepEqual((await (await booleanWords.call(input)).json()).questions[0].correct_answer,[true,false]);
 
@@ -201,15 +201,42 @@ assert.equal(parts.filter(p=>p.inlineData).length,3,'Only the first image reache
 assert.deepEqual(parts.filter(p=>p.text?.startsWith('SOURCE_FILE')).map(p=>p.text.match(/^SOURCE_FILE (\d)/)[1]),['1','2','3']);
 assert.deepEqual(batchData.questions[0].source_files,[1,2]);assert.equal(batchData.questions[1].source_file,3);
 assert.equal(batchData.questions[1].source_page,1,'Image position was confused with a page inside that image file');
-for(const invalidOutput of [
+for(const malformed of [
   {...batchOutput,processed_files:[1]},
   {...batchOutput,questions:[{...question,source_file:4}]},
   {...batchOutput,questions:[{...question,source_file:1,source_files:[1,4]}]},
   {...batchOutput,questions:[question]}
 ]){
-  const invalidBatch=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess(invalidOutput)}],{storage});
-  assert.equal((await invalidBatch.call({...input,files:imageFiles})).status,502,'Skipped file or invalid source association accepted');
+  const recoveredBatch=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess(malformed)}],{storage});
+  const response=await recoveredBatch.call({...input,files:imageFiles}),data=await response.json();
+  assert.equal(response.status,200,'One bad source reference or manifest discarded otherwise valid questions');
+  assert.equal(data.questions.length,malformed.questions.length);
+  if(data.questions[0].source_file==null)assert.deepEqual(data.questions[0].source_files,[],'Unknown provenance was attributed to another file');
+  assert.equal(recoveredBatch.requests.length,1,'Local format repair retried Gemini');
 }
+// Production regression: 10 saved files, an invalid source index and a question
+// with zero choices must not invalidate the entire AI extraction.
+const tenFiles=Array.from({length:10},(_,i)=>({storagePath:userId+'/part-'+(i+1)+'.png',fileName:'part-'+(i+1)+'.png',mimeType:'image/png'}));
+const brokenTen={...output,processed_files:[1,2,3,4,5,6,7,8,9,10],questions:[
+  {...fidelityQuestion,source_file:1,source_files:[1]},
+  {...fidelityQuestion,prompt:'Question with unknown source location',source_file:99,source_files:[],correct_answer:1},
+  {...fidelityQuestion,prompt:'Question with missing options',source_file:2,source_files:[2],options:[],correct_answer:null},
+  {...fidelityQuestion,prompt:'Question recovered on last page',source_file:'10',source_files:['10']}
+]};
+const recoveredTen=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess(brokenTen)}],{storage});
+const tenResponse=await recoveredTen.call({...input,files:tenFiles,answerReviewVersion:2});
+const tenData=await tenResponse.json();
+assert.equal(tenResponse.status,200,'Real 10-file response must survive the two observed Gemini format errors');
+assert.equal(tenData.questions.length,4);
+assert.equal(tenData.questions[1].source_file,null);
+assert.deepEqual(tenData.questions[1].source_files,[]);
+assert.deepEqual(tenData.questions[2].options,[]);
+assert.equal(tenData.questions[2].answer_needs_review,true);
+assert.equal(tenData.questions[3].source_file,10);
+assert.equal(tenData.questions[0].prompt,fidelityQuestion.prompt,'Valid PDF question text was modified');
+assert.ok(tenData.warnings.some(w=>w.includes('Câu 2')));
+assert.ok(tenData.warnings.some(w=>w.includes('Câu 3')));
+assert.equal(recoveredTen.requests.length,1);
 const truncated=handlerFor('icaew-ai-import',[{status:200,body:{candidates:[{finishReason:'MAX_TOKENS',content:{parts:[{text:JSON.stringify(batchOutput)}]}}]}}],{storage});
 assert.equal((await (await truncated.call({...input,files:imageFiles})).json()).code,'AI_OUTPUT_TRUNCATED');
 
