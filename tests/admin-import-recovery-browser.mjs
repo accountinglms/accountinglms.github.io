@@ -262,6 +262,7 @@ try{
   await page.click('#ai-generate');await page.waitForFunction(()=>document.querySelectorAll('.importCard').length===12);
   const repairDraft=[...drafts.values()].at(-1),callsBeforeEdit=aiCalls,uploadsBeforeEdit=uploads;
   assert.equal(repairDraft.payload.questions.length,12);assert.equal(repairDraft.payload.questions[11].correct_answer,null);
+  await page.waitForFunction(()=>document.querySelector('#publish-imported')?.disabled===false);
   assert.equal(await page.isDisabled('#publish-imported'),false);assert.match(await page.locator('#import-answer-summary').innerText(),/2 câu/);
   for(let i=0;i<fidelityQuestion.options.length;i++)assert.equal(await page.inputValue('[data-i="0"][data-k="option"][data-option-index="'+i+'"]'),fidelityQuestion.options[i]);
   assert.equal(await page.inputValue('[data-i="0"][data-k="explanation_en"]'),fidelityQuestion.explanation_en);
