@@ -1757,7 +1757,9 @@
         if (state.isAnswered[currentQuestion]) {
             renderAnsweredQuestion(question, state.userSelections[currentQuestion]);
             submitBtn.style.display = 'none';
-            showExplanation(
+            if(state.answersStatus[currentQuestion]==='ungraded'){
+                validationMsg.textContent='Đã lưu kết quả số. Câu này đang chờ bổ sung đáp án chuẩn nên chưa được chấm đúng/sai.';
+            } else showExplanation(
                 state.answersStatus[currentQuestion] === 'correct',
                 question.expEng,
                 question.expVie,
@@ -1966,10 +1968,12 @@
         const q = activeSectionData[currentQuestion];
         const selection = getCurrentDraft(q);
         const isCorrect = gradeAnswer(q, selection);
+        const ungraded=q.type==='numeric'&&(!Array.isArray(q.answer)||q.answer.length!==q.options.length
+            ||!q.answer.every(value=>typeof value==='number'&&Number.isFinite(value)));
         state.userSelections[currentQuestion] = Array.isArray(selection) ? selection.slice() : selection;
         state.draftSelections[currentQuestion] = null;
         state.isAnswered[currentQuestion] = true;
-        state.answersStatus[currentQuestion] = isCorrect ? 'correct' : 'wrong';
+        state.answersStatus[currentQuestion] = ungraded?'ungraded':isCorrect ? 'correct' : 'wrong';
         state.score = state.answersStatus.filter(x => x === 'correct').length;
         saveProgress();
         updateSidebarScore(activeSectionId, activeSectionData.length);
@@ -2213,7 +2217,10 @@
             state.userSelections[index] = cloneSelection(selection);
             state.draftSelections[index] = null;
             state.isAnswered[index] = true;
-            state.answersStatus[index] = gradeAnswer(question, selection) ? 'correct' : 'wrong';
+            const ungraded=question.type==='numeric'&&(!Array.isArray(question.answer)
+                ||question.answer.length!==question.options.length
+                ||!question.answer.every(value=>typeof value==='number'&&Number.isFinite(value)));
+            state.answersStatus[index] = ungraded?'ungraded':gradeAnswer(question, selection) ? 'correct' : 'wrong';
         });
 
         state.score = state.answersStatus.filter(x => x === 'correct').length;
