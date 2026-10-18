@@ -736,13 +736,19 @@ function updateReviewPublishState(){
   if(lessonButton){lessonButton.disabled=importBusy;lessonButton.title='';}
   const button=$('#publish-imported'),summary=$('#import-answer-summary');
   if(!button||!summary)return;
-  const incomplete=importedQuestions.filter(q=>!q?.prompt?.trim()||importAnswerError(q)||scanImportQuality([q]).length).length;
+  const flagged=importedQuestions.map((q,i)=>{
+    const answerIssue=Boolean(importAnswerError(q));
+    const contentIssue=!q?.prompt?.trim()||scanImportQuality([q]).some(issue=>issue.field!=='correct_answer');
+    return {index:i,answerIssue,contentIssue};
+  }).filter(x=>x.answerIssue||x.contentIssue);
   button.disabled=importBusy||!importedQuestions.length;
   button.textContent='Xuất bản ngay';
-  summary.textContent=incomplete
-    ? `Có ${incomplete} câu được AI đánh dấu chưa hoàn thiện. Bạn vẫn có thể xuất bản ngay và chỉnh sửa/xoá sau.`
-    : 'Có thể xuất bản ngay. Không bắt buộc đối chiếu nguồn trước.';
-  if(button.dataset.contextMismatch==='true')summary.textContent+=' AI nghi ngờ tài liệu khác chủ đề; nơi lưu bạn đã xác nhận vẫn được sử dụng.';
+  if(flagged.length){
+    const first=flagged[0];
+    const anchor=(first.contentIssue?'import-question-':'import-answer-editor-')+first.index;
+    summary.innerHTML=`Có ${flagged.length} câu được AI đánh dấu chưa hoàn thiện. <a href="#${anchor}">Xem câu đầu tiên</a>. Bạn vẫn có thể xuất bản ngay và chỉnh sửa/xoá sau.`;
+  }else summary.textContent='Có thể xuất bản ngay. Không bắt buộc đối chiếu nguồn trước.';
+  if(button.dataset.contextMismatch==='true')summary.append(' AI nghi ngờ tài liệu khác chủ đề; nơi lưu bạn đã xác nhận vẫn được sử dụng.');
 }
 
 $('#review-area').addEventListener('change',e=>{
