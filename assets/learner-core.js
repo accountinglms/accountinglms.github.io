@@ -1420,8 +1420,8 @@
         if(typeof raw==='number')return Number.isFinite(raw)?raw:null;
         if(typeof raw!=='string')return null;
         const text=raw.trim().replace(/[£$€\s]/g,'');
-        if(!/^-?(?:\d+(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)$/.test(text))return null;
-        const normalized=/^-?\\d+,\\d{1,2}$/.test(text) ? text.replace(',','.') : text.replace(/,/g,'');
+        if(!/^-?(?:\d+(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?|\d+,\d{1,2})$/.test(text))return null;
+        const normalized=/^-?\d+,\d{1,2}$/.test(text) ? text.replace(',','.') : text.replace(/,/g,'');
         const n=Number(normalized);
         return Number.isFinite(n)?n:null;
     }
