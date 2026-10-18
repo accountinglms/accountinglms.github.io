@@ -37,7 +37,7 @@ export function normalizeImportQuestion(raw){
     // A numeric answer must be an actual numeric value, not a choice index.
     // Convert only simple decimal strings; never infer results from the prompt.
     const parsed=original.map(value=>typeof value==='number'?value:
-      typeof value==='string'&&/^-?\\d+(?:\\.\\d+)?$/.test(value.trim())?Number(value.trim()):null);
+      typeof value==='string'&&/^-?\d+(?:\.\d+)?$/.test(value.trim())?Number(value.trim()):null);
     if(parsed.every(value=>value!==null&&Number.isFinite(value)))question.correct_answer=parsed;
   }
   if(question.question_type==='tf'&&Array.isArray(original)&&original.every(value=>truthWord(value)!==null)){
