@@ -204,7 +204,7 @@ try{
   await open();await resume('[data-resume-import="draft-4"]');
   assert.equal(await page.locator('.importCard').count(),3,'Ready batch lost questions after reload');
   await page.click('#publish-imported');
-  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã publish AI question'));
+  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã xuất bản'));
   const published=questions.filter(q=>q.metadata.import_draft_id==='draft-4');
   assert.equal(published.length,3);assert.deepEqual(published.map(q=>q.source_id),['source-3','source-4','source-5']);
   assert.deepEqual(published[0].metadata.source_ids,['source-3','source-4'],'Question spanning two images lost provenance');
@@ -262,7 +262,7 @@ try{
   await page.click('#ai-generate');await page.waitForFunction(()=>document.querySelectorAll('.importCard').length===12);
   const repairDraft=[...drafts.values()].at(-1),callsBeforeEdit=aiCalls,uploadsBeforeEdit=uploads;
   assert.equal(repairDraft.payload.questions.length,12);assert.equal(repairDraft.payload.questions[11].correct_answer,null);
-  assert.equal(await page.isDisabled('#publish-imported'),true);assert.match(await page.locator('#import-answer-summary').innerText(),/2 câu/);
+  assert.equal(await page.isDisabled('#publish-imported'),false);assert.match(await page.locator('#import-answer-summary').innerText(),/2 câu/);
   for(let i=0;i<fidelityQuestion.options.length;i++)assert.equal(await page.inputValue('[data-i="0"][data-k="option"][data-option-index="'+i+'"]'),fidelityQuestion.options[i]);
   assert.equal(await page.inputValue('[data-i="0"][data-k="explanation_en"]'),fidelityQuestion.explanation_en);
   await page.click('a[href="#import-question-0"]');
@@ -275,11 +275,11 @@ try{
   }
   await page.click('a[href="#import-answer-editor-11"]');
   await page.selectOption('[data-answer-question="11"][data-answer-option="0"]','true');
-  assert.equal(await page.isDisabled('#publish-imported'),true,'Partial boolean answer enabled publication');
+  assert.equal(await page.isDisabled('#publish-imported'),false,'Partial answer must not block publication');
   await page.selectOption('[data-answer-question="11"][data-answer-option="1"]','false');
   // Editing a multi-line option must never split it into extra choices.
   await page.fill('[data-i="0"][data-k="option"][data-option-index="1"]',fidelityQuestion.options[1]+'\nTemporary edit.');
-  assert.equal(await page.isDisabled('#publish-imported'),true,'Changed choice kept a previously confirmed answer');
+  assert.equal(await page.isDisabled('#publish-imported'),false,'Changed choice must not block publication');
   await page.fill('[data-i="0"][data-k="option"][data-option-index="1"]',fidelityQuestion.options[1]);
   assert.equal(await page.locator('[data-i="0"][data-k="option"]').count(),4);
   await page.click('[data-add-import-option="0"]');
@@ -296,11 +296,11 @@ try{
   assert.equal(await page.inputValue('[data-answer-question="11"][data-answer-option="1"]'),'false','False answer was lost on reload');
   assert.equal(await page.isDisabled('#publish-imported'),false);
   await page.click('#publish-imported');
-  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã publish AI question'));
+  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã xuất bản'));
   const repaired=questions.filter(q=>q.metadata.import_draft_id===repairDraft.id);
   assert.equal(repaired.length,12);assert.deepEqual(repaired[11].correct_answer,[true,false]);
   for(const field of ['prompt','options','explanation_en','explanation_vi'])assert.deepEqual(repaired[0][field],fidelityQuestion[field],field+' was shortened before publication');
-  assert.ok(repaired.every(q=>q.status==='published'&&q.verification_status==='verified'&&q.metadata.reviewed_by===user.id&&q.verified_at));
+  assert.ok(repaired.every(q=>q.status==='published'&&q.verification_status!=='verified'&&q.metadata.published_by===user.id&&!q.verified_at));
   assert.equal(aiCalls,callsBeforeEdit,'Editing an answer called Gemini again');assert.equal(uploads,uploadsBeforeEdit,'Review re-uploaded the saved image');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'Answer review overflowed a phone viewport');
   console.log(`PASS ${browserName}: draft before AI, quota recovery, reload/resume, source reuse, manual save, multi-image extraction/provenance, partial-upload resume, and failed-save retry.`);
