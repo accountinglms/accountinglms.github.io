@@ -191,6 +191,7 @@ function validateOutput(raw: any, targetType: string, fileCount = 1) {
     throw new Error("questions must be an array with at most 150 items");
   }
   const recoveryWarnings: string[] = [];
+  let firstFailure: string | null = null;
   const questions: any[] = [];
   raw.questions.forEach((q: any, i: number) => {
     try {
@@ -202,11 +203,13 @@ function validateOutput(raw: any, targetType: string, fileCount = 1) {
     } catch (err) {
       // Security/empty-prompt failures are isolated to their own question. Never
       // publish unsafe markup or fabricate a question from missing source text.
-      recoveryWarnings.push(`Câu ${i + 1}: không trích xuất được nội dung hợp lệ (${err instanceof Error ? err.message : "invalid"}); các câu khác vẫn được giữ.`);
+      const detail = err instanceof Error ? err.message : "invalid";
+      firstFailure ||= detail;
+      recoveryWarnings.push(`Câu ${i + 1}: không trích xuất được nội dung hợp lệ (${detail}); các câu khác vẫn được giữ.`);
     }
   });
   if (targetType === "questions" && questions.length === 0) {
-    if (raw.questions.length) throw new Error("No safe, usable question could be extracted");
+    if (raw.questions.length) throw new Error(firstFailure || "No safe, usable question could be extracted");
     throw new Error("AI_NO_QUESTIONS");
   }
   const reportedFiles = Array.isArray(raw.processed_files) ? raw.processed_files : [];
