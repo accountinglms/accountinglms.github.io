@@ -215,7 +215,7 @@ function validateOutput(raw: any, targetType: string, fileCount = 1) {
   const reportedFiles = Array.isArray(raw.processed_files) ? raw.processed_files : [];
   const completeManifest = reportedFiles.length === fileCount
     && new Set(reportedFiles).size === fileCount
-    && reportedFiles.every((v: unknown) => Number.isInteger(v) && v >= 1 && v <= fileCount);
+    && reportedFiles.every((v: number) => Number.isInteger(v) && v >= 1 && v <= fileCount);
   if (!completeManifest) recoveryWarnings.push("AI không xác nhận đủ danh sách tệp đã xử lý. Toàn bộ tệp gốc vẫn được lưu; chỉ xuất bản nội dung AI đã trích xuất.");
   const processedFiles: number[] = completeManifest
     ? reportedFiles
