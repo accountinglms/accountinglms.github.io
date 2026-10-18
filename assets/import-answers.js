@@ -7,6 +7,11 @@ const truthWord=value=>{
 };
 export function importAnswerError(question){
   const {question_type:type,options,correct_answer:answer}=question||{};
+  if(type==='numeric'){
+    if(!Array.isArray(options)||!options.length||options.length>30||options.some(value=>typeof value!=='string'||!value.trim()))return 'Cần ít nhất một nhãn ô nhập số.';
+    return Array.isArray(answer)&&answer.length===options.length&&answer.every(value=>typeof value==='number'&&Number.isFinite(value))
+      ? '' : 'Cần đáp án số cho từng ô để chấm tự động. Có thể xuất bản trước rồi bổ sung sau.';
+  }
   if(!Array.isArray(options)||options.length<2||options.length>30||options.some(value=>typeof value!=='string'||!value.trim()))return 'Cần từ 2 đến 30 lựa chọn có nội dung.';
   const index=value=>Number.isInteger(value)&&value>=0&&value<options.length;
   if(type==='single')return index(answer)?'':'Hãy chọn một đáp án.';
@@ -28,6 +33,13 @@ export function normalizeImportQuestion(raw){
   if(!raw||typeof raw!=='object'||Array.isArray(raw))return raw;
   const question={...raw},notes=[];
   const original=question.correct_answer;
+  if(question.question_type==='numeric'&&Array.isArray(original)){
+    // A numeric answer must be an actual numeric value, not a choice index.
+    // Convert only simple decimal strings; never infer results from the prompt.
+    const parsed=original.map(value=>typeof value==='number'?value:
+      typeof value==='string'&&/^-?\\d+(?:\\.\\d+)?$/.test(value.trim())?Number(value.trim()):null);
+    if(parsed.every(value=>value!==null&&Number.isFinite(value)))question.correct_answer=parsed;
+  }
   if(question.question_type==='tf'&&Array.isArray(original)&&original.every(value=>truthWord(value)!==null)){
     question.correct_answer=original.map(truthWord);
   }else if(['single','tf'].includes(question.question_type)&&truthWord(original)!==null&&Array.isArray(question.options)&&question.options.length===2){
@@ -56,9 +68,9 @@ export function normalizeImportQuestion(raw){
 export function importOutputSchema(fileCount,targetType){
   const text={type:['string','null']},file={type:'integer',minimum:1,maximum:fileCount};
   const properties={
-    question_type:{type:'string',enum:['single','multiple','tf']},prompt:{type:'string',description:'Verbatim complete source question, including its scenario, all figures, conditions, tables and instructions. Never summarise or paraphrase. Mark unreadable spans [UNREADABLE].'},
-    options:{type:'array',minItems:2,maxItems:30,items:{type:'string',description:'One complete source option or statement, copied verbatim in source order. Keep every condition and line of working; never shorten.'}},
-    correct_answer:{description:'single: zero-based integer; multiple: integer indexes; tf: one boolean per statement; null if unknown. Never invent an answer.',anyOf:[{type:'integer',minimum:0,maximum:29},{type:'array',items:{type:'integer',minimum:0,maximum:29},minItems:1,maxItems:30},{type:'array',items:{type:'boolean'},minItems:2,maxItems:30},{type:'null'}]},
+    question_type:{type:'string',enum:['single','multiple','tf','numeric']},prompt:{type:'string',description:'Verbatim complete source question, including its scenario, all figures, conditions, tables and instructions. Never summarise or paraphrase. Mark unreadable spans [UNREADABLE].'},
+    options:{type:'array',minItems:1,maxItems:30,items:{type:'string',description:'For numeric: label each answer box in source order (such as FIFO basis £, AVCO basis £). Otherwise copy each full source choice.'}},
+    correct_answer:{description:'numeric: array of numeric values, one per labeled input, or null when source does not provide a reliable answer; single: option index; multiple: index array; tf: boolean array. Never guess.',anyOf:[{type:'integer',minimum:0,maximum:29},{type:'array',items:{type:'number'},minItems:1,maxItems:30},{type:'array',items:{type:'boolean'},minItems:2,maxItems:30},{type:'null'}]},
     required_selections:{type:['integer','null']},confidence:{type:'number',minimum:0,maximum:1},
     source_page:{type:['integer','null']},source_file:file,source_files:{type:'array',items:file,minItems:1,maxItems:fileCount},
     verification_status:{type:'string',enum:['source_only','needs_review','conflict']}
