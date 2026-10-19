@@ -186,6 +186,32 @@ const unavailable=handlerFor('icaew-ai-import',[
   {status:200,body:providerSuccess(output)}
 ]);
 assert.equal((await unavailable.call(input)).status,200);assert.equal(unavailable.requests.length,2);
+// A 200/STOP with missing parts is transient, not a completed import.
+for(const emptyBody of [{candidates:[{finishReason:'STOP',content:{role:'model'}}]},
+  {candidates:[{content:{parts:[{thought:true,text:'Internal metadata'},{text:'  \n'}]}}]}, {}]){
+  const recovered=handlerFor('icaew-ai-import',[{status:200,body:emptyBody},{status:200,body:providerSuccess(output)}]);
+  const response=await recovered.call(input);
+  assert.equal(response.status,200);assert.equal(recovered.requests.length,2);
+  assert.equal((await response.json()).questions[0].prompt,question.prompt);
+}
+const stillEmpty=handlerFor('icaew-ai-import',[{status:200,body:{}},{status:200,body:{}}]);
+const stillEmptyResponse=await stillEmpty.call(input),stillEmptyData=await stillEmptyResponse.json();
+assert.equal(stillEmptyResponse.status,502);assert.equal(stillEmptyData.code,'AI_EMPTY_RESPONSE');
+assert.equal(stillEmpty.requests.length,2,'Empty output retried indefinitely');
+assert.equal(stillEmptyData.retryable,true);
+for(const blockedBody of [{promptFeedback:{blockReason:'SAFETY'}},
+  {candidates:[{finishReason:'RECITATION',content:{parts:[{text:JSON.stringify(output)}]}}]},
+  {candidates:[{finishReason:'PROHIBITED_CONTENT'}]}]){
+  const blocked=handlerFor('icaew-ai-import',[{status:200,body:blockedBody}]);
+  const response=await blocked.call(input),data=await response.json();
+  assert.equal(response.status,422);assert.equal(data.code,'AI_OUTPUT_BLOCKED');assert.equal(data.retryable,false);
+  assert.equal(blocked.requests.length,1,'Filtered output was retried');
+}
+for(const finishReason of ['MAX_TOKENS','CONTINUATION']){
+  const truncated=handlerFor('icaew-ai-import',[{status:200,body:{candidates:[{finishReason,content:{parts:[{text:JSON.stringify(output)}]}}]}}]);
+  const response=await truncated.call(input);assert.equal((await response.json()).code,'AI_OUTPUT_TRUNCATED');
+  assert.equal(truncated.requests.length,1,'Truncated output was silently retried');
+}
 const invalid=handlerFor('icaew-ai-import',[{status:200,body:providerSuccess({...output,questions:[{...question,prompt:'<img src=x onerror=alert(1)>'}]})}]);
 const invalidResponse=await invalid.call(input);
 assert.equal(invalidResponse.status,502);assert.equal((await invalidResponse.json()).code,'AI_OUTPUT_VALIDATION_FAILED');

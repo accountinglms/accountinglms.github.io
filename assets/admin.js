@@ -256,7 +256,9 @@ function renderImportRecovery(){
   const count=preparedImport?.files?.filter(f=>f.sourceId).length||0;
   const total=currentImportFiles().length;
   const failure=activeDraft.payload?.processing?.state==='ready'&&pending?EMPTY_QUESTIONS_MESSAGE:activeDraft.payload?.processing?.message||'';
-  $('#import-recovery-text').textContent=pending?`${failure?failure+' ':''}Đã lưu bản nháp và ${count}/${total} tệp nguồn. ${count<total?(importFilesAvailable()?'Tệp còn lại đã được giữ trên thiết bị. Bấm lưu hoặc xuất bản để tiếp tục.':'Chọn lại các tệp còn thiếu để tiếp tục.'):'Bạn có thể xuất bản tệp gốc ngay, thử AI lại hoặc nhập nội dung thủ công.'}`:'Bản nháp đã được lưu. Bạn có thể xuất bản ngay.';
+  $('#import-recovery-text').textContent=publishedSourceLesson()
+    ?'Đã xuất bản tài liệu gốc. Bấm “Mở để học” bên dưới. Tài liệu nằm trong mục Tài liệu của chương; số câu hỏi chỉ tăng khi xuất bản câu hỏi AI.'
+    :pending?`${failure?failure+' ':''}Đã lưu bản nháp và ${count}/${total} tệp nguồn. ${count<total?(importFilesAvailable()?'Tệp còn lại đã được giữ trên thiết bị. Bấm lưu hoặc xuất bản để tiếp tục.':'Chọn lại các tệp còn thiếu để tiếp tục.'):'Bạn có thể xuất bản tệp gốc ngay, thử AI lại hoặc nhập nội dung thủ công.'}`:'Bản nháp đã được lưu. Bạn có thể xuất bản ngay.';
   $('#continue-manual-import').classList.toggle('hidden',!pending);
   $('#download-import-source').classList.toggle('hidden',total!==1);
   $('#manual-source-row').classList.toggle('hidden',!pending||total<2);
@@ -338,6 +340,27 @@ function renderPublishedSourceLink(){
   node.append(link);
 }
 
+function rememberPublishedLesson(lesson){
+  if(!lesson?.id||lesson.status!=='published')throw Error('Chưa xác nhận được tài liệu đã xuất bản. Hãy thử lại.');
+  lessons=[lesson,...lessons.filter(row=>row.id!==lesson.id)];
+}
+// Publication is already committed. A failing audit/snapshot/catalog refresh
+// must not turn a successful write into a failed Publish or hide its link.
+async function refreshAfterPublish(){
+  try{await reload();return true;}
+  catch(error){console.error('Publication saved; admin refresh failed',error);return false;}
+}
+const publishRefreshNote=refreshed=>refreshed?'':' Danh sách quản trị chưa tải lại được; nội dung đã xuất bản vẫn được giữ.';
+async function finishPublishedDraft(payload){
+  if(!importDraftId)return true;
+  try{
+    const rows=await restPatch('import_drafts','id=eq.'+encodeURIComponent(importDraftId),{status:'published',payload});
+    if(!rows[0]?.id)throw Error('Draft status was not acknowledged');
+    activeDraft=rows[0];return true;
+  }catch(error){console.error('Content published; draft status update pending',error);return false;}
+}
+const publishDraftNote=finished=>finished?'':' Bản nháp được giữ để đồng bộ lại trạng thái; nội dung đã xuất bản.';
+
 // Publish is the editor's choice and does not depend on AI output or repair.
 // Persist source bytes and import-draft first; publish a linked read-only
 // lesson so the saved original can be studied now and extracted later.
@@ -345,6 +368,7 @@ async function publishSourceFallback(){
   const button=$('#publish-source-fallback');
   if(importBusy||button?.disabled)return;
   importBusy=true;button.textContent='Đang lưu và xuất bản…';updateGenerateState();
+  notice('Đang lưu và xuất bản tài liệu gốc…');
   try{
     const files=currentImportFiles();validateImportFiles(files);
     if(!destinationComplete()||!destinationConfirmed||destinationSignature!==currentDestinationSignature())
@@ -361,7 +385,7 @@ async function publishSourceFallback(){
     // Read from DB on every attempt; handles lost responses and other tabs.
     const existing=await restGet('lessons','select=*&chapter_id=eq.'+encodeURIComponent(chapter.id));
     let published=existing.find(row=>row.content_json?.import_draft_id===importDraftId);
-    if(published&&!published.content_json?.source_fallback){
+    if(published){
       // A previous AI lesson for this draft exists. Attach the original rather
       // than violating the draft's unique index by inserting a second lesson.
       const updated=await restPatch('lessons','id=eq.'+encodeURIComponent(published.id),{
@@ -371,7 +395,8 @@ async function publishSourceFallback(){
             sourceId:file.sourceId,storagePath:file.storagePath,name:file.name,mimeType:file.mimeType
           }))}
       });
-      published=updated[0]||published;
+      published=updated[0];
+      if(!published?.id)throw Error('Chưa xác nhận được cập nhật tài liệu. Hãy thử lại.');
     }
     if(!published){
       const current=existing.filter(row=>row.chapter_id===chapter.id);
@@ -379,10 +404,10 @@ async function publishSourceFallback(){
       const user=await ensureEditorSession();
       const title=(sourceFiles.length===1?'Tài liệu gốc · '+sourceFiles[0].name
         :'Tài liệu gốc · '+sourceFiles[0].name+' + '+(sourceFiles.length-1)+' tệp').slice(0,280);
-      const created=await restInsert('lessons',{
+      const lesson={
         chapter_id:chapter.id,title,summary:'Tài liệu nguồn đã xuất bản, không yêu cầu AI. Có thể đọc ngay; câu hỏi sẽ được tạo và xuất bản riêng sau.',
         content_markdown:'',content_markdown_vi:null,
-        content_json:{source_fallback:true,import_draft_id:importDraftId,
+        content_json:{source_fallback:true,import_draft_id:importDraftId,exercise_id:exercise?.id||null,
           source_ids:sourceFiles.map(file=>file.sourceId),
           source_files:sourceFiles.map(file=>({
             sourceId:file.sourceId,storagePath:file.storagePath,name:file.name,mimeType:file.mimeType
@@ -391,13 +416,21 @@ async function publishSourceFallback(){
         verification_status:'source_only',
         verification_note:'Xuất bản tài liệu gốc theo lựa chọn của quản trị viên, không qua xác minh AI.',
         created_by:user.user.id,updated_by:user.user.id
-      });
-      published=created[0];
+      };
+      try{published=(await restInsert('lessons',lesson))[0];}
+      catch(error){
+        // A response can be lost after commit, or another tab may publish first.
+        const rows=await restGet('lessons','select=*&chapter_id=eq.'+encodeURIComponent(chapter.id));
+        published=rows.find(row=>row.status==='published'&&row.content_json?.source_fallback===true&&row.content_json?.import_draft_id===importDraftId);
+        if(!published)throw error;
+      }
       if(!published?.id)throw Error('Không nhận được thông tin bài học đã xuất bản.');
     }
-    await reload();
+    rememberPublishedLesson(published);
     renderImportRecovery();
-    notice('Đã xuất bản tài liệu gốc để học ngay. AI có thể được chạy lại từ bản nháp bất cứ lúc nào.','ok');
+    const refreshed=await refreshAfterPublish();
+    renderImportRecovery();
+    notice('Đã xuất bản tài liệu gốc vào mục Tài liệu của chương. Bấm “Mở để học” ngay bên dưới.'+publishRefreshNote(refreshed),'ok');
     const link=$('#source-published-info a');
     if(link){link.focus({preventScroll:true});link.scrollIntoView({block:'nearest'});}
   }catch(error){
@@ -990,7 +1023,7 @@ $('#review-area').addEventListener('click',async e=>{
       if(!importedQuestions.length)throw Error('AI chưa tạo được câu hỏi để xuất bản.');
       const reviewer=await ensureSession(),publishedAt=new Date().toISOString(),exercise_id=selected('#exercise');
       if(!exercise_id)throw Error('Hãy chọn Exercise đích.');
-      const existing=questions.filter(q=>q.exercise_id===exercise_id);
+      const existing=(await restGet('questions','select=*&exercise_id=eq.'+encodeURIComponent(exercise_id))).filter(q=>q.exercise_id===exercise_id);
       const start=existing.length?Math.max(...existing.map(q=>q.sort_order))+1:0;
       // A retry after a successful insert but failed draft update must not
       // duplicate questions already published from this draft.
@@ -1022,12 +1055,22 @@ $('#review-area').addEventListener('click',async e=>{
             import_draft_id:importDraftId,draft_index:i}
         }];
       });
-      if(rows.length)await restInsert('questions',rows);
-      if(importDraftId)await restPatch('import_drafts','id=eq.'+encodeURIComponent(importDraftId),{status:'published',payload:{...activeDraft.payload,questions:importedQuestions,published_to_exercise:exercise_id}});
-      importedQuestions=[];await reload();
-      await forgetCheckpoint();
+      if(rows.length){
+        try{
+          const saved=await restInsert('questions',rows);
+          if(saved.length!==rows.length)throw Error('Chưa nhận đủ xác nhận xuất bản câu hỏi.');
+        }
+        catch(error){
+          const saved=await restGet('questions','select=*&exercise_id=eq.'+encodeURIComponent(exercise_id));
+          if(!rows.every(row=>saved.some(q=>q.status==='published'&&q.metadata?.import_draft_id===importDraftId
+            &&q.metadata?.draft_index===row.metadata.draft_index)))throw error;
+        }
+      }
+      const finished=await finishPublishedDraft({...activeDraft?.payload,questions:importedQuestions,published_to_exercise:exercise_id});
+      importedQuestions=[];const refreshed=await refreshAfterPublish();
+      if(finished)await forgetCheckpoint();
       if(importedLesson)renderReview([]);else $('#review-area').classList.add('hidden');
-      notice('Đã xuất bản '+(rows.length+priorIndexes.size)+' câu hỏi. Bạn có thể sửa hoặc ẩn chúng sau.','ok');
+      notice('Đã xuất bản '+(rows.length+priorIndexes.size)+' câu hỏi. Bạn có thể sửa hoặc ẩn chúng sau.'+publishDraftNote(finished)+publishRefreshNote(refreshed),'ok');
     }catch(err){notice(err.message,'error')}
     finally{importBusy=false;controls.forEach(([el,disabled])=>{if(el.isConnected)el.disabled=disabled});updateGenerateState();updateReviewPublishState()}
   }
@@ -1038,12 +1081,14 @@ $('#review-area').addEventListener('click',async e=>{
       assertImportReviewDestination();
       const lesson=reviewPayload().lesson||importedLesson;
       const chapter_id=selected('#chapter');if(!chapter_id)throw Error('Hãy chọn Chapter đích.');
-      const session=await ensureSession(),ls=lessons.filter(x=>x.chapter_id===chapter_id);
+      const session=await ensureSession(),ls=(await restGet('lessons','select=*&chapter_id=eq.'+encodeURIComponent(chapter_id))).filter(x=>x.chapter_id===chapter_id);
       const previous=ls.find(x=>x.content_json?.import_draft_id===importDraftId);
-      if(previous?.content_json?.source_fallback===true){
+      let published;
+      if(previous){
         // Upgrade the existing original-file lesson without duplicating the
         // import_draft_id or invalidating the original PDF's access policy.
-        await restPatch('lessons','id=eq.'+encodeURIComponent(previous.id),{
+        published=(await restPatch('lessons','id=eq.'+encodeURIComponent(previous.id),{
+          status:'published',updated_by:session.user.id,
           title:String(lesson?.title||'').trim()||previous.title,
           summary:lesson?.summary?.trim()||previous.summary,
           content_markdown:String(lesson?.content_markdown||''),
@@ -1053,10 +1098,10 @@ $('#review-area').addEventListener('click',async e=>{
             ?lesson.verification_status:'needs_review',
           verification_note:lesson?.verification_note||null,verified_at:null,
           content_json:{...previous.content_json,ai_imported:true,ai_converted:true}
-        });
+        }))[0];
       }else if(!previous){
         const sort_order=ls.length?Math.max(...ls.map(x=>x.sort_order))+1:0;
-        await restInsert('lessons',{
+        published=(await restInsert('lessons',{
           chapter_id,title:String(lesson?.title||'').trim()||'Imported lesson',
           summary:lesson?.summary?.trim()||null,content_markdown:String(lesson?.content_markdown||''),
           content_markdown_vi:lesson?.content_markdown_vi||null,
@@ -1066,13 +1111,14 @@ $('#review-area').addEventListener('click',async e=>{
           verification_note:lesson?.verification_note||null,verified_at:null,
           source_id:importSourceId,status:'published',sort_order,
           created_by:session.user.id,updated_by:session.user.id
-        });
+        }))[0];
       }
-      if(importDraftId)await restPatch('import_drafts','id=eq.'+encodeURIComponent(importDraftId),{status:'published',payload:{...activeDraft.payload,lesson,published_to_chapter:chapter_id}});
-      importedLesson=null;await reload();
-      await forgetCheckpoint();
+      rememberPublishedLesson(published);
+      const finished=await finishPublishedDraft({...activeDraft?.payload,lesson,published_to_chapter:chapter_id});
+      importedLesson=null;const refreshed=await refreshAfterPublish();
+      if(finished)await forgetCheckpoint();
       if(importedQuestions.length)renderReview([]);else $('#review-area').classList.add('hidden');
-      notice('Đã xuất bản bài học. Bạn có thể chỉnh sửa sau.','ok');
+      notice('Đã xuất bản bài học. Bạn có thể chỉnh sửa sau.'+publishDraftNote(finished)+publishRefreshNote(refreshed),'ok');
     }catch(err){notice(err.message,'error')}
     finally{importBusy=false;btn.disabled=false;updateGenerateState();updateReviewPublishState()}
   }
