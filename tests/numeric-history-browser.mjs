@@ -8,12 +8,12 @@ const cors={'access-control-allow-origin':'*','access-control-allow-methods':'GE
 const json=(route,value,status=200)=>route.fulfill({status,contentType:'application/json',headers:cors,body:JSON.stringify(value)});
 const {db,record}=await createAttemptDb();
 const browser=await engine.launch({headless:true});
-async function fixture(answer=[550,503.939393939]){
+async function fixture(answer=[550,503.939393939],overrides={}){
   await db.query('delete from exercise_attempts');
   const context=await browser.newContext({ignoreHTTPSErrors:true,serviceWorkers:'block',viewport:{width:390,height:844}});
   await installFakeWebSocket(context);const state=await installMock(context);state.progress=[];state.attempts=[];
   state.exercises=state.exercises.slice(0,1);state.exercises[0].content_mode='database';state.exercises[0].question_count=1;
-  const questions=[{id:'numeric-1',exercise_id:'ex1',question_type:'numeric',prompt:'Cost of closing inventory',options:['FIFO basis (£)','AVCO basis (£)'],correct_answer:answer,required_selections:2,sort_order:0,status:'published',metadata:{numeric_policy:{mode:'rounded',decimal_places:2,rounding:'half_up',unit:'£',tolerance:0}}}];
+  const questions=[{id:'numeric-1',exercise_id:'ex1',question_type:'numeric',prompt:'Cost of closing inventory',options:['FIFO basis (£)','AVCO basis (£)'],correct_answer:answer,required_selections:2,sort_order:0,status:'published',metadata:{numeric_policy:{mode:'rounded',decimal_places:2,rounding:'half_up',unit:'£',tolerance:0}},...overrides}];
   await context.route('**/rest/v1/questions*',async route=>{
     if(route.request().method()==='GET')return json(route,questions);
     const row={...route.request().postDataJSON(),id:'manual-numeric'};questions.push(row);return json(route,[row],201);
@@ -28,7 +28,7 @@ async function fixture(answer=[550,503.939393939]){
   });
   await context.addInitScript(session=>localStorage.setItem('icaew-lms-auth-v2',JSON.stringify(session)),session);
   const page=await context.newPage();page.on('dialog',dialog=>dialog.accept());
-  const open=async()=>{await page.goto(base+'/index.html?exercise=ex1',{waitUntil:'domcontentloaded'});await page.waitForSelector('#options-container .numeric-answer-field input');};
+  const open=async()=>{await page.goto(base+'/index.html?exercise=ex1',{waitUntil:'domcontentloaded'});await page.waitForSelector('#options-container .numeric-answer-field input, #options-container .option, #options-container .tf-choice');};
   await open();
   return {context,page,state,questions,open,async fill(values){for(let i=0;i<values.length;i++)await page.fill('[data-numeric-index="'+i+'"]',values[i]);},
     async submit(expectedCount=1){
@@ -77,6 +77,23 @@ try{
     if(test.status===null){assert.equal(row.question_snapshot[0].selected_answer[0],'550');assert.equal(row.unanswered_count,1);}
     await history.setViewportSize({width:320,height:844});
     assert.equal(await history.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'Numeric history overflowed iPhone viewport');
+    await f.context.close();
+  }
+  // Missing keys in choice/TF questions also render neutrally, without errors.
+  for(const type of ['single','multiple','tf']){
+    const f=await fixture(null,{question_type:type,options:['First statement','Second statement'],required_selections:type==='single'?1:2});
+    if(type==='tf'){
+      await f.page.locator('.tf-row').nth(0).getByRole('button',{name:'True',exact:true}).click();
+      await f.page.locator('.tf-row').nth(1).getByRole('button',{name:'False',exact:true}).click();
+    }else{
+      await f.page.locator('.option').nth(0).click();
+      if(type==='multiple')await f.page.locator('.option').nth(1).click();
+    }
+    await f.page.click('#submit-btn');
+    await f.page.waitForFunction(()=>document.querySelector('#validation-msg').textContent.includes('chưa được chấm'));
+    assert.equal(await f.page.locator('#options-container .wrong, #options-container .correct, #options-container .answer-mark').count(),0,'Missing '+type+' key rendered a grading verdict');
+    const row=await f.submit();assert.equal(row.ungraded_count,1);assert.equal(row.gradable_questions,0);
+    const history=await f.history();assert.equal(await history.locator('.qStatus').innerText(),'Chưa chấm');
     await f.context.close();
   }
   // Reload/autosave, another attempt, and later answer changes preserve history.

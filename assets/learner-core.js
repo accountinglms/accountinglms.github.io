@@ -1975,6 +1975,7 @@ const lmsGrading=globalThis.LmsGrading;
     }
 
     function renderAnsweredQuestion(q, selection) {
+        const gradable=lmsGrading.hasAnswerKey(q);
         if(q.type==='numeric'){
             const list=document.createElement('div');list.className='numeric-answer-list';
             q.options.forEach((labelText,index)=>{
@@ -2008,9 +2009,9 @@ const lmsGrading=globalThis.LmsGrading;
             list.className = 'tf-list';
             q.options.forEach((statement, index) => {
                 const userValue = normalizedTFSelection[index];
-                const correctValue = q.answer[index];
+                const correctValue = q.answer?.[index];
                 const row = document.createElement('div');
-                row.className = `tf-row ${userValue === correctValue ? 'correct' : 'wrong'}`;
+                row.className = `tf-row${gradable ? userValue === correctValue ? ' correct' : ' wrong' : ''}`;
                 const statementEl = document.createElement('div');
                 statementEl.className = 'tf-statement';
                 statementEl.textContent = safePlainText(statement);
@@ -2020,9 +2021,9 @@ const lmsGrading=globalThis.LmsGrading;
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.disabled = true;
-                    btn.className = `tf-choice${userValue === value ? ' user-answer selected' : ''}${correctValue === value ? ' correct-answer' : ''}`;
+                    btn.className = `tf-choice${userValue === value ? ' user-answer selected' : ''}${gradable && correctValue === value ? ' correct-answer' : ''}`;
                     btn.textContent = value ? 'True' : 'False';
-                    if (correctValue === value || userValue === value) {
+                    if (gradable && (correctValue === value || userValue === value)) {
                         const correct = correctValue === value;
                         const mark = document.createElement('span');
                         mark.className = 'answer-mark';
@@ -2035,7 +2036,7 @@ const lmsGrading=globalThis.LmsGrading;
                 });
                 row.appendChild(statementEl);
                 row.appendChild(actions);
-                if (userValue !== correctValue) {
+                if (gradable && userValue !== correctValue) {
                     const note = document.createElement('div');
                     note.className = 'tf-correct-note';
                     note.textContent = `Đáp án đúng: ${correctValue ? 'True' : 'False'}`;
@@ -2049,7 +2050,7 @@ const lmsGrading=globalThis.LmsGrading;
 
         q.options.forEach((opt, index) => {
             const chosen = q.type === 'single' ? selection === index : Array.isArray(selection) && selection.includes(index);
-            const correct = q.type === 'single' ? q.answer === index : q.answer.includes(index);
+            const correct = gradable && (q.type === 'single' ? q.answer === index : q.answer.includes(index));
             const el = createChoiceOption(opt, index, q.type, false);
             el.tabIndex = -1;
             el.onclick = null;
@@ -2059,8 +2060,8 @@ const lmsGrading=globalThis.LmsGrading;
             el.setAttribute('aria-checked', String(chosen));
             if (chosen) el.classList.add('user-answer');
             if (correct) el.classList.add('correct');
-            if (chosen && !correct) el.classList.add('wrong');
-            if (correct || chosen) {
+            if (gradable && chosen && !correct) el.classList.add('wrong');
+            if (gradable && (correct || chosen)) {
                 const marker = el.querySelector('.choice-marker');
                 marker.textContent = correct ? '✓' : '✕';
                 marker.setAttribute('aria-hidden', 'true');
