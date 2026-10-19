@@ -108,7 +108,7 @@ h1{margin:5px 0 7px;font-size:clamp(1.9rem,3.5vw,2.55rem);line-height:1.06;lette
 .attempt[open] .attemptHint::after{transform:rotate(180deg)}
 
 .attemptBody{padding:15px 16px 17px}
-.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:17px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(75px,1fr));margin-bottom:17px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .mini{padding:9px 10px;text-align:center;background:transparent}
 .mini+.mini{border-left:1px solid var(--border)}
 .mini b{display:block;color:var(--text);font-size:.94rem;font-weight:760}
@@ -117,13 +117,21 @@ h1{margin:5px 0 7px;font-size:clamp(1.9rem,3.5vw,2.55rem);line-height:1.06;lette
 .detailHeader h3{margin:0;color:var(--text-soft);font-size:.77rem}
 .detailHeader span{color:var(--muted);font-size:.64rem}
 .questions{display:grid;gap:7px}
-.question{padding:11px 12px;background:var(--surface-3);border:1px solid var(--border);border-radius:8px}
+.question{min-width:0;padding:11px 12px;background:var(--surface-3);border:1px solid var(--border);border-radius:8px}
 .qHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .qText{color:var(--text-soft);font-size:.79rem;line-height:1.5;font-weight:620}
 .qStatus{flex:0 0 auto;padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:.59rem;font-weight:760}
 .qStatus.correct{color:var(--success);border-color:color-mix(in srgb,var(--success) 42%,var(--border))}
 .qStatus.wrong{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 42%,var(--border))}
 .qStatus.unanswered{color:var(--muted)}
+.qStatus.ungraded{color:var(--warning)}
+.numericHistoryWrap{max-width:100%;overflow-x:auto;margin-top:10px}
+.numericHistory{width:100%;min-width:340px;border-collapse:collapse;font-size:.72rem;text-align:left}
+.numericHistory caption{text-align:left;color:var(--muted);font-size:.68rem;padding-bottom:7px}
+.numericHistory th,.numericHistory td{padding:7px;border-bottom:1px solid var(--border);overflow-wrap:anywhere}
+.numericHistory thead th{color:var(--muted);font-weight:650}
+.numericHistory tbody th{font-weight:620}
+.numericPolicyNote{font-size:.7rem;line-height:1.5;color:var(--muted);margin:8px 0}
 .answerRows{display:grid;gap:5px;margin-top:9px;font-size:.7rem;line-height:1.45}
 .answerRows div{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px}
 .answerRows span{color:var(--muted)}

@@ -89,10 +89,10 @@ function renderMetrics(){
   const badge=$('#global-notification-count');
   if(badge){badge.hidden=!unread.total;badge.textContent=unread.total>99?'99+':String(unread.total);}
   renderHomeTrend();
-  if(!attempts.length){
-    setText('#home-focus-copy','Hãy làm một bài đầu tiên để hệ thống bắt đầu xây lộ trình từ dữ liệu thật của bạn.');
+  if(!attempts.length||avg==null){
+    setText('#home-focus-copy',attempts.length?'Các lượt gần đây chưa có điểm đủ điều kiện tính. Nội dung thiếu đáp án chuẩn được giữ ở trạng thái chưa chấm.':'Hãy làm một bài đầu tiên để hệ thống bắt đầu xây lộ trình từ dữ liệu thật của bạn.');
     setText('#home-readiness','Chưa đủ dữ liệu');
-    setText('#home-readiness-copy','Readiness chỉ được tính từ các lượt làm đã nộp.');
+    setText('#home-readiness-copy','Readiness chỉ được tính từ các lượt làm đã nộp có điểm đã chấm.');
     return;
   }
   const latest=attempts[0];
@@ -246,7 +246,7 @@ async function bootstrap(){
     restGet('chapters','select=*&is_active=eq.true&deleted_at=is.null&order=sort_order.asc'),
     restGet('lessons','select=id,chapter_id,title,summary,status,sort_order&status=eq.published&order=sort_order.asc'),
     restGet('exercises','select=id,chapter_id,title,question_count,sort_order&is_active=eq.true&deleted_at=is.null&order=sort_order.asc'),
-    restGet('exercise_attempts',`select=exercise_id,score,total_questions,accuracy,completed_at,bookmarked_count,context_snapshot&user_id=eq.${encodeURIComponent(session.user.id)}&order=completed_at.desc&limit=100`),
+    restGet('exercise_attempts',`select=exercise_id,score,total_questions,gradable_questions,ungraded_count,accuracy,completed_at,bookmarked_count,context_snapshot&user_id=eq.${encodeURIComponent(session.user.id)}&order=completed_at.desc&limit=100`),
     restGet('user_progress',`select=exercise_id,bookmarks,updated_at&user_id=eq.${encodeURIComponent(session.user.id)}`),
     restGet('announcements','select=*&status=eq.published&order=published_at.desc.nullslast,created_at.desc&limit=20'),
     restGet('announcement_reads',`select=announcement_id,read_at&user_id=eq.${encodeURIComponent(session.user.id)}`),

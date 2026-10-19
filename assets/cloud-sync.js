@@ -564,7 +564,7 @@
         try {
             const rows = await restGet(
                 'exercise_attempts',
-                'select=id,exercise_id,score,total_questions,attempt_no,completed_at&order=completed_at.desc&limit=500'
+                'select=id,exercise_id,score,total_questions,gradable_questions,ungraded_count,attempt_no,completed_at&order=completed_at.desc&limit=500'
             );
             window.lmsSetAttemptSummaries?.(Array.isArray(rows) ? rows : []);
         } catch (error) {

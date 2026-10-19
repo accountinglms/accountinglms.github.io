@@ -1,7 +1,10 @@
-/* Learning metrics: exam score uses ALL questions; answered accuracy is diagnostic only.
+import './numeric-grading.js';
+export const attemptMetrics=globalThis.LmsGrading.attemptMetrics;
+/* Learning metrics: unanswered gradeable questions remain in the denominator.
+ * Questions without a usable answer key are excluded; accuracy is diagnostic only.
  * This is not an official ICAEW grading algorithm or a predictive model. */
 export function examScore(attempt) {
-  const total=Number(attempt?.total_questions);
+  const total=attemptMetrics(attempt).gradable;
   const score=Number(attempt?.score);
   if(!Number.isFinite(total)||total<=0||!Number.isFinite(score)||score<0||score>total)return null;
   return 100*score/total;

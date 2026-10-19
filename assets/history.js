@@ -1,4 +1,6 @@
 import { ensureSession,isRetryableError, restGet } from './common.js';
+import {attemptMetrics,examScore} from './score-model.js';
+const grading=globalThis.LmsGrading;
 
 const SUPABASE_REF = 'uangiwgznukuicrfnohq';
 const SUPABASE_KEY = 'sb_publishable_FRBwRP7TAmiu02eRF9l49g_tCa4DsGJ';
@@ -73,9 +75,10 @@ function attemptDurationSeconds(value) {
 }
 
 function percent(attempt) {
-  const total = Number(attempt?.total_questions || 0);
-  return total ? Math.round(Number(attempt.score || 0) / total * 100) : 0;
+  const value=examScore(attempt);return value==null?null:Math.round(value);
 }
+const scoreText=attempt=>{const m=attemptMetrics(attempt);return m.gradable?`${m.score}/${m.gradable}`:'Chưa có điểm';};
+const percentText=attempt=>percent(attempt)==null?'Chưa chấm':percent(attempt)+'%';
 
 function optionLabel(index) {
   if (!Number.isInteger(index) || index < 0) return '—';
@@ -84,6 +87,7 @@ function optionLabel(index) {
 
 function answerText(question, answer) {
   if (answer == null) return 'Chưa trả lời';
+  if ((question?.type??question?.question_type)==='numeric')return Array.isArray(answer)?answer.map((value,index)=>`${question.options?.[index]||'Ô '+(index+1)}: ${value==null||value===''?'Chưa nhập':text(value)}`).join(' · '):text(answer);
   if (question?.type === 'tf') {
     if (!Array.isArray(answer)) return 'Chưa trả lời';
     return answer.map((value,index) => `${index + 1}: ${value === true ? 'True' : value === false ? 'False' : '—'}`).join(' · ');
@@ -209,13 +213,13 @@ function renderSummary(rows) {
   }
 
   const latest = rows.slice().sort((a,b) => Date.parse(b.completed_at || 0) - Date.parse(a.completed_at || 0))[0];
-  const best = rows.slice().sort((a,b) => percent(b) - percent(a) || Date.parse(b.completed_at || 0) - Date.parse(a.completed_at || 0))[0];
+  const best = rows.filter(row=>percent(row)!=null).sort((a,b) => percent(b) - percent(a) || Date.parse(b.completed_at || 0) - Date.parse(a.completed_at || 0))[0];
 
-  $('#metric-best').textContent = `${best.score}/${best.total_questions}`;
-  $('#metric-best-note').textContent = `${percent(best)}% · Lần ${best.attempt_no || '?'}`;
+  $('#metric-best').textContent = best?scoreText(best):'—';
+  $('#metric-best-note').textContent = best?`${percentText(best)} · Lần ${best.attempt_no || '?'}`:'Chưa có điểm đã chấm';
 
-  $('#metric-latest').textContent = `${latest.score}/${latest.total_questions}`;
-  $('#metric-latest-note').textContent = `${percent(latest)}% · ${fmtDate(latest.completed_at)}`;
+  $('#metric-latest').textContent = scoreText(latest);
+  $('#metric-latest-note').textContent = `${percentText(latest)} · ${fmtDate(latest.completed_at)}`;
 
   const measuredDurations = rows
     .map(row => attemptDurationSeconds(row.duration_seconds))
@@ -252,7 +256,9 @@ function buildQuestion(question, index) {
   const status = document.createElement('span');
   const state = question.status || 'unanswered';
   status.className = 'qStatus ' + state;
-  status.textContent = state === 'correct' ? 'Đúng' : state === 'wrong' ? 'Sai' : 'Chưa làm';
+  const numeric=(question.type??question.question_type)==='numeric';
+  const partial=numeric&&state==='unanswered'&&Array.isArray(question.selected_answer)&&question.selected_answer.some(value=>value!=null&&String(value).trim()!=='');
+  status.textContent = state === 'correct' ? 'Đúng' : state === 'wrong' ? 'Sai' : state==='ungraded'?'Chưa chấm':partial?'Chưa hoàn thành':'Chưa làm';
   head.append(q,status);
 
   const rows = document.createElement('div');
@@ -264,14 +270,14 @@ function buildQuestion(question, index) {
   const selectedValue = document.createElement('strong');
   selectedValue.textContent = answerText(question, question.selected_answer);
   selected.append(selectedLabel, selectedValue);
-  rows.appendChild(selected);
+  if(!numeric)rows.appendChild(selected);
 
-  if (state !== 'correct') {
+  if (!numeric&&state !== 'correct') {
     const correct = document.createElement('div');
     const correctLabel = document.createElement('span');
     correctLabel.textContent = 'Đáp án đúng';
     const correctValue = document.createElement('strong');
-    correctValue.textContent = answerText(question, question.correct_answer);
+    correctValue.textContent = state==='ungraded'?'Chưa có đáp án chuẩn':answerText(question, question.correct_answer);
     correct.append(correctLabel, correctValue);
     rows.appendChild(correct);
   }
@@ -287,6 +293,26 @@ function buildQuestion(question, index) {
   }
 
   card.append(head,rows);
+  if(numeric){
+    const wrapper=document.createElement('div');wrapper.className='numericHistoryWrap';
+    const table=document.createElement('table');table.className='numericHistory';
+    const caption=document.createElement('caption');caption.textContent='Kết quả từng ô · không chia điểm từng phần';table.append(caption);
+    const header=document.createElement('thead'),tr=document.createElement('tr');
+    for(const label of ['Ô kết quả','Bạn nhập','Đáp án chuẩn','Trạng thái']){const cell=document.createElement('th');cell.scope='col';cell.textContent=label;tr.append(cell);}header.append(tr);table.append(header);
+    const body=document.createElement('tbody');
+    (question.options||[]).forEach((label,index)=>{
+      const row=document.createElement('tr'),value=question.selected_answer?.[index];
+      const missing=value==null||String(value).trim()==='';
+      const result=missing?null:question.grading_version===2&&question.gradable!==false?grading.gradeField(question,index,value):null;
+      const outcome=missing?'Chưa nhập':result===true?'Đúng':result===false?'Sai':state==='correct'?'Đúng (đã lưu)':'Chưa chấm';
+      const expected=question.grading_version===2?grading.expectedText(question,index):text(question.correct_answer?.[index]??'Chưa có đáp án chuẩn');
+      for(const [i,content] of [label,missing?'—':text(value),expected,outcome].entries()){
+        const cell=document.createElement(i===0?'th':'td');if(i===0)cell.scope='row';cell.textContent=content;row.append(cell);
+      }
+      body.append(row);
+    });table.append(body);wrapper.append(table);card.append(wrapper);
+    const note=document.createElement('p');note.className='numericPolicyNote';note.textContent=question.grading_version===2?grading.instruction(question):'Kết quả lịch sử được giữ theo quy tắc chấm tại thời điểm nộp bài.';card.append(note);
+  }
   return card;
 }
 
@@ -319,9 +345,9 @@ function renderTimeline() {
     }
 
     const best = bestByExercise.get(row.exercise_id);
-    if (!best
+    if (percent(row)!=null&&(!best
       || percent(row) > percent(best)
-      || (percent(row) === percent(best) && Date.parse(row.completed_at || 0) < Date.parse(best.completed_at || 0))) {
+      || (percent(row) === percent(best) && Date.parse(row.completed_at || 0) < Date.parse(best.completed_at || 0)))) {
       bestByExercise.set(row.exercise_id, row);
     }
   });
@@ -333,7 +359,7 @@ function renderTimeline() {
     detail.className = 'attempt';
 
     const summary = document.createElement('summary');
-    summary.setAttribute('aria-label', `${context.exerciseTitle}, lần ${attempt.attempt_no || '?'}, điểm ${attempt.score} trên ${attempt.total_questions}`);
+    summary.setAttribute('aria-label', `${context.exerciseTitle}, lần ${attempt.attempt_no || '?'}, điểm ${scoreText(attempt)}`);
 
     const main = document.createElement('div');
     main.className = 'attemptMain';
@@ -401,10 +427,10 @@ function renderTimeline() {
     scoreLabel.textContent = 'Điểm';
     const score = document.createElement('div');
     score.className = 'score';
-    score.textContent = `${attempt.score}/${attempt.total_questions}`;
+    score.textContent = scoreText(attempt);
     const pct = document.createElement('div');
     pct.className = 'percent';
-    pct.textContent = `${percent(attempt)}%`;
+    pct.textContent = percentText(attempt);
     const hint = document.createElement('div');
     hint.className = 'attemptHint';
     hint.textContent = 'Chi tiết';
@@ -422,7 +448,13 @@ function renderTimeline() {
       buildMini('Chưa làm', attempt.unanswered_count),
       buildMini('Đánh dấu', attempt.bookmarked_count)
     );
+    const gradingMetrics=attemptMetrics(attempt);
+    if(gradingMetrics.ungraded)metrics.append(buildMini('Chưa chấm',gradingMetrics.ungraded));
     body.appendChild(metrics);
+    if(gradingMetrics.gradable<gradingMetrics.total){
+      const note=document.createElement('p');note.className='numericPolicyNote';
+      note.textContent=`${gradingMetrics.total-gradingMetrics.gradable} câu chưa có đáp án chuẩn, không tính vào điểm. Lượt làm gồm ${gradingMetrics.total} câu.`;body.append(note);
+    }
 
     const detailHeader = document.createElement('div');
     detailHeader.className = 'detailHeader';
@@ -454,7 +486,7 @@ function renderTimeline() {
 async function loadAttempts({silent=false}={}) {
   try {
     if (!silent) $('#refresh-history').disabled = true;
-    attempts = await restGet('exercise_attempts','select=*&order=completed_at.desc&limit=500');
+    attempts = await restGet('exercise_attempts','select=*&user_id=eq.'+encodeURIComponent(session.user.id)+'&order=completed_at.desc&limit=500');
     renderTimeline();
   } finally {
     $('#refresh-history').disabled = false;
