@@ -18,6 +18,22 @@ const GEMINI_MODEL =
     : "gemini-3.5-flash-lite";
 
 const PRODUCTION_ORIGIN = "https://accountinglms.github.io";
+// HTTP 200 does not guarantee usable model output. Keep filter/truncation
+// outcomes distinct from a transient empty response; never retry a filter.
+function geminiOutput(body: any) {
+  const candidate = body?.candidates?.[0];
+  const finishReason = String(candidate?.finishReason || "");
+  const blockReason = String(body?.promptFeedback?.blockReason || "");
+  const blocked = Boolean(blockReason && blockReason !== "BLOCK_REASON_UNSPECIFIED")
+    || ["SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII",
+      "IMAGE_SAFETY", "IMAGE_PROHIBITED_CONTENT", "IMAGE_RECITATION", "ESCALATION", "PUP_LIMITED_DISABLED"].includes(finishReason);
+  const text = (Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [])
+    .filter((part: any) => part?.thought !== true && typeof part?.text === "string")
+    .map((part: any) => part.text).join("");
+  return {text, finishReason, blockReason, blocked,
+    truncated: ["MAX_TOKENS", "CONTINUATION"].includes(finishReason)};
+}
+
 function originAllowed(req: Request) {
   const origin = req.headers.get("origin");
   return !origin || origin === PRODUCTION_ORIGIN;
@@ -361,6 +377,7 @@ Deno.serve(async (req: Request) => {
 
     let aiRes: Response | null = null;
     let aiBody: any = null;
+    let emptyRetries = 0;
 
     for (let attempt = 1; attempt <= 3; attempt++) {
       aiRes = await fetch(
@@ -388,7 +405,16 @@ Deno.serve(async (req: Request) => {
       );
 
       aiBody = await aiRes.json();
-      if (aiRes.ok) break;
+      if (aiRes.ok) {
+        const output = geminiOutput(aiBody);
+        if (!output.text.trim() && !output.blocked && !output.truncated && emptyRetries < 1 && attempt < 3) {
+          emptyRetries++;
+          console.error("Gemini empty output; retrying once", {attempt, finishReason: output.finishReason});
+          await new Promise(resolve => setTimeout(resolve, 400));
+          continue;
+        }
+        break;
+      }
 
       const message = String(aiBody?.error?.message || "");
       const temporary = aiRes.status === 503 || /high demand|temporar|overload|unavailable/i.test(message);
@@ -402,13 +428,20 @@ Deno.serve(async (req: Request) => {
       return json(req, failure.body, failure.status);
     }
 
-    if (aiBody?.candidates?.[0]?.finishReason === "MAX_TOKENS") return json(req, {error:"Bộ câu hỏi quá dài cho một lượt AI. Hãy chia thành các nhóm ảnh nhỏ hơn; bản nháp và nguồn vẫn được giữ.",code:"AI_OUTPUT_TRUNCATED"}, 502);
-    const text = (aiBody?.candidates?.[0]?.content?.parts || [])
-      .filter((p: any) => p?.thought !== true && typeof p?.text === "string")
-      .map((p: any) => p.text)
-      .join("");
-
-    if (!text) return json(req, { error: "Gemini không trả về nội dung.", provider: "gemini" }, 502);
+    const output = geminiOutput(aiBody);
+    const diagnostics = {finish_reason: output.finishReason || null, block_reason: output.blockReason || null};
+    if (output.blocked) {
+      console.error("Gemini filtered output", diagnostics);
+      return json(req, {error:"Gemini đã từ chối chuyển đổi tài liệu này. Tệp gốc vẫn được giữ; bạn có thể xuất bản tệp gốc ngay để đọc trong mục Tài liệu.",
+        code:"AI_OUTPUT_BLOCKED", provider:"gemini", retryable:false, ...diagnostics}, 422);
+    }
+    if (output.truncated) return json(req, {error:"Bộ câu hỏi quá dài cho một lượt AI. Hãy chia thành các nhóm ảnh nhỏ hơn; bản nháp và nguồn vẫn được giữ. Bạn vẫn có thể xuất bản tệp gốc ngay.",code:"AI_OUTPUT_TRUNCATED", ...diagnostics}, 502);
+    const text = output.text;
+    if (!text.trim()) {
+      console.error("Gemini empty output after recovery", diagnostics);
+      return json(req, {error:"Gemini trả về rỗng cả sau khi tự thử lại. Tệp nguồn vẫn được giữ; bạn có thể xuất bản tệp gốc ngay hoặc thử AI lại sau.",
+        code:"AI_EMPTY_RESPONSE", provider:"gemini", retryable:true, ...diagnostics}, 502);
+    }
 
     try {
       const parsed = parseImportJson(stripFence(text));

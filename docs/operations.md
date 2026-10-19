@@ -166,3 +166,10 @@ Keep the old Floot production instance available until final regression testing 
 
 Only retire Floot after login, quiz flow, cloud progress sync, Admin, Lessons and AI Import all pass on the GitHub production URL.
 
+# Publish recovery v77 (2026-10-19)
+
+- Gemini HTTP 200 responses without usable text are retried once. Filtered and truncated responses have separate error codes and are never retried as empty output. Sources and drafts remain available.
+- Publishing saved originals works independently of AI, restores an existing hidden lesson, and recovers a committed insertion after a lost response without creating duplicates.
+- Confirmed publication is retained even if draft status synchronization or an unrelated admin refresh fails. The page distinguishes these follow-up errors from failed publication.
+- Published originals appear in the chapter's **Tài liệu** area, with an immediate **Mở để học** link in Import Studio. They do not add interactive quiz questions.
+

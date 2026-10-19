@@ -22,6 +22,7 @@ let uploads=0,aiCalls=0,failReadyPatch=false,failNextAI=false,failUploadAt=0;
 let emptyNextAI=false;
 let repairNextAI=false;
 let lessonNextAI=false;
+let failNextAudit=false,loseNextLessonResponse=false,loseNextQuestionResponse=false,failNextFinalize=false;
 const routeInputs=[];
 
 const browser=await engine.launch({headless:true});
@@ -36,7 +37,10 @@ try{
     if(path==='/rest/v1/subjects')return json(route,[{id:'accounting',title:'Accounting',sort_order:0,is_active:true}]);
     if(path==='/rest/v1/chapters')return json(route,[{id:'revenue',subject_id:'accounting',title:'Revenue',sort_order:0,is_active:true}]);
     if(path==='/rest/v1/exercises')return json(route,[{id:'practice',chapter_id:'revenue',title:'Practice',sort_order:0,is_active:true,question_count:0}]);
-    if(path==='/rest/v1/content_audit_log'||path==='/rest/v1/content_snapshots')return json(route,[]);
+    if(path==='/rest/v1/content_audit_log'||path==='/rest/v1/content_snapshots'){
+      if(path.endsWith('content_audit_log')&&failNextAudit){failNextAudit=false;return json(route,{message:'Audit refresh unavailable'},500);}
+      return json(route,[]);
+    }
     if(path==='/rest/v1/questions'||path==='/rest/v1/lessons'){
       const rows=path.endsWith('questions')?questions:lessons;
       if(method==='GET')return json(route,rows);
@@ -46,7 +50,10 @@ try{
         Object.assign(row,req.postDataJSON());return json(route,[row]);
       }
       const body=req.postDataJSON();const incoming=(Array.isArray(body)?body:[body]).map(x=>({...x,id:'record-'+(rows.length+1)}));
-      rows.push(...incoming);return json(route,incoming,201);
+      rows.push(...incoming);
+      if(path.endsWith('lessons')&&loseNextLessonResponse){loseNextLessonResponse=false;return json(route,{message:'Lost response after commit'},502);}
+      if(path.endsWith('questions')&&loseNextQuestionResponse){loseNextQuestionResponse=false;return json(route,{message:'Lost question response after commit'},502);}
+      return json(route,incoming,201);
     }
     if(path.startsWith('/storage/v1/object/authenticated/content-imports/')){
       assert.equal(req.headers().authorization,'Bearer token-aal2','Saved source was not fetched with user auth');
@@ -81,6 +88,9 @@ try{
         const row={...body,id:'draft-'+(drafts.size+1),updated_at:new Date().toISOString()};drafts.set(row.id,row);return json(route,[row],201);
       }
       const id=url.searchParams.get('id')?.slice(3);assert.ok(drafts.has(id));
+      if(failNextFinalize&&body.status==='published'){
+        failNextFinalize=false;return json(route,{message:'Draft status synchronization interrupted'},500);
+      }
       if(failReadyPatch&&body.payload?.processing?.state==='ready'){
         failReadyPatch=false;return json(route,{message:'Temporary save error'},500);
       }
@@ -321,6 +331,7 @@ try{
   assert.equal(await page.inputValue('[data-answer-question="11"][data-answer-option="1"]'),'false','False answer was lost on reload');
   assert.equal(await page.inputValue(numericPolicy+'[data-numeric-policy-field="decimal_places"]'),'0','Numeric rule was lost on reload');
   assert.equal(await page.isDisabled('#publish-imported'),false);
+  failNextFinalize=true;failNextAudit=true;loseNextQuestionResponse=true;
   await page.click('#publish-imported');
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã xuất bản'));
   const repaired=questions.filter(q=>q.metadata.import_draft_id===repairDraft.id);
@@ -330,6 +341,14 @@ try{
   assert.equal(repaired[10].metadata.numeric_policy.unit,'£');
   for(const field of ['prompt','options','explanation_en','explanation_vi'])assert.deepEqual(repaired[0][field],fidelityQuestion[field],field+' was shortened before publication');
   assert.ok(repaired.every(q=>q.status==='published'&&q.verification_status!=='verified'&&q.metadata.published_by===user.id&&!q.verified_at));
+  assert.match(await page.textContent('#notice'),/Bản nháp được giữ/);
+  assert.equal(drafts.get(repairDraft.id).status,'draft','Failed status update lost the retryable draft');
+  const countBeforeRetry=questions.length;
+  await resume('[data-resume-import="'+repairDraft.id+'"]');
+  await page.click('#publish-imported');
+  await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã xuất bản'));
+  assert.equal(questions.length,countBeforeRetry,'Retry after status sync failure duplicated questions');
+  assert.equal(drafts.get(repairDraft.id).status,'published');
   assert.equal(aiCalls,callsBeforeEdit,'Editing an answer called Gemini again');assert.equal(uploads,uploadsBeforeEdit,'Review re-uploaded the saved image');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'Answer review overflowed a phone viewport');
   // Owner-controlled source publication works even when Gemini failed,
@@ -337,6 +356,7 @@ try{
   const noAiCalls=aiCalls,oldUploadCount=uploads;
   await open();await resume('[data-resume-import="draft-1"]');
   assert.equal(await page.isDisabled('#publish-source-fallback'),false);
+  failNextAudit=true;
   await page.click('#publish-source-fallback');
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã xuất bản tài liệu gốc'));
   const publishedOriginals=lessons.filter(row=>row.content_json?.source_fallback===true
@@ -348,10 +368,16 @@ try{
   assert.equal(aiCalls,noAiCalls,'Publishing original source unexpectedly called Gemini');
   assert.equal(uploads,oldUploadCount,'Publishing existing source uploaded again');
   assert.equal(drafts.get('draft-1').status,'draft','Fallback erased a retryable AI draft');
+  assert.ok(await page.locator('#source-published-info').isVisible(),'Committed publication lost its link when unrelated admin refresh failed');
+  assert.match(await page.textContent('#notice'),/danh sách|Danh sách/);
+  assert.match(await page.textContent('#import-recovery-text'),/Đã xuất bản tài liệu gốc/);
+  // A previous row can be unpublished. Retrying must restore published status.
+  publishedOriginals[0].status='draft';
   await page.click('#publish-source-fallback');
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã xuất bản tài liệu gốc'));
   assert.equal(lessons.filter(row=>row.content_json?.import_draft_id==='draft-1'&&row.content_json?.source_fallback).length,1,
     'Retrying fallback duplicated a lesson');
+  assert.equal(publishedOriginals[0].status,'published','Existing hidden source was not republished');
   await page.goto(baseURL+'/lessons.html?lesson='+encodeURIComponent(publishedOriginals[0].id),{waitUntil:'domcontentloaded'});
   await page.waitForFunction(text=>document.querySelector('.sourceText')?.textContent===text,sourceText);
   assert.equal(await page.locator('.sourceActions a').count(),2,'Reader did not provide open/download links');
@@ -360,6 +386,7 @@ try{
   await open();
   await page.setInputFiles('#import-file',[image('page-1.png'),image('page-2.png')]);
   await confirm();
+  loseNextLessonResponse=true;
   await page.click('#publish-source-fallback');
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã xuất bản tài liệu gốc'));
   const original=lessons.filter(row=>row.content_json?.source_fallback).at(-1);
