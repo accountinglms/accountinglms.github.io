@@ -7,6 +7,8 @@ import {scanImportQuality,cleanImportWarnings,publishableExample} from './import
 import {createImportRepairController} from './import-repair-ui.js';
 import {createImportCheckpoints,checkpointFiles} from './import-checkpoints.js';
 import {loadSession} from './common.js';
+import './numeric-grading.js';
+const grading=globalThis.LmsGrading;
 
 const $ = s => document.querySelector(s);
 let subjects=[], chapters=[], exercises=[], questions=[], lessons=[], audits=[], snapshots=[];
@@ -803,7 +805,7 @@ $('#ai-route').addEventListener('click',async()=>{
   finally{importBusy=false;btn.textContent=label;renderImportFiles();updateGenerateState()}
 });
 
-$('#question-form').addEventListener('submit',async e=>{e.preventDefault();try{const exercise_id=selected('#exercise');if(!exercise_id)throw new Error('Hãy chọn Exercise trước.');const type=selected('#q-type');const options=$('#q-options').value.split('\n').map(v=>v.trim()).filter(Boolean);if(options.length<(type==='numeric'?1:2))throw new Error(type==='numeric'?'Cần ít nhất 1 nhãn cho ô nhập số.':'Cần ít nhất 2 lựa chọn.');const answer=parseAnswer(type,$('#q-answer').value,options);const qs=questions.filter(q=>q.exercise_id===exercise_id);const sort_order=qs.length?Math.max(...qs.map(q=>q.sort_order))+1:0;await restInsert('questions',{exercise_id,question_type:type,prompt:$('#q-prompt').value.trim(),options,correct_answer:answer,required_selections:type==='multiple'?answer.length:['tf','numeric'].includes(type)?options.length:1,explanation_en:$('#q-en').value.trim()||null,explanation_vi:$('#q-vi').value.trim()||null,practical_example_en:$('#q-example-en').value.trim()||null,practical_example_vi:$('#q-example-vi').value.trim()||null,standard_reference:$('#q-standard-ref').value.trim()||null,verification_status:'unreviewed',verification_note:'Câu hỏi tạo thủ công; chưa chạy kiểm định tự động.',status:selected('#q-status'),sort_order,source_page:null,source_id:manualSourceContext('questions')?.sourceId||null,metadata:{manual_created:true,import_draft_id:manualSourceContext('questions')?.draftId||null}});e.target.reset();$('#q-options').value='A. \nB. \nC. \nD. ';await reload();notice('Đã lưu câu hỏi.','ok')}catch(err){notice(err.message,'error')}});
+$('#question-form').addEventListener('submit',async e=>{e.preventDefault();try{const exercise_id=selected('#exercise');if(!exercise_id)throw new Error('Hãy chọn Exercise trước.');const type=selected('#q-type');const options=$('#q-options').value.split('\n').map(v=>v.trim()).filter(Boolean);if(options.length<(type==='numeric'?1:2))throw new Error(type==='numeric'?'Cần ít nhất 1 nhãn cho ô nhập số.':'Cần ít nhất 2 lựa chọn.');const answer=parseAnswer(type,$('#q-answer').value,options);const qs=questions.filter(q=>q.exercise_id===exercise_id);const sort_order=qs.length?Math.max(...qs.map(q=>q.sort_order))+1:0;await restInsert('questions',{exercise_id,question_type:type,prompt:$('#q-prompt').value.trim(),options,correct_answer:answer,required_selections:type==='multiple'?answer.length:['tf','numeric'].includes(type)?options.length:1,explanation_en:$('#q-en').value.trim()||null,explanation_vi:$('#q-vi').value.trim()||null,practical_example_en:$('#q-example-en').value.trim()||null,practical_example_vi:$('#q-example-vi').value.trim()||null,standard_reference:$('#q-standard-ref').value.trim()||null,verification_status:'unreviewed',verification_note:'Câu hỏi tạo thủ công; chưa chạy kiểm định tự động.',status:selected('#q-status'),sort_order,source_page:null,source_id:manualSourceContext('questions')?.sourceId||null,metadata:{manual_created:true,numeric_policy:type==='numeric'?readNumericPolicy($('#q-numeric-policy')):undefined,import_draft_id:manualSourceContext('questions')?.draftId||null}});e.target.reset();updateManualNumericPolicy();$('#q-options').value='A. \nB. \nC. \nD. ';await reload();notice('Đã lưu câu hỏi.','ok')}catch(err){notice(err.message,'error')}});
 $('#question-list').addEventListener('click',async e=>{const b=e.target.closest('[data-qid]');if(!b)return;const next=b.dataset.status==='published'?'draft':'published';const label=next==='draft'?'ẩn câu này khỏi người học':'publish câu này cho người học';if(!confirm('Xác nhận '+label+'?'))return;await restPatch('questions','id=eq.'+encodeURIComponent(b.dataset.qid),{status:next});await reload()});
 
 $('#lesson-form').addEventListener('submit',async e=>{e.preventDefault();try{const chapter_id=selected('#chapter');if(!chapter_id)throw new Error('Hãy chọn Chapter trước.');const title=$('#manual-lesson-title').value.trim();const content_markdown=$('#manual-lesson-content').value.trim();if(!title||!content_markdown)throw new Error('Lesson cần Title và Content.');const session=await ensureSession();const ls=lessons.filter(x=>x.chapter_id===chapter_id);const sort_order=ls.length?Math.max(...ls.map(x=>x.sort_order))+1:0;await restInsert('lessons',{chapter_id,title,summary:$('#manual-lesson-summary').value.trim()||null,content_markdown,content_json:{manual_created:true,import_draft_id:manualSourceContext('lesson')?.draftId||null},source_id:manualSourceContext('lesson')?.sourceId||null,status:selected('#manual-lesson-status')||'published',sort_order,created_by:session.user.id,updated_by:session.user.id});e.target.reset();$('#manual-lesson-status').value='published';await reload();notice('Đã lưu bài học. Mở Thư viện bài học để kiểm tra.','ok')}catch(err){notice(err.message,'error')}});
@@ -909,8 +911,30 @@ async function runImport(useAI){
 }
 $('#ai-generate').addEventListener('click',()=>runImport(true));
 $('#save-import').addEventListener('click',()=>runImport(false));
+function numericPolicyEditor(q,index){
+  const rule=grading.policy(q)||{mode:'rounded',decimal_places:2,rounding:'half_up',tolerance:0,unit:''};
+  const attr=field=>`data-numeric-policy-question="${index}" data-numeric-policy-field="${field}"`;
+  const options=(values,current)=>values.map(([value,label])=>`<option value="${value}" ${value===current?'selected':''}>${label}</option>`).join('');
+  return `<fieldset class="importAnswerEditor"><legend>Quy tắc chấm số</legend><div class="grid2"><label class="field"><span>Cách so sánh</span><select ${attr('mode')}>${options([['rounded','Làm tròn rồi so sánh'],['exact','Giá trị chính xác'],['tolerance','Cho phép sai số']],rule.mode)}</select></label><label class="field"><span>Đơn vị</span><input ${attr('unit')} value="${esc(rule.unit)}" placeholder="£, VND, %, số lượng" maxlength="20"></label><label class="field"><span>Số chữ số thập phân</span><input ${attr('decimal_places')} type="number" min="0" max="8" step="1" value="${rule.decimal_places}"></label><label class="field"><span>Cách làm tròn</span><select ${attr('rounding')}>${options([['half_up','Từ 5 làm tròn ra xa 0'],['half_even','Đúng nửa làm tròn về số chẵn'],['truncate','Cắt phần thập phân dư']],rule.rounding)}</select></label><label class="field"><span>Sai số tuyệt đối · dùng khi chọn Cho phép sai số</span><input ${attr('tolerance')} type="number" min="0" step="any" value="${rule.tolerance}"></label></div><small>Toàn bộ ô phải đúng mới được tính đúng một câu. Quy tắc này được lưu cùng lượt làm.</small></fieldset>`;
+}
+function readNumericPolicy(node){
+  const value=field=>node.querySelector('[data-numeric-policy-field="'+field+'"]').value;
+  return {version:2,mode:value('mode'),unit:value('unit').trim(),decimal_places:Number(value('decimal_places')),rounding:value('rounding'),tolerance:Number(value('tolerance'))};
+}
+function updateManualNumericPolicy(){
+  const node=$('#q-numeric-policy');node.classList.toggle('hidden',selected('#q-type')!=='numeric');
+  if(selected('#q-type')==='numeric')node.innerHTML=numericPolicyEditor({question_type:'numeric'},'manual');
+}
+$('#q-type').addEventListener('change',updateManualNumericPolicy);
+$('#review-area').addEventListener('input',updateNumericPolicy);
+$('#review-area').addEventListener('change',updateNumericPolicy);
+function updateNumericPolicy(event){
+  const index=event.target.dataset.numericPolicyQuestion;if(index==null||index==='manual')return;
+  importedQuestions[Number(index)].numeric_policy=readNumericPolicy(event.target.closest('fieldset'));
+  updateReviewPublishState();repairController.render();
+}
 function renderImportOptions(q,i){
-  if(q.question_type==='numeric')return `<fieldset class="importAnswerEditor" id="import-options-${i}"><legend>Nhãn ô nhập kết quả số · mỗi ô một nhãn</legend>${(q.options||[]).map((option,index)=>`<label class="field"><span>Ô số ${index+1}</span><textarea data-i="${i}" data-k="option" data-option-index="${index}" rows="2">${esc(option)}</textarea></label><button class="ghost" type="button" data-remove-import-option="${i}" data-option-index="${index}" ${(q.options||[]).length<=1?'disabled':''}>Xoá ô ${index+1}</button>`).join('')}<button class="ghost" type="button" data-add-import-option="${i}">Thêm ô kết quả</button></fieldset>`;
+  if(q.question_type==='numeric')return `<fieldset class="importAnswerEditor" id="import-options-${i}"><legend>Nhãn ô nhập kết quả số · mỗi ô một nhãn</legend>${(q.options||[]).map((option,index)=>`<label class="field"><span>Ô số ${index+1}</span><textarea data-i="${i}" data-k="option" data-option-index="${index}" rows="2">${esc(option)}</textarea></label><button class="ghost" type="button" data-remove-import-option="${i}" data-option-index="${index}" ${(q.options||[]).length<=1?'disabled':''}>Xoá ô ${index+1}</button>`).join('')}<button class="ghost" type="button" data-add-import-option="${i}">Thêm ô kết quả</button></fieldset>`+numericPolicyEditor(q,i);
   return `<fieldset class="importAnswerEditor" id="import-options-${i}"><legend>Lựa chọn · mỗi ô là một đáp án</legend>${(q.options||[]).map((option,index)=>`<label class="field"><span>Lựa chọn ${index+1}</span><textarea data-i="${i}" data-k="option" data-option-index="${index}" rows="3">${esc(option)}</textarea></label><button class="ghost" type="button" data-remove-import-option="${i}" data-option-index="${index}" ${(q.options||[]).length<=2?'disabled':''}>Xoá lựa chọn ${index+1}</button>`).join('')}<button class="ghost" type="button" data-add-import-option="${i}" ${(q.options||[]).length>=30?'disabled':''}>Thêm lựa chọn</button></fieldset>`;
 }
 function invalidateImportAnswer(i){
@@ -1015,7 +1039,7 @@ $('#review-area').addEventListener('click',async e=>{
           verification_status:verificationStatus,verification_note:q.verification_note||null,verified_at:null,
           status:'published',sort_order:start+i,source_page:q.source_page||null,
           source_id:Number.isInteger(q.source_file)?preparedImport?.files?.[q.source_file-1]?.sourceId||null:null,
-          metadata:{ai_imported:true,published_by:reviewer.user.id,published_at:publishedAt,
+          metadata:{ai_imported:true,numeric_policy:q.question_type==='numeric'?(q.numeric_policy??grading.policy(q)):undefined,published_by:reviewer.user.id,published_at:publishedAt,
             ai_verification_status:q.verification_status||null,
             source_ids:(Array.isArray(q.source_files)?q.source_files:(Number.isInteger(q.source_file)?[q.source_file]:[])).map(n=>preparedImport?.files?.[n-1]?.sourceId).filter(Boolean),
             confidence:q.confidence,review_note:q.review_note,answer_needs_review:Boolean(answerIssue),

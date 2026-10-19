@@ -1,11 +1,11 @@
 import {paintAvatar} from './avatar.js';
 import { ensureSession,getMyAccess,restGet,restRpc,isRetryableError } from './common.js';
-import {examScore,weightedScores,assessmentConfidence} from './score-model.js';
+import {examScore,attemptMetrics,weightedScores,assessmentConfidence} from './score-model.js';
 
 const $=s=>document.querySelector(s);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const initials=value=>String(value||'U').trim().split(/\s+/).filter(Boolean).map(x=>x[0]).slice(0,2).join('').toUpperCase()||'U';
-const pct=value=>Number.isFinite(Number(value))?`${Math.round(Number(value))}%`:'—';
+const pct=value=>value!=null&&Number.isFinite(Number(value))?`${Math.round(Number(value))}%`:'—';
 const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
 
 let session=null,access=null;
@@ -36,6 +36,7 @@ function latestByExercise(rows){
   return map;
 }
 function readiness(subject,rows){
+  rows=rows.filter(a=>examScore(a)!=null);
   const level=subject?.exam_level||'certificate';
   const pass=passMark(level);
   const recent=recentWeighted(rows);
@@ -71,7 +72,7 @@ function chapterStats(subjectId,rows){
     const repeatWrong=allForChapter.reduce((sum,a)=>sum+Number(a.wrong_count||0),0);
     result.push({
       chapter:ch,
-      accuracy:latestRows.reduce((sum,a)=>sum+Number(a.score||0),0)*100/Math.max(1,latestRows.reduce((sum,a)=>sum+Number(a.total_questions||0),0)),
+      accuracy:latestRows.some(a=>attemptMetrics(a).gradable>0)?latestRows.reduce((sum,a)=>sum+Number(a.score||0),0)*100/Math.max(1,latestRows.reduce((sum,a)=>sum+attemptMetrics(a).gradable,0)):null,
       wrong,attempted:latestRows.length,totalExercises:exIds.length,repeatWrong,starred
     });
   }
@@ -93,7 +94,8 @@ function renderSubjectSwitch(){
 }
 function renderChart(rows,pass,safe){
   const root=$('#trend-chart');
-  if(!rows.length){root.innerHTML='<div class="empty-compact">Chưa có lượt làm nào cho môn này.</div>';return;}
+  rows=rows.filter(a=>examScore(a)!=null);
+  if(!rows.length){root.innerHTML='<div class="empty-compact">Chưa có điểm đã chấm cho môn này.</div>';return;}
   const data=rows.slice(-16);
   const w=760,h=280,pad={l:42,r:18,t:18,b:34};
   const iw=w-pad.l-pad.r,ih=h-pad.t-pad.b;
@@ -213,7 +215,7 @@ async function bootstrap(){
     restGet('subjects','select=*&is_active=eq.true&deleted_at=is.null&order=sort_order.asc'),
     restGet('chapters','select=*&is_active=eq.true&deleted_at=is.null&order=sort_order.asc'),
     restGet('exercises','select=id,chapter_id,title,question_count&is_active=eq.true&deleted_at=is.null'),
-    restGet('exercise_attempts',`select=exercise_id,score,total_questions,accuracy,completed_at,bookmarked_count,context_snapshot&user_id=eq.${encodeURIComponent(session.user.id)}&order=completed_at.desc&limit=500`),
+    restGet('exercise_attempts',`select=exercise_id,score,total_questions,gradable_questions,ungraded_count,correct_count,wrong_count,accuracy,completed_at,bookmarked_count,context_snapshot&user_id=eq.${encodeURIComponent(session.user.id)}&order=completed_at.desc&limit=500`),
     restGet('profiles','select=id,display_name,avatar_path')
   ]);
   chapters=chapters.filter(c=>subjects.some(s=>s.id===c.subject_id));

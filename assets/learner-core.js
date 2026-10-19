@@ -1,3 +1,4 @@
+const lmsGrading=globalThis.LmsGrading;
 // --- Data Definition ---
     const qChapter1_Part1 = [
         {
@@ -695,6 +696,7 @@
             type: row.question_type || 'single',
             options: Array.isArray(row.options) ? row.options : [],
             answer: row.correct_answer,
+            numericPolicy: row.question_type==='numeric' ? (row.metadata?.numeric_policy??undefined) : undefined,
             required: Number(row.required_selections || (Array.isArray(row.correct_answer) ? row.correct_answer.length : 1)),
             expEng: row.explanation_en || '',
             expVie: row.explanation_vi || '',
@@ -1128,15 +1130,13 @@
             const id = row?.exercise_id;
             if (!id) return;
             let summary = attemptSummaryByExercise.get(id);
-            const pct = Number(row.total_questions) > 0 ? Number(row.score || 0) / Number(row.total_questions) : 0;
+            const pct = lmsGrading.attemptMetrics(row).percent??-1;
             if (!summary) {
                 summary = { latest: row, best: row, count: 0 };
                 attemptSummaryByExercise.set(id, summary);
             }
             summary.count += 1;
-            const bestPct = Number(summary.best?.total_questions) > 0
-                ? Number(summary.best.score || 0) / Number(summary.best.total_questions)
-                : -1;
+            const bestPct = lmsGrading.attemptMetrics(summary.best).percent??-1;
             if (pct > bestPct) summary.best = row;
         });
         updateAllSidebarScores();
@@ -1255,28 +1255,32 @@
         const summary = attemptSummaryByExercise.get(secId);
         const latest = summary?.latest || null;
         const displayScore = currentCompleted
-            ? { score: correct, total_questions: total }
+            ? { score: correct, total_questions: total,
+                ungraded_count:state.answersStatus.filter(x=>x==='ungraded').length,
+                gradable_questions:courseData.flatMap(c=>c.sections).find(s=>s.id===secId)?.data.filter(lmsGrading.hasAnswerKey).length??total }
             : latest;
         const badge = item.querySelector('.section-score-badge');
         const hasResult = Boolean(displayScore && Number(displayScore.total_questions) > 0);
-        const displayPct = hasResult ? Number(displayScore.score || 0) / Number(displayScore.total_questions) : 0;
+        const metrics=lmsGrading.attemptMetrics(displayScore||{});
+        const displayPct=metrics.percent==null?-1:metrics.percent/100;
+        const scoreText=row=>{const value=lmsGrading.attemptMetrics(row);return value.gradable?`${value.score}/${value.gradable}`:'Chưa chấm';};
 
         item.classList.toggle('completed', hasResult);
         item.classList.toggle('historical-score', !currentCompleted && Boolean(latest));
         item.classList.toggle('perfect', hasResult && displayPct === 1);
-        item.classList.toggle('low-score', hasResult && displayPct < 0.7);
+        item.classList.toggle('low-score', hasResult && displayPct>=0 && displayPct < 0.7);
 
         if (badge) {
-            badge.textContent = hasResult ? `${displayScore.score}/${displayScore.total_questions}` : '';
+            badge.textContent = hasResult ? scoreText(displayScore) : '';
             if (summary?.latest) {
                 const best = summary.best || summary.latest;
-                badge.title = `Gần nhất: ${summary.latest.score}/${summary.latest.total_questions} · Tốt nhất: ${best.score}/${best.total_questions} · ${summary.count} lượt`;
+                badge.title = `Gần nhất: ${scoreText(summary.latest)} · Tốt nhất: ${scoreText(best)} · ${summary.count} lượt`;
             } else {
-                badge.title = currentCompleted ? `Điểm: ${correct}/${total} (${Math.round(correct / total * 100)}%)` : '';
+                badge.title = currentCompleted ? `Điểm: ${scoreText(displayScore)}${metrics.percent==null?'':` (${Math.round(metrics.percent)}%)`}` : '';
             }
         }
         const label = item.querySelector('.section-label')?.textContent || '';
-        item.setAttribute('aria-label', hasResult ? `${label}. Điểm gần nhất ${displayScore.score} trên ${displayScore.total_questions}.` : label);
+        item.setAttribute('aria-label', hasResult ? `${label}. Điểm gần nhất ${scoreText(displayScore)}.` : label);
     }
 
     function updateAllSidebarScores() {
@@ -1416,14 +1420,8 @@
         updateNavUI();
     }
 
-    function numericValue(raw) {
-        if(typeof raw==='number')return Number.isFinite(raw)?raw:null;
-        if(typeof raw!=='string')return null;
-        const text=raw.trim().replace(/[£$€\s]/g,'');
-        if(!/^-?(?:\d+(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?|\d+,\d{1,2})$/.test(text))return null;
-        const normalized=/^-?\d+,\d{1,2}$/.test(text) ? text.replace(',','.') : text.replace(/,/g,'');
-        const n=Number(normalized);
-        return Number.isFinite(n)?n:null;
+    function numericValue(raw,rule) {
+        return lmsGrading.numericValue(raw,rule);
     }
 
     function draftComplete(index) {
@@ -1435,7 +1433,7 @@
 
         const draft = state.draftSelections[index];
         if (question.type === 'numeric') return Array.isArray(draft) && draft.length===question.options.length
-            && draft.every(value=>numericValue(value)!==null);
+            && draft.every(value=>numericValue(value,lmsGrading.policy(question))!==null);
         if (question.type === 'single') return Number.isInteger(draft);
         if (question.type === 'multiple') {
             const required = Number(question.required || (Array.isArray(question.answer) ? question.answer.length : 0));
@@ -1621,8 +1619,11 @@
             prompt: safePlainText(question.q),
             options: Array.isArray(question.options) ? question.options.map(safePlainText) : [],
             correct_answer: cloneSelection(question.answer),
+            numeric_policy: question.type==='numeric'?(question.numericPolicy??lmsGrading.policy(question)):undefined,
+            grading_version:2,
+            gradable:lmsGrading.hasAnswerKey(question),
             required_selections: Number(question.required || 1),
-            selected_answer: cloneSelection(state.userSelections[index]),
+            selected_answer: cloneSelection(state.userSelections[index]??state.draftSelections[index]),
             status: state.answersStatus[index] || 'unanswered',
             bookmarked: Boolean(state.bookmarks[index]),
             standard_reference: safePlainText(question.standardReference || '')
@@ -1642,16 +1643,16 @@
             exercise_id: activeSectionId,
             score: metrics.correct,
             total_questions: metrics.total,
+            ungraded_count:metrics.ungraded,
+            gradable_questions:metrics.gradable,
             completed_at: new Date(finishedAt).toISOString()
         };
         const existingSummary = attemptSummaryByExercise.get(activeSectionId);
         if (!existingSummary) {
             attemptSummaryByExercise.set(activeSectionId, { latest: provisional, best: provisional, count: 1 });
         } else if (existingSummary.latest?.id !== provisional.id) {
-            const bestPct = Number(existingSummary.best?.total_questions) > 0
-                ? Number(existingSummary.best.score || 0) / Number(existingSummary.best.total_questions)
-                : -1;
-            const currentPct = metrics.total > 0 ? metrics.correct / metrics.total : 0;
+            const bestPct = lmsGrading.attemptMetrics(existingSummary.best).percent??-1;
+            const currentPct = metrics.gradable > 0 ? metrics.correct / metrics.gradable*100 : -1;
             existingSummary.latest = provisional;
             existingSummary.count += 1;
             if (currentPct > bestPct) existingSummary.best = provisional;
@@ -1672,10 +1673,10 @@
                 bookmarked_count: metrics.bookmarks,
                 duration_seconds: durationSeconds,
                 answers_status: state.answersStatus.slice(),
-                selected_answers: state.userSelections.map(cloneSelection),
+                selected_answers: state.userSelections.map((value,index)=>cloneSelection(value??state.draftSelections[index])),
                 bookmarks: state.bookmarks.slice(),
                 question_snapshot: buildAttemptSnapshot(state),
-                context_snapshot: getActiveStudyContextObject(),
+                context_snapshot: {...getActiveStudyContextObject(),grading:{version:2,gradable_questions:metrics.gradable,ungraded_count:metrics.ungraded}},
                 submitted_from: /iphone|ipad|ipod/i.test(navigator.userAgent) ? 'ios-web' : 'web'
             }
         }));
@@ -1758,7 +1759,7 @@
             renderAnsweredQuestion(question, state.userSelections[currentQuestion]);
             submitBtn.style.display = 'none';
             if(state.answersStatus[currentQuestion]==='ungraded'){
-                validationMsg.textContent='Đã lưu kết quả số. Câu này đang chờ bổ sung đáp án chuẩn nên chưa được chấm đúng/sai.';
+                validationMsg.textContent='Đã lưu câu trả lời. Câu này đang chờ bổ sung đáp án chuẩn hoặc quy tắc chấm nên chưa được chấm đúng/sai.';
             } else showExplanation(
                 state.answersStatus[currentQuestion] === 'correct',
                 question.expEng,
@@ -1811,6 +1812,7 @@
     }
 
     function renderNumericQuestion(q, draft) {
+        const note=document.createElement('p');note.className='numeric-grading-note';note.textContent=lmsGrading.instruction(q);optionsContainer.append(note);
         const list=document.createElement('div');
         list.className='numeric-answer-list';
         q.options.forEach((labelText,index)=>{
@@ -1909,7 +1911,7 @@
         const q = activeSectionData[currentQuestion];
         if (q.type === 'numeric') {
             const inputs=[...optionsContainer.querySelectorAll('input[data-numeric-index]')];
-            return inputs.length===q.options.length && inputs.every(input=>numericValue(input.value)!==null);
+            return inputs.length===q.options.length && inputs.every(input=>numericValue(input.value,lmsGrading.policy(q))!==null);
         }
         if (q.type === 'single') return selectedOptions.size === 1;
         if (q.type === 'multiple') return selectedOptions.size === q.required;
@@ -1940,16 +1942,9 @@
 
     function gradeAnswer(q, selection) {
         if (q.type === 'numeric') {
-            if(!Array.isArray(q.answer)||!Array.isArray(selection)||selection.length!==q.answer.length
-                ||q.answer.length!==q.options.length)return false;
-            return q.answer.every((expected,index)=>{
-                const actual=numericValue(selection[index]);
-                // Accept rounded pennies and equivalent numeric formatting,
-                // but never accept a missing, nonnumeric or arbitrary near answer.
-                return typeof expected==='number'&&Number.isFinite(expected)&&actual!==null
-                    && Math.abs(expected-actual)<=0.005000001;
-            });
+            return lmsGrading.gradeNumeric(q,selection);
         }
+        if(!lmsGrading.hasAnswerKey(q))return false;
         if (q.type === 'single') return selection === q.answer;
         if (q.type === 'multiple') {
             if (!Array.isArray(selection) || selection.length !== q.answer.length) return false;
@@ -1968,8 +1963,7 @@
         const q = activeSectionData[currentQuestion];
         const selection = getCurrentDraft(q);
         const isCorrect = gradeAnswer(q, selection);
-        const ungraded=q.type==='numeric'&&(!Array.isArray(q.answer)||q.answer.length!==q.options.length
-            ||!q.answer.every(value=>typeof value==='number'&&Number.isFinite(value)));
+        const ungraded=!lmsGrading.hasAnswerKey(q);
         state.userSelections[currentQuestion] = Array.isArray(selection) ? selection.slice() : selection;
         state.draftSelections[currentQuestion] = null;
         state.isAnswered[currentQuestion] = true;
@@ -1989,10 +1983,10 @@
                 const display=document.createElement('input');
                 display.type='text';display.value=Array.isArray(selection)?String(selection[index]??''):'';
                 display.disabled=true;display.setAttribute('aria-label',safePlainText(labelText));
-                if(Array.isArray(q.answer)&&typeof q.answer[index]==='number'){
-                    const value=numericValue(display.value),correct=value!==null&&Math.abs(value-q.answer[index])<=0.005000001;
+                if(lmsGrading.hasAnswerKey(q)){
+                    const correct=lmsGrading.gradeField(q,index,display.value)===true;
                     display.classList.add(correct?'numeric-correct':'numeric-wrong');
-                    const hint=document.createElement('small');hint.textContent=correct?'✓ Đúng':'Đáp án: '+q.answer[index];
+                    const hint=document.createElement('small');hint.textContent=correct?'✓ Đúng':'Đáp án: '+lmsGrading.expectedText(q,index);
                     row.append(label,display,hint);
                 } else {
                     const hint=document.createElement('small');hint.textContent='Chưa có đáp án chuẩn để chấm.';
@@ -2217,9 +2211,7 @@
             state.userSelections[index] = cloneSelection(selection);
             state.draftSelections[index] = null;
             state.isAnswered[index] = true;
-            const ungraded=question.type==='numeric'&&(!Array.isArray(question.answer)
-                ||question.answer.length!==question.options.length
-                ||!question.answer.every(value=>typeof value==='number'&&Number.isFinite(value)));
+            const ungraded=!lmsGrading.hasAnswerKey(question);
             state.answersStatus[index] = ungraded?'ungraded':gradeAnswer(question, selection) ? 'correct' : 'wrong';
         });
 
@@ -2261,6 +2253,8 @@
         const correct = state.answersStatus.filter(x => x === 'correct').length;
         const wrong = state.answersStatus.filter(x => x === 'wrong').length;
         const unanswered = total - answered;
+        const ungraded=state.answersStatus.filter(x=>x==='ungraded').length;
+        const gradable=activeSectionData.filter(lmsGrading.hasAnswerKey).length;
         const bookmarks = state.bookmarks.filter(Boolean).length;
 
         quizBody.style.display = 'none';
@@ -2268,11 +2262,11 @@
         updateMobileHeader('results');
         updateSidebarScore(activeSectionId, total);
 
-        const percent = total ? Math.round((correct / total) * 100) : 0;
-        const accuracy = answered ? Math.round((correct / answered) * 100) : 0;
-        queueAttemptRecord(state, { total, correct, wrong, unanswered, bookmarks });
+        const percent = gradable ? Math.round((correct / gradable) * 100) : null;
+        const accuracy = correct+wrong ? Math.round((correct / (correct+wrong)) * 100) : null;
+        queueAttemptRecord(state, { total, correct, wrong, unanswered, bookmarks,ungraded,gradable });
 
-        const message = percent === 100
+        const message = percent===null ? 'Chưa có câu đủ đáp án chuẩn để tính điểm. Bài làm vẫn được lưu trong lịch sử.' : percent === 100
             ? 'Tuyệt vời! Bạn nắm rất vững phần này.'
             : percent >= 70
                 ? 'Kết quả tốt. Hãy ưu tiên ôn lại các câu sai.'
@@ -2281,12 +2275,13 @@
         scoreBoard.innerHTML = `
             <div class="result-card">
                 <div style="font-size:1.25rem;font-weight:750;">Kết quả bài làm</div>
-                <div class="result-score">${correct} / ${total}</div>
-                <div class="result-sub">${percent}% tổng điểm · Độ chính xác ${accuracy}%</div>
+                <div class="result-score">${gradable?`${correct} / ${gradable}`:'Chưa có điểm'}</div>
+                <div class="result-sub">${percent==null?'Chưa chấm':`${percent}% tổng điểm`} · Độ chính xác ${accuracy==null?'—':accuracy+'%'}${gradable<total?` · ${total-gradable} câu chưa có đáp án chuẩn, không tính vào điểm`:''}</div>
                 <div class="result-grid">
                     <div class="result-metric"><b>${correct}</b><span>Đúng</span></div>
                     <div class="result-metric"><b>${wrong}</b><span>Sai</span></div>
                     <div class="result-metric"><b>${unanswered}</b><span>Chưa làm</span></div>
+                    ${ungraded?`<div class="result-metric"><b>${ungraded}</b><span>Chưa chấm</span></div>`:''}
                     <div class="result-metric"><b>${bookmarks}</b><span>Đánh dấu</span></div>
                 </div>
                 <div class="result-sub">${message}</div>
