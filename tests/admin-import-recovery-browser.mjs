@@ -127,7 +127,7 @@ try{
       }
       if(repairNextAI){
         repairNextAI=false;
-        return json(route,{...aiResult,questions:Array.from({length:12},(_,i)=>normalizeImportQuestion(i===0?{...fidelityQuestion,prompt:fidelityQuestion.prompt.replace('£12,000','[UNREADABLE]')}:{...aiResult.questions[0],source_file:1,source_files:[1],prompt:'Recovered question '+(i+1),...(i===11?{question_type:'tf',options:['Statement A','Statement B'],correct_answer:[true]}:{})})),warnings:['Cần bổ sung đáp án cho câu 12.','Câu 1 có phần [UNREADABLE] cần đối chiếu nguồn.']});
+        return json(route,{...aiResult,questions:Array.from({length:12},(_,i)=>normalizeImportQuestion(i===0?{...fidelityQuestion,prompt:fidelityQuestion.prompt.replace('£12,000','[UNREADABLE]')}:{...aiResult.questions[0],source_file:1,source_files:[1],prompt:'Recovered question '+(i+1),...(i===10?{question_type:'numeric',options:['FIFO (£)','AVCO (£)'],correct_answer:[550,503.94]}:i===11?{question_type:'tf',options:['Statement A','Statement B'],correct_answer:[true]}:{})})),warnings:['Cần bổ sung đáp án cho câu 12.','Câu 1 có phần [UNREADABLE] cần đối chiếu nguồn.']});
       }
       const result=payload.files?{...aiResult,title:'Combined image questions',processed_files:files.map((_,i)=>i+1),questions:files.map((f,i)=>({...aiResult.questions[0],prompt:'Question from '+f.fileName,source_file:i+1,source_files:i===0&&files.length>1?[1,2]:[i+1]}))}:aiResult;
       return json(route,result);
@@ -312,18 +312,33 @@ try{
   assert.equal(await page.locator('[data-i="0"][data-k="option"]').count(),4);
   await page.selectOption('[data-answer-question="0"]','1');
   assert.equal(await page.isDisabled('#publish-imported'),false);
+  // Editing the numeric box list keeps one policy editor and preserves its values.
+  const numericPolicy='[data-numeric-policy-question="10"]';
+  await page.fill(numericPolicy+'[data-numeric-policy-field="decimal_places"]','0');
+  await page.fill(numericPolicy+'[data-numeric-policy-field="unit"]','£');
+  await page.click('[data-add-import-option="10"]');
+  await page.click('[data-remove-import-option="10"][data-option-index="2"]');
+  assert.equal(await page.locator(numericPolicy+'[data-numeric-policy-field="mode"]').count(),1,'Changing numeric boxes duplicated the policy editor');
+  assert.equal(await page.inputValue(numericPolicy+'[data-numeric-policy-field="decimal_places"]'),'0');
+  await page.fill('[data-answer-question="10"][data-answer-option="0"]','550');
+  await page.fill('[data-answer-question="10"][data-answer-option="1"]','503.94');
+  await page.locator('[data-answer-question="10"][data-answer-option="1"]').blur();
   await page.click('#save-reviewed-import');
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã lưu chỉnh sửa'));
   assert.deepEqual(drafts.get(repairDraft.id).payload.questions[11].correct_answer,[true,false]);
   await open();await resume('[data-resume-import="'+repairDraft.id+'"]');
   assert.equal(await page.inputValue('[data-i="0"][data-k="prompt"]'),fidelityQuestion.prompt,'Source detail lost after save/reload');
   assert.equal(await page.inputValue('[data-answer-question="11"][data-answer-option="1"]'),'false','False answer was lost on reload');
+  assert.equal(await page.inputValue(numericPolicy+'[data-numeric-policy-field="decimal_places"]'),'0','Numeric rule was lost on reload');
   assert.equal(await page.isDisabled('#publish-imported'),false);
   failNextFinalize=true;failNextAudit=true;loseNextQuestionResponse=true;
   await page.click('#publish-imported');
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Đã xuất bản'));
   const repaired=questions.filter(q=>q.metadata.import_draft_id===repairDraft.id);
   assert.equal(repaired.length,12);assert.deepEqual(repaired[11].correct_answer,[true,false]);
+  assert.deepEqual(repaired[10].correct_answer,[550,503.94]);
+  assert.equal(repaired[10].metadata.numeric_policy.decimal_places,0);
+  assert.equal(repaired[10].metadata.numeric_policy.unit,'£');
   for(const field of ['prompt','options','explanation_en','explanation_vi'])assert.deepEqual(repaired[0][field],fidelityQuestion[field],field+' was shortened before publication');
   assert.ok(repaired.every(q=>q.status==='published'&&q.verification_status!=='verified'&&q.metadata.published_by===user.id&&!q.verified_at));
   assert.match(await page.textContent('#notice'),/Bản nháp được giữ/);

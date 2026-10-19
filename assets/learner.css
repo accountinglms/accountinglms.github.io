@@ -1982,3 +1982,5 @@ html[data-theme="light"] .history-result-link {
 
 /* Preserve the source layout of multi-line inventory tables and calculations. */
 .question-text{white-space:pre-wrap;overflow-wrap:anywhere}
+/* The numeric rule is visible before answering and retained in history. */
+.numeric-grading-note{font-size:.78rem;line-height:1.5;color:var(--vg-muted);margin:0 0 12px}

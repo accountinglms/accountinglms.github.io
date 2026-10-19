@@ -68,6 +68,16 @@ New questions are appended in database order.
 
 Changing a published question to Draft removes it from the online database-driven catalog. The legacy HTML bank is retained only as a fallback when CMS loading cannot complete.
 
+### Numeric Entry and attempt grading (v76)
+
+Numeric questions store one label and one numeric answer per box. Admin's manual form and import review expose the question's unit, comparison mode, decimal places, rounding method and absolute tolerance. The default compares values rounded to two decimal places, with ties rounded away from zero. Exact and absolute-tolerance comparisons are also available. Every box must match for the question to count as correct; there is no partial credit.
+
+A missing or invalid answer key or numeric policy leaves the answer **Chưa chấm**. Those questions are excluded from the score denominator; unanswered questions with a usable key remain in it. An entirely ungradable attempt displays **Chưa có điểm**, and is excluded from score averages and charts. These checks do not block publishing.
+
+Each new attempt preserves the entered values, labels, answer key, grading policy and grading version in its snapshot. History displays each numeric box separately, including partially completed input. Later content edits and submission retries do not rewrite a saved attempt. Legacy scores and statuses remain as recorded.
+
+Deploy `20261018232728_numeric_attempt_grading.sql` before the v76 frontend. It adds `ungraded_count` and nullable `gradable_questions`, retains the existing RPC arguments and RLS, and supports old cached clients and queued submissions. It does not recalculate historical scores. Frontend rollback can leave this compatible migration in place.
+
 ## Audit history
 
 `public.content_audit_log` records INSERT/UPDATE operations for:
@@ -156,7 +166,7 @@ Keep the old Floot production instance available until final regression testing 
 
 Only retire Floot after login, quiz flow, cloud progress sync, Admin, Lessons and AI Import all pass on the GitHub production URL.
 
-# Publish recovery v76 (2026-10-19)
+# Publish recovery v77 (2026-10-19)
 
 - Gemini HTTP 200 responses without usable text are retried once. Filtered and truncated responses have separate error codes and are never retried as empty output. Sources and drafts remain available.
 - Publishing saved originals works independently of AI, restores an existing hidden lesson, and recovers a committed insertion after a lost response without creating duplicates.
