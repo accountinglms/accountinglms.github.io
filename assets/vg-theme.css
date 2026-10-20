@@ -1143,14 +1143,6 @@ body.page-home .hero-card::before{
   filter:none;
 }
 body.page-home .hero-card::after{opacity:.22}
-body.page-home .home-art-credit{
-  color:var(--vg-muted);
-  font-size:12px;
-  padding:18px 4px 0;
-  text-align:right;
-  line-height:1.5;
-}
-body.page-home .home-art-credit a{color:var(--vg-cobalt-deep);text-decoration:underline;text-underline-offset:2px}
 html[data-theme="dark"] body.page-home::before{
   background:
     linear-gradient(90deg,var(--vg-ivory) 0%,

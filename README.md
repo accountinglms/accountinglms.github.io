@@ -135,3 +135,7 @@ Header buttons use 44px hit targets and 22px SVGs, with a mobile overflow menu f
 ## Community v51 mobile photo overflow fix (2026-10-10)
 
 Hard-bounds the mobile chat grid, message stream, own/peer message rows, filenames, image previews, and composer against iPhone viewport width. Long filenames truncate, images scale to available bubble width, message labels wrap, composer uses four intrinsic-safe grid tracks at 320–430px. Adds a browser regression reproducing the user's own sticker + large picture + long file name; guards against right-edge clipping and horizontal scrolling on Chromium and Safari/WebKit. Invalidate the offline CSS cache with PWA version v51.
+
+## Artwork credits
+
+The homepage background uses Vincent van Gogh's *The Starry Night* (1889), sourced from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Starry_Night.webp). The source image is in the public domain.
