@@ -452,11 +452,12 @@ try{
   for(let attempt=0;attempt<900;attempt++){
     ocrDraft=[...drafts.values()].find(draft=>draft.payload?.ocr_pages?.length&&draft.payload.files[0].name==='ocr-source-1.png');
     if(ocrDraft)break;
-    const error=await page.locator('#notice.error').textContent().catch(()=>null);
+    const error=await page.locator('#notice').evaluate(node=>node.classList.contains('error')?node.textContent:null);
     if(error)throw Error('Direct extraction failed: '+error);
     await page.waitForTimeout(100);
   }
   assert.ok(ocrDraft,'The first OCR page was not saved durably');
+  assert.ok(ocrDraft.payload.ocr_pages.length<6,'The test did not interrupt extraction before completion');
   const firstPage=structuredClone(ocrDraft.payload.ocr_pages[0]);
   await open();
   await page.click('[data-resume-import="'+ocrDraft.id+'"]');
