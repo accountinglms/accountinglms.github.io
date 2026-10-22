@@ -84,6 +84,7 @@ jobs:
         run: |
           node tests/chat-drafts.test.mjs
           node tests/import-result.test.mjs
+          node tests/import-ocr-draft.test.mjs
           node tests/import-answers.test.mjs
           node tests/numeric-answers.test.mjs
           node tests/import-json.test.mjs
@@ -193,7 +194,9 @@ jobs:
         env:
           BROWSER: ${{ matrix.browser }}
           TEST_BASE_URL: https://127.0.0.1:4173
-        run: node tests/admin-import-recovery-browser.mjs
+        run: |
+          node tests/admin-import-recovery-browser.mjs
+          node tests/import-ocr-browser.mjs
 
       - name: Run interrupted upload and durable checkpoint tests
         env:

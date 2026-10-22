@@ -614,6 +614,8 @@ function aiRequestError(data, status, fallback) {
   error.status = status;
   error.retryAfterSeconds = Number(data?.retry_after_seconds) || null;
   error.quotaScope = data?.quota_scope || 'unknown';
+  error.finishReason = data?.finish_reason || null;
+  error.blockReason = data?.block_reason || null;
   return error;
 }
 

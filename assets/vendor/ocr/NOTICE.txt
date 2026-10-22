@@ -1,0 +1,6 @@
+Local OCR dependencies (loaded only when direct extraction is requested):
+Tesseract.js 6.0.1: https://github.com/naptha/tesseract.js (Apache-2.0).
+Tesseract.js-core 6.0.0: https://github.com/naptha/tesseract.js-core (Apache-2.0).
+English and Vietnamese traineddata 1.0.0, 4.0.0_best_int: https://github.com/naptha/tessdata (Apache-2.0).
+PDF.js 5.4.296: https://github.com/mozilla/pdf.js (Apache-2.0).
+See accompanying licenses and versions.json for exact file digests.

@@ -432,6 +432,9 @@ Deno.serve(async (req: Request) => {
     const diagnostics = {finish_reason: output.finishReason || null, block_reason: output.blockReason || null};
     if (output.blocked) {
       console.error("Gemini filtered output", diagnostics);
+      if (output.finishReason === "RECITATION") return json(req, {
+        error:"Gemini dừng chuyển đổi vì bộ lọc văn bản trùng lặp. Website sẽ đọc chữ trực tiếp từ tệp đã lưu; bạn vẫn có thể xuất bản ngay.",
+        code:"AI_OUTPUT_RECITATION",provider:"gemini",retryable:false,...diagnostics},422);
       return json(req, {error:"Gemini đã từ chối chuyển đổi tài liệu này. Tệp gốc vẫn được giữ; bạn có thể xuất bản tệp gốc ngay để đọc trong mục Tài liệu.",
         code:"AI_OUTPUT_BLOCKED", provider:"gemini", retryable:false, ...diagnostics}, 422);
     }
