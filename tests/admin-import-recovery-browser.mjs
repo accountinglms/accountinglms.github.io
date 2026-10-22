@@ -22,6 +22,8 @@ let uploads=0,aiCalls=0,failReadyPatch=false,failNextAI=false,failUploadAt=0;
 let emptyNextAI=false;
 let repairNextAI=false;
 let lessonNextAI=false;
+let blockNextAI=false;
+const binaryFixtures=new Map();
 let failNextAudit=false,loseNextLessonResponse=false,loseNextQuestionResponse=false,failNextFinalize=false;
 const routeInputs=[];
 
@@ -59,7 +61,8 @@ try{
       assert.equal(req.headers().authorization,'Bearer token-aal2','Saved source was not fetched with user auth');
       const key=decodeURIComponent(path.split('/content-imports/')[1]);
       assert.ok(objects.has(key),'Saved source did not exist');
-      return route.fulfill({status:200,contentType:'text/plain',headers:cors,body:objects.get(key)});
+      const source=[...sources.values()].find(source=>source.storage_key===key);
+      return route.fulfill({status:200,contentType:source?.mime_type||'text/plain',headers:cors,body:objects.get(key)});
     }
     if(path.startsWith('/storage/v1/object/content-imports/')){
       // WebKit does not expose File upload bodies; both uploaded fixtures contain sourceText.
@@ -69,6 +72,7 @@ try{
     }
     if(path==='/rest/v1/content_sources'){
       assert.equal(method,'POST');const row={...req.postDataJSON(),id:'source-'+(sources.size+1)};
+      if(binaryFixtures.has(row.file_name))objects.set(row.storage_key,binaryFixtures.get(row.file_name));
       sources.set(row.id,row);return json(route,[row],201);
     }
     if(path==='/rest/v1/import_repair_runs')return json(route,[{id:'previous-auto',draft_id:url.searchParams.get('draft_id')?.slice(3),mode:'auto',state:'failed',created_at:new Date().toISOString(),error:{error:'Fixture giữ kết quả chưa sửa để kiểm tra thao tác thủ công.'}}]);
@@ -113,6 +117,7 @@ try{
         assert.equal(sources.get(saved.sourceId).storage_key,f.storagePath,'AI ran before all sources were saved');
       });
       if(aiCalls===1||failNextAI){failNextAI=false;return json(route,{error:'AI đang chạm hạn mức.',code:'AI_QUOTA_EXCEEDED',quota_scope:'minute',retry_after_seconds:2},429)}
+      if(blockNextAI){blockNextAI=false;return json(route,{error:'Gemini dừng vì RECITATION.',code:'AI_OUTPUT_RECITATION',finish_reason:'RECITATION',retryable:false},422);}
       if(emptyNextAI){
         const mode=emptyNextAI;emptyNextAI=false;
         return mode==='server'?json(route,{error:'AI chưa trích xuất được câu hỏi nào. Hãy kiểm tra ảnh rồi thử lại.',code:'AI_NO_QUESTIONS'},422):json(route,{...aiResult,questions:[]});
@@ -423,6 +428,55 @@ try{
   await page.locator('.sourceTabs button').nth(1).click();
   await page.waitForFunction(text=>document.querySelector('.sourceText')?.textContent===text,sourceText);
   assert.equal(drafts.get(draftId).status,'published');
+  // Actual local OCR, including reload recovery of six saved images, without a second model call.
+  await open();
+  const directImages=[];
+  for(let number=1;number<=6;number++){
+    const data=await page.evaluate(number=>{
+      const canvas=document.createElement('canvas');canvas.width=1600;canvas.height=650;
+      const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle='#000';ctx.font='40px sans-serif';
+      const lines=['Question '+number,'A business receives GBP 12000 for 6 months.','Revenue after 2 months = ?','A. GBP 12000','B. GBP 4000',...(number===1?['Answer: B']:[])];
+      lines.forEach((text,index)=>ctx.fillText(text,55,75+index*80));
+      return canvas.toDataURL('image/png').split(',')[1];
+    },number);
+    const buffer=Buffer.from(data,'base64'),name='ocr-source-'+number+'.png';
+    binaryFixtures.set(name,buffer);directImages.push({name,mimeType:'image/png',buffer});
+  }
+  await page.setInputFiles('#import-file',directImages);await confirm();
+  const uploadsBeforeDirect=uploads,callsBeforeDirect=aiCalls;
+  blockNextAI=true;
+  await page.click('#ai-generate');
+  await page.waitForFunction(()=>document.querySelector('#import-progress')?.textContent.includes('Đọc trực tiếp'),{},{timeout:45000});
+  let ocrDraft;
+  for(let attempt=0;attempt<900;attempt++){
+    ocrDraft=[...drafts.values()].find(draft=>draft.payload?.ocr_pages?.length&&draft.payload.files[0].name==='ocr-source-1.png');
+    if(ocrDraft)break;
+    const error=await page.locator('#notice.error').textContent().catch(()=>null);
+    if(error)throw Error('Direct extraction failed: '+error);
+    await page.waitForTimeout(100);
+  }
+  assert.ok(ocrDraft,'The first OCR page was not saved durably');
+  const firstPage=structuredClone(ocrDraft.payload.ocr_pages[0]);
+  await open();
+  await page.click('[data-resume-import="'+ocrDraft.id+'"]');
+  await page.waitForFunction(()=>document.querySelectorAll('.importCard').length===6&&!document.querySelector('#publish-imported')?.disabled,{},{timeout:120000});
+  const recoveredOcr=drafts.get(ocrDraft.id);
+  assert.equal(recoveredOcr.payload.ocr_pages.length,6);
+  assert.deepEqual(recoveredOcr.payload.ocr_pages.find(page=>page.source_file===firstPage.source_file),firstPage,'Reload changed a completed OCR page');
+  assert.equal(uploads,uploadsBeforeDirect+6,'OCR recovery uploaded saved files again');
+  assert.equal(aiCalls,callsBeforeDirect+1,'A filtered Gemini request was retried');
+  assert.equal(recoveredOcr.model_name,'local-ocr-v1');
+  assert.equal(recoveredOcr.payload.questions[0].correct_answer,1);
+  assert.ok(recoveredOcr.payload.questions.slice(1).every(question=>question.correct_answer==null));
+  assert.ok(recoveredOcr.payload.questions.every((question,index)=>question.source_file===index+1));
+  const countBeforeOcrPublish=questions.length;
+  await page.click('#publish-imported');
+  await page.waitForFunction(()=>document.querySelector('#notice')?.textContent.includes('Đã xuất bản 6 câu hỏi'));
+  const publishedOcr=questions.slice(countBeforeOcrPublish);
+  assert.equal(publishedOcr.length,6);
+  assert.ok(publishedOcr.every(question=>question.metadata.extraction_method==='local_ocr'&&!question.metadata.ai_imported));
+  assert.ok(publishedOcr.slice(1).every(question=>question.metadata.answer_needs_review&&question.correct_answer===-1));
   console.log(`PASS ${browserName}: draft before AI, quota recovery, reload/resume, source reuse, manual save, multi-image extraction/provenance, partial-upload resume, and failed-save retry.`);
   await context.close();
 }finally{await browser.close()}

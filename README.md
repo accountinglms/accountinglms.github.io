@@ -139,3 +139,9 @@ Hard-bounds the mobile chat grid, message stream, own/peer message rows, filenam
 ## Artwork credits
 
 The homepage background uses Vincent van Gogh's *The Starry Night* (1889), sourced from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Starry_Night.webp). The source image is in the public domain.
+
+## Direct extraction recovery
+
+When Gemini filters an import, the editor reads saved images or PDFs locally instead of repeating the blocked request. The same extraction is available through “Đọc chữ trực tiếp”. PDF text layers are preserved directly; scanned pages use English/Vietnamese Tesseract OCR. Source-bound page checkpoints survive reloads. Empty or failed pages are reported while subsequent pages continue. Missing answers stay ungraded and do not block publishing.
+
+PDF.js 5.4.296, Tesseract.js 6.0.1/core 6.0.0 and traineddata 1.0.0 are vendored with licenses and SHA-256 digests in `assets/vendor/ocr`. They load only on demand, use no remote OCR service and are not part of the mandatory PWA pre-cache. Extraction is sequential and bounded to 100 pages, 4 million render pixels per page and 500,000 text characters per batch.

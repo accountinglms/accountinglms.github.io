@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Quản trị nội dung · ICAEW LMS</title>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://uangiwgznukuicrfnohq.supabase.co; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://uangiwgznukuicrfnohq.supabase.co; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests">
 <meta name="theme-color" content="#0d2543">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="favicon.ico?v=46" sizes="any">
@@ -287,6 +287,7 @@ body.page-admin button.deleteItem:disabled{opacity:1!important;color:var(--vg-mu
             <div class="importActions">
               <button id="ai-generate" type="button" class="aiBtn" disabled>Tạo bản nháp bằng AI</button>
               <button id="save-import" type="button" class="ghost" disabled>Lưu bản nháp không dùng AI</button>
+              <button id="read-import-direct" type="button" class="ghost" disabled>Đọc chữ trực tiếp</button>
               <button id="publish-source-fallback" type="button" class="primary" disabled>Xuất bản tệp gốc ngay</button>
             </div>
           </div>

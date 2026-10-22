@@ -204,7 +204,8 @@ for(const blockedBody of [{promptFeedback:{blockReason:'SAFETY'}},
   {candidates:[{finishReason:'PROHIBITED_CONTENT'}]}]){
   const blocked=handlerFor('icaew-ai-import',[{status:200,body:blockedBody}]);
   const response=await blocked.call(input),data=await response.json();
-  assert.equal(response.status,422);assert.equal(data.code,'AI_OUTPUT_BLOCKED');assert.equal(data.retryable,false);
+  assert.equal(response.status,422);assert.equal(data.code,blockedBody.candidates?.[0]?.finishReason==='RECITATION'?'AI_OUTPUT_RECITATION':'AI_OUTPUT_BLOCKED');assert.equal(data.retryable,false);
+  if(data.code==='AI_OUTPUT_RECITATION'){assert.equal(data.finish_reason,'RECITATION');assert.match(data.error,/đọc chữ trực tiếp/);}
   assert.equal(blocked.requests.length,1,'Filtered output was retried');
 }
 for(const finishReason of ['MAX_TOKENS','CONTINUATION']){

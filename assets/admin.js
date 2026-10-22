@@ -6,6 +6,7 @@ import {COURSE_KINDS,findCourseItem,courseItemPath,courseItemCounts,courseParent
 import {scanImportQuality,cleanImportWarnings,publishableExample} from './import-quality.js';
 import {createImportRepairController} from './import-repair-ui.js';
 import {createImportCheckpoints,checkpointFiles} from './import-checkpoints.js';
+import {buildOcrDraft} from './import-ocr-draft.js';
 import {loadSession} from './common.js';
 import './numeric-grading.js';
 const grading=globalThis.LmsGrading;
@@ -193,6 +194,8 @@ function updateGenerateState(){
   if(btn){btn.disabled=importBusy||structureBusy||!valid||remaining>0;if(!importBusy)btn.textContent=remaining?'Thử AI lại sau '+remaining+' giây':'Tạo bản nháp bằng AI'}
   const save=$('#save-import');
   if(save)save.disabled=importBusy||structureBusy||!valid;
+  const direct=$('#read-import-direct');
+  if(direct)direct.disabled=importBusy||structureBusy||!valid;
   const publishOriginal=$('#publish-source-fallback');
   if(publishOriginal)publishOriginal.disabled=importBusy||structureBusy||!valid;
   const route=$('#ai-route');
@@ -489,6 +492,7 @@ async function resumeSavedImport(id){
   }catch(error){notice(error.message,'error')}
   finally{setRepairBusy(false)}
   if(resumed)void repairController.load({auto:false});
+  else if(activeDraft?.id===id&&(['AI_OUTPUT_BLOCKED','AI_OUTPUT_RECITATION'].includes(activeDraft.payload?.processing?.error_code)||activeDraft.payload?.processing?.method==='local_ocr'))void runImport(false,true);
 }
 $('#saved-import-list').addEventListener('click',e=>{const id=e.target.closest('[data-resume-import]')?.dataset.resumeImport;if(id)void resumeSavedImport(id)});
 $('#saved-import-list').addEventListener('click',e=>{const id=e.target.closest('[data-resume-local]')?.dataset.resumeLocal;if(id)void resumeLocalImport(id).catch(error=>notice(error.message,'error'))});
@@ -875,11 +879,31 @@ async function patchActiveImport(patch){
   if(!rows[0]?.id)throw new Error('Chưa cập nhật được bản nháp. Hãy thử lại.');
   rememberImport({...activeDraft,...patch,...rows[0]});
 }
-async function runImport(useAI){
-  const btn=useAI?$('#ai-generate'):$('#save-import');
+async function extractDirectImport(workingDraft){
+  const owner=checkpointOwner,signature=currentDestinationSignature();
+  const assertCurrent=()=>{if(loadSession()?.user?.id!==owner||activeDraft?.id!==workingDraft||currentDestinationSignature()!==signature)throw Error('Bản nháp hoặc phiên đăng nhập đã thay đổi. Hãy mở lại bản nháp.');};
+  assertCurrent();
+  const {readImportPages}=await import('./import-ocr.js');
+  const {pages,failures}=await readImportPages(preparedImport.files,{
+    cachedPages:activeDraft.payload?.ocr_pages||[],onProgress:setImportProgress,
+    getFile:async(entry,index)=>{assertCurrent();const local=currentImportFiles()[index];return typeof local?.arrayBuffer==='function'?local:downloadImportFile(entry.storagePath);},
+    onPage:async page=>{
+      assertCurrent();
+      const previous=activeDraft.payload?.ocr_pages||[];
+      if(previous.some(saved=>JSON.stringify(saved)===JSON.stringify(page)))return;
+      const ocr_pages=[...previous.filter(saved=>!(saved.source_key===page.source_key&&saved.source_page===page.source_page)),page];
+      await patchActiveImport({payload:{...activeDraft.payload,ocr_pages,processing:{state:'processing',method:'local_ocr'}}});
+    }
+  });
+  assertCurrent();
+  return buildOcrDraft(pages,{files:preparedImport.files,targetType:currentTargetType(),title:activeDraft.title||currentImportFile()?.name,
+    warnings:failures.map(failure=>`${failure.name}: ${failure.message} Tệp gốc vẫn được giữ; có thể xuất bản phần đã đọc hoặc tài liệu gốc.`)});
+}
+async function runImport(useAI,direct=false){
+  const btn=direct?$('#read-import-direct'):useAI?$('#ai-generate'):$('#save-import');
   if(btn.disabled||importBusy)return;
   importBusy=true;
-  btn.textContent=useAI?'Đang xử lý…':'Đang lưu…';
+  btn.textContent=direct?'Đang đọc…':useAI?'Đang xử lý…':'Đang lưu…';
   updateGenerateState();
   let workingDraft=null;
   try{
@@ -893,7 +917,7 @@ async function runImport(useAI){
     notice('Đang lưu tệp nguồn và bản nháp…');
     const prepared=await persistImportSource(files,subject,chapter,exercise);
     workingDraft=activeDraft.id;
-    if(!useAI){
+    if(!useAI&&!direct){
       notice('Đã lưu bản nháp và tệp nguồn. Bấm “Nhập thủ công” để tiếp tục mà không cần AI.','ok');
       return;
     }
@@ -903,46 +927,56 @@ async function runImport(useAI){
       notice('Đã mở bản nháp AI đã lưu. Hãy kiểm tra trước khi xuất bản.','ok');
       return;
     }
-    await patchActiveImport({payload:{...activeDraft.payload,processing:{state:'processing',started_at:Date.now()}}});
-    setImportProgress('AI đang đọc cả '+files.length+' tệp và ghép thành một bản nháp…');
-    notice('Bản nháp và tệp nguồn đã lưu. AI đang chuyển đổi nội dung…');
+    direct||=['AI_OUTPUT_BLOCKED','AI_OUTPUT_RECITATION'].includes(activeDraft.payload?.processing?.error_code);
+    await patchActiveImport({payload:{...activeDraft.payload,processing:{state:'processing',started_at:Date.now(),method:direct?'local_ocr':'gemini'}}});
+    setImportProgress(direct?'Đang đọc chữ từ '+files.length+' tệp đã lưu…':'AI đang đọc cả '+files.length+' tệp và ghép thành một bản nháp…');
+    notice(direct?'Bản nháp và tệp nguồn đã lưu. Đang đọc chữ trực tiếp…':'Bản nháp và tệp nguồn đã lưu. AI đang chuyển đổi nội dung…');
     const resultKey=workingDraft+'|'+currentDestinationSignature();
-    const ai=prepared.resultKey===resultKey&&prepared.result?prepared.result:await callAiImport({
-      ...aiSourceInput(),targetType:currentTargetType(),answerReviewVersion:2,draftId:workingDraft,
-      subjectTitle:subject.title,chapterTitle:chapter.title,exerciseTitle:exercise?.title||''
-    });
+    let ai=prepared.resultKey===resultKey?prepared.result:null;
+    if(!ai){
+      if(direct)ai=await extractDirectImport(workingDraft);
+      else try{
+        ai=await callAiImport({...aiSourceInput(),targetType:currentTargetType(),answerReviewVersion:2,draftId:workingDraft,
+          subjectTitle:subject.title,chapterTitle:chapter.title,exerciseTitle:exercise?.title||''});
+      }catch(error){
+        if(!['AI_OUTPUT_BLOCKED','AI_OUTPUT_RECITATION'].includes(error.code))throw error;
+        notice('AI chưa chuyển đổi được tài liệu. Đang đọc chữ trực tiếp từ tệp đã lưu…');
+        ai=await extractDirectImport(workingDraft);
+      }
+    }
     requireImportContent(ai,currentTargetType());
     // Keep a successful response if saving it fails, so retrying does not use AI quota again.
     prepared.result=ai;prepared.resultKey=resultKey;
     await checkpointBatch();
     if(ai.draft)rememberImport(ai.draft);else await patchActiveImport({title:ai.title||f.name,model_name:ai.model_name||'configured-provider',payload:{
-      ...activeDraft.payload,questions:ai.questions||[],lesson:ai.lesson||null,warnings:ai.warnings||[],processing:{state:'ready'}
+      ...activeDraft.payload,questions:ai.questions||[],lesson:ai.lesson||null,warnings:ai.warnings||[],processing:{state:'ready',method:ai.provider==='local'?'local_ocr':'gemini'}
     }});
     delete prepared.result;delete prepared.resultKey;
     await checkpointBatch();
     importedQuestions=structuredClone(activeDraft.payload.questions||[]);importedLesson=structuredClone(activeDraft.payload.lesson||null);
     setImportProgress(`Hoàn tất ${files.length} tệp · ${importedQuestions.length} câu hỏi${importedLesson?' · 1 bài học':''}.`);
     renderReview(ai.warnings||[]);renderImportRecovery();
-    notice('AI đã tạo và lưu bản nháp. Hãy kiểm tra trước khi xuất bản.','ok');
+    notice(ai.provider==='local'?'Đã đọc và lưu bản nháp từ tệp. Bạn có thể xuất bản ngay; câu thiếu đáp án chưa chấm điểm tự động.':'AI đã tạo và lưu bản nháp. Hãy kiểm tra trước khi xuất bản.','ok');
   }catch(err){
     if(err.retryAfterSeconds)aiRetryAt=Date.now()+err.retryAfterSeconds*1000;
     $('#review-area').classList.add('hidden');
     if(activeDraft&&preparedImport?.draftSignature===currentDestinationSignature()&&(!workingDraft||activeDraft.id===workingDraft)){
       setImportProgress('Xử lý chưa hoàn tất. Các tệp đã lưu được giữ trong bản nháp.');
       try{
-        await patchActiveImport({payload:{...activeDraft.payload,files:importManifest(),processing:{state:'failed',error_code:err.code||'IMPORT_FAILED',message:err.message,retry_at:aiRetryAt||null}}});
+        await patchActiveImport({payload:{...activeDraft.payload,files:importManifest(),processing:{state:'failed',error_code:err.code||'IMPORT_FAILED',message:err.message,finish_reason:err.finishReason||null,retry_at:aiRetryAt||null}}});
       }catch(saveError){console.error('Could not update import retry state',saveError)}
       renderImportRecovery();
       notice(err.message+' Bản nháp và tệp nguồn đã được giữ lại.','error');
     }else notice(err.message,'error');
   }finally{
-    importBusy=false;$('#save-import').textContent='Lưu bản nháp không dùng AI';renderImportFiles();updateGenerateState();
+    importBusy=false;$('#save-import').textContent='Lưu bản nháp không dùng AI';$('#read-import-direct').textContent='Đọc chữ trực tiếp';renderImportFiles();updateGenerateState();
     // renderReview ran while importBusy was true; re-enable Publish on completion.
     updateReviewPublishState();
     if(isReadyImport(activeDraft))void repairController.load({auto:false});
   }
 }
 $('#ai-generate').addEventListener('click',()=>runImport(true));
+$('#read-import-direct').addEventListener('click',()=>runImport(false,true));
 $('#save-import').addEventListener('click',()=>runImport(false));
 function numericPolicyEditor(q,index){
   const rule=grading.policy(q)||{mode:'rounded',decimal_places:2,rounding:'half_up',tolerance:0,unit:''};
@@ -1072,7 +1106,7 @@ $('#review-area').addEventListener('click',async e=>{
           verification_status:verificationStatus,verification_note:q.verification_note||null,verified_at:null,
           status:'published',sort_order:start+i,source_page:q.source_page||null,
           source_id:Number.isInteger(q.source_file)?preparedImport?.files?.[q.source_file-1]?.sourceId||null:null,
-          metadata:{ai_imported:true,numeric_policy:q.question_type==='numeric'?(q.numeric_policy??grading.policy(q)):undefined,published_by:reviewer.user.id,published_at:publishedAt,
+          metadata:{ai_imported:q.extraction_method!=='local_ocr',extraction_method:q.extraction_method||'gemini',numeric_policy:q.question_type==='numeric'?(q.numeric_policy??grading.policy(q)):undefined,published_by:reviewer.user.id,published_at:publishedAt,
             ai_verification_status:q.verification_status||null,
             source_ids:(Array.isArray(q.source_files)?q.source_files:(Number.isInteger(q.source_file)?[q.source_file]:[])).map(n=>preparedImport?.files?.[n-1]?.sourceId).filter(Boolean),
             confidence:q.confidence,review_note:q.review_note,answer_needs_review:Boolean(answerIssue),
