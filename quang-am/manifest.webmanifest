@@ -1,0 +1,13 @@
+{
+  "id":"./",
+  "name":"Tủ Đọc Quang Âm",
+  "short_name":"Quang Âm",
+  "description":"Đọc Quang Âm Chi Ngoại, ghi nhớ chương đã mở.",
+  "start_url":"./",
+  "scope":"./",
+  "display":"standalone",
+  "background_color":"#f5f1e9",
+  "theme_color":"#f5f1e9",
+  "lang":"vi",
+  "icons":[{"src":"./icon.svg","type":"image/svg+xml","sizes":"any","purpose":"any maskable"}]
+}
