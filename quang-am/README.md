@@ -35,6 +35,26 @@ Sao chép **toàn bộ tệp trong thư mục này** vào gốc repository mới
 - Nếu cố ý muốn chuyển mốc về chương cũ, sử dụng **Cập nhật dấu trang** thay vì chỉ nhấn mở chương đó.
 - Tất cả dữ liệu được lưu cục bộ trên cùng trình duyệt/tên miền; không đồng bộ tự động giữa thiết bị, không thay đổi dữ liệu hay hạ tầng ICAEW LMS.
 
+## Giai đoạn 2.2, 2.3, 2.4 — Trải nghiệm và độ tin cậy
+
+### 2.2 — Trải nghiệm iPhone
+- Thanh điều hướng nổi với nút Chương trước, Đọc tiếp và Chương sau có vùng bấm lớn. Không sử dụng cử chỉ vuốt để chuyển chương, tránh kích hoạt nhầm.
+- Nút mở cùng số chương tại nguồn dự phòng mà không tự thay đổi nguồn ưu tiên TruyenHay.
+- Cảnh báo mất kết nối; dấu trang vẫn hiển thị khi offline nhưng trang truyện ngoài vẫn cần mạng.
+
+### 2.3 — Chuẩn bị tách hạ tầng
+- Tất cả tài nguyên của Quang Âm dùng đường dẫn tương đối; có quy trình triển khai GitHub Pages riêng trong `quang-am/.github/workflows/pages.yml` và tài liệu `REPOSITORY_MIGRATION.md`.
+- Repository Quang Âm **chưa được tạo** vì GitHub connector hiện không có hành động tạo repository. Chủ sở hữu phải tạo repository trống một lần; sau đó có thể chuyển toàn bộ thư mục sang root và bật GitHub Pages.
+- Không sửa mã hay dữ liệu LMS; workflow kiểm tra nguồn được tạo riêng, không ghi hay thay đổi học liệu.
+
+### 2.4 — Khả năng mang tiến độ sang thiết bị khác và độ tin cậy
+- Xuất bản sao lưu JSON gồm dấu trang, mốc chương cao nhất, nguồn ưu tiên và lịch sử (không chứa nội dung truyện).
+- Nhập sao lưu: kiểm tra định dạng, giới hạn kích thước, hiển thị bản xem trước và **chỉ thay đổi dấu trang sau khi người dùng xác nhận**; không cho mốc chương cao nhất giảm khi khôi phục.
+- Giữ chức năng sao chép liên kết nhanh để chuyển số chương.
+- Kiểm tra nguồn truyện theo lịch bằng GitHub Actions workflow `.github/workflows/quang-am-health.yml`; kết quả máy chủ có thể khác thiết bị người đọc, không tự thay đổi bản dịch khi lỗi.
+- Bộ kiểm thử riêng `quang-am/tests/reader.test.cjs`, `node --test quang-am/tests/*.test.cjs` và workflow `.github/workflows/quang-am-tests.yml` kiểm tra độc lập với pipeline LMS.
+- **Chưa phải đồng bộ đám mây tự động**: muốn có tự động đồng bộ giữa thiết bị cần repository riêng và backend riêng với cơ chế xác thực, RLS, chính sách chi phí; không dùng Supabase ICAEW LMS.
+
 ## Giới hạn
 
 - Nội dung truyện được mở tại TruyenHay hoặc Việt Nam Thư Quán. Không lưu trữ toàn văn của bên thứ ba.
