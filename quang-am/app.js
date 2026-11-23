@@ -114,11 +114,18 @@ function render(){
  indicator.classList.toggle('warning',!persistent);
  indicator.querySelector('span:last-child').textContent=persistent?'Đã lưu trên thiết bị':'Bộ nhớ bị chặn';
  link(e('read-now'),chapter);link(e('dock-link'),chapter);
- const prev=e('previous'),next=e('next');
+ const prev=e('previous'),next=e('next'),dockPrev=e('dock-previous'),dockNext=e('dock-next');
  prev.hidden=chapter<=1;next.hidden=chapter>=MAX;
  e('previous-number').textContent=String(Math.max(1,chapter-1));
  e('next-number').textContent=String(chapter+1);
  link(prev,Math.max(1,chapter-1));link(next,Math.min(MAX,chapter+1));
+ dockPrev.hidden=chapter<=1;dockNext.hidden=chapter>=MAX;
+ link(dockPrev,Math.max(1,chapter-1));link(dockNext,Math.min(MAX,chapter+1));
+ const other=source==='truyenhay'?'thuvien':'truyenhay';
+ const alternate=e('alternate-source');
+ alternate.href=S[other].url(chapter);
+ alternate.firstChild.textContent='Mở cùng chương tại '+S[other].label+' ';
+ alternate.onclick=()=>{recordVisit(chapter,other);render();notify('Đã mở nguồn dự phòng, dấu trang chính được giữ nguyên.');return true};
  e('full-index').href=S[source].index;
  for(const k of Object.keys(S)){const b=e('source-'+k),active=source===k;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))}
  e('source-note').hidden=source!=='truyenhay';
@@ -178,6 +185,91 @@ e('copy-progress').addEventListener('click',async()=>{
  try{await navigator.clipboard.writeText(url.toString());status.textContent='Đã sao chép. Mở liên kết trên thiết bị khác để chuyển dấu trang.';}
  catch{status.textContent='Sao chép đường dẫn hiện trong hộp thoại để lưu hoặc gửi sang máy khác.';window.prompt('Sao chép liên kết dấu trang:',url.toString());}
 });
+
+/* Portable progress backup: optional local file exchange, never upload user data. */
+const BOOK_ID='quang-am-chi-ngoai';
+const BACKUP_VERSION=1;
+let pendingBackup=null;
+function backupSnapshot(){
+ return {version:BACKUP_VERSION,book:BOOK_ID,exportedAt:new Date().toISOString(),
+ chapter,highest:Math.max(highest,chapter),previous:valid(previousBookmark)?previousBookmark:null,
+ source,recent:recent.slice(0,12).map(x=>({chapter:x.chapter,source:x.source,at:x.at})),
+ updatedAt:read(K.updated)||null};
+}
+function backupMessage(message,isError=false){
+ const node=e('backup-status');node.textContent=message;node.classList.toggle('error',isError);
+}
+function validateBackup(data){
+ if(!data||typeof data!=='object'||data.version!==BACKUP_VERSION||data.book!==BOOK_ID){
+  throw new Error('Tệp không phải bản sao lưu Tủ Đọc Quang Âm hợp lệ.');
+ }
+ if(!valid(data.chapter)||!valid(data.highest)||!S[data.source])throw new Error('Dữ liệu chương hoặc nguồn không hợp lệ.');
+ if(data.previous!==null&&data.previous!==undefined&&!valid(data.previous))throw new Error('Mốc đọc trước không hợp lệ.');
+ if(!Array.isArray(data.recent)||data.recent.length>100)throw new Error('Lịch sử trong bản sao lưu không hợp lệ.');
+ const clean=[],found=new Set();
+ for(const item of data.recent){
+  if(!item||!valid(item.chapter)||!S[item.source]||!Number.isFinite(item.at)||item.at<0||item.at>Date.now()+86400000)continue;
+  const key=item.chapter+':'+item.source;
+  if(found.has(key))continue;
+  found.add(key);clean.push({chapter:item.chapter,source:item.source,at:item.at});
+ }
+ return {chapter:data.chapter,highest:Math.max(data.chapter,data.highest),
+  previous:valid(data.previous)?data.previous:0,source:data.source,recent:clean.slice(0,12)};
+}
+e('backup-export').addEventListener('click',()=>{
+ try{
+  const content=JSON.stringify(backupSnapshot(),null,2);
+  const file=new Blob([content],{type:'application/json;charset=utf-8'});
+  const url=URL.createObjectURL(file);
+  const a=document.createElement('a');a.href=url;a.download='quang-am-dau-trang-'+chapter+'.json';
+  document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  backupMessage('Đã tạo tệp sao lưu. Hãy lưu tệp vào Files hoặc gửi sang thiết bị của bạn.');
+ }catch{backupMessage('Không thể xuất tệp. Bạn có thể dùng liên kết chuyển dấu trang ở phía trên.',true)}
+});
+e('backup-select').addEventListener('click',()=>e('backup-file').click());
+e('backup-cancel').addEventListener('click',()=>{
+ pendingBackup=null;e('backup-preview').hidden=true;e('backup-file').value='';backupMessage('Đã hủy nhập dữ liệu.');
+});
+e('backup-file').addEventListener('change',async()=>{
+ pendingBackup=null;e('backup-preview').hidden=true;
+ const file=e('backup-file').files?.[0];
+ if(!file)return;
+ if(file.size>65536){backupMessage('Tệp quá lớn, tối đa 64 KB.',true);return}
+ try{
+  const parsed=JSON.parse(await file.text());
+  pendingBackup=validateBackup(parsed);
+  e('backup-preview-text').textContent=
+   'Bản sao lưu: chương '+pendingBackup.chapter+' · cao nhất '+pendingBackup.highest+
+   ' · '+pendingBackup.recent.length+' chương lịch sử. Hiện trên máy: chương '+chapter+
+   '. Xác nhận sẽ đổi dấu trang chính theo bản sao lưu; mốc cao nhất cũ vẫn được giữ.';
+  e('backup-preview').hidden=false;
+  backupMessage('Đã kiểm tra tệp. Hãy xem lại trước khi khôi phục.');
+ }catch(err){backupMessage(err instanceof Error?err.message:'Không đọc được bản sao lưu.',true)}
+});
+e('backup-confirm').addEventListener('click',()=>{
+ if(!pendingBackup)return;
+ const imported=pendingBackup;pendingBackup=null;
+ const old=chapter;
+ if(old!==imported.chapter){previousBookmark=old;write(K.previous,previousBookmark)}
+ chapter=imported.chapter;
+ highest=Math.max(highest,imported.highest,chapter);
+ source=imported.source;
+ const merged=[...imported.recent,...recent].sort((a,b)=>b.at-a.at);
+ const seen=new Set();
+ recent=merged.filter(item=>{
+  const key=item.source+':'+item.chapter;
+  if(seen.has(key))return false;
+  seen.add(key);return true;
+ }).slice(0,12);
+ write(K.chapter,chapter);write(K.max,highest);write(K.source,source);
+ write(K.updated,new Date().toISOString());write(K.recent,JSON.stringify(recent));
+ e('backup-preview').hidden=true;e('backup-file').value='';
+ render();updateDock();
+ backupMessage(persistent?'Đã khôi phục chương '+chapter+' và lịch sử trên thiết bị này.':
+   'Đã nạp vào phiên hiện tại nhưng trình duyệt đang chặn lưu dữ liệu.',!persistent);
+});
+
 e('paste-link').addEventListener('click',async()=>{
  try{
   const copied=await navigator.clipboard.readText(),result=parse(copied);
@@ -197,7 +289,7 @@ function resync(){
  recent=loadRecent();
  render();
 }
-window.addEventListener('storage',ev=>{if([K.chapter,K.source,K.max].includes(ev.key))resync()});
+window.addEventListener('storage',ev=>{if([K.chapter,K.source,K.max,K.previous,K.recent,K.updated].includes(ev.key))resync()});
 window.addEventListener('pageshow',resync);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')resync()});
 let dockFrame=0;
@@ -211,7 +303,10 @@ window.addEventListener('scroll',()=>{
  dockFrame=requestAnimationFrame(()=>{dockFrame=0;updateDock()});
 },{passive:true});
 window.addEventListener('resize',updateDock);
-render();
+function updateNetworkState(){e('offline-status').hidden=navigator.onLine!==false}
+window.addEventListener('online',updateNetworkState);
+window.addEventListener('offline',updateNetworkState);
+render();updateNetworkState();
 updateDock();
 // Read only a small static index: never fetch or store full copyrighted chapters.
 // On offline visits, the shell's known titles remain available.
