@@ -18,6 +18,8 @@ const copy=(source,target)=>{
 fs.rmSync(out,{recursive:true,force:true});fs.mkdirSync(out);
 for(const file of entryFiles)copy(path.join(root,file),path.join(out,file));
 copy(path.join(root,'assets'),path.join(out,'assets'));
+// Keep the standalone Quang Âm reader in tested Pages artifacts as well.
+copy(path.join(root,'quang-am'),path.join(out,'quang-am'));
 const sw=fs.readFileSync(path.join(out,'sw.js'),'utf8');
 const app=JSON.parse(sw.match(/const APP=(\[[^\n]+\])/)[1].replaceAll("'",'"'));
 for(const resource of app){
