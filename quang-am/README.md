@@ -16,7 +16,7 @@ Sao chép **toàn bộ tệp trong thư mục này** vào gốc repository mới
 - Ghi nhớ chương khi mở từ Tủ Đọc; không thể đọc vị trí cuộn/chương chuyển ngay trong website nguồn.
 - Dấu trang được lưu trong localStorage, riêng cho từng tên miền và trình duyệt. Khi chuyển từ Floot, người đọc cần nhập một lần hoặc dùng URL có dạng \`?chapter=617&source=truyenhay&import=1\`.
 - TruyenHay hiện có lỗi nút “Chương trước” có thể về chương 1; đây là lỗi của trang nguồn.
-- GitHub Pages không có backend: tiêu đề chương 610–645 được đóng gói sẵn; số chương khác vẫn mở đúng URL nhưng chỉ hiện số chương trên Tủ Đọc.
+- GitHub Pages không có backend: tên chương được lấy từ tệp titles.json (2.560 mục) đóng gói tại GitHub; các chương chưa có dữ liệu vẫn mở đúng URL, chỉ hiện số chương trên Tủ Đọc.
 - Ứng dụng có thể hoạt động khi offline để xem dấu trang; nội dung truyện trên website nguồn cần mạng.
 
 ## Kiểm tra
