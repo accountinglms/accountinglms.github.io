@@ -54,6 +54,13 @@
         <a id="previous" href="https://truyenhay.app/quang-am-chi-ngoai-truyen-chu/chuong-613" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">←</span> <span>Chương <b id="previous-number">613</b></span></a>
         <a id="next" href="https://truyenhay.app/quang-am-chi-ngoai-truyen-chu/chuong-615" target="_blank" rel="noopener noreferrer"><span>Chương <b id="next-number">615</b></span> <span aria-hidden="true">→</span></a>
       </div>
+      <div class="progress-guard">
+        <div class="max-marker">
+          <div><span class="minor-label">MỐC CAO NHẤT TỪNG MỞ</span><strong>Chương <span id="highest-number">614</span></strong></div>
+          <button id="restore-highest" class="recover-button" type="button" hidden>Quay lại mốc này <span aria-hidden="true">↗</span></button>
+        </div>
+        <button id="restore-previous" class="undo-button" type="button" hidden>Khôi phục dấu trang trước: chương <span id="previous-bookmark"></span> <span aria-hidden="true">↶</span></button>
+      </div>
       <p class="status-line" role="status" aria-live="polite" id="feedback"></p>
     </section>
     <section class="side-panel" aria-labelledby="quick-title">
@@ -93,9 +100,13 @@
     </div>
     <div id="chapters" class="chapter-grid" aria-label="Các chương trước và sau"></div>
   </section>
+  <details class="history-panel" id="history-panel">
+    <summary><span>Lịch sử các chương đã mở từ Tủ Đọc</span><span class="history-summary-right"><span id="history-count">0 mục</span><span aria-hidden="true">⌄</span></span></summary>
+    <div class="history-list" id="history-list"></div>
+  </details>
   <div class="bottom-note">
     <div><span class="note-mark">※</span> <strong>Về việc lưu dấu trang</strong></div>
-    <p>Tủ Đọc ghi nhớ chương bạn mở tại đây. Nếu chuyển chương ngay trên TruyenHay, hãy dán liên kết mới để cập nhật. Vị trí từng dòng trên trang nguồn không thể tự đồng bộ.</p>
+    <p>Chương cũ mở xem lại không ghi đè dấu trang chính. Nếu cần, bạn có thể khôi phục chương xa nhất từng mở hoặc dấu trang trước đó. Khi chuyển chương ngay trên TruyenHay, hãy dán liên kết để cập nhật; Tủ Đọc không thể nhận biết vị trí từng dòng trên website nguồn.</p>
   </div>
   <footer class="footer"><span>QUANG ÂM CHI NGOẠI <span aria-hidden="true">·</span> TỦ ĐỌC CÁ NHÂN</span><span>GitHub Pages <span aria-hidden="true">/</span> Không phụ thuộc Floot</span></footer>
 </main>
