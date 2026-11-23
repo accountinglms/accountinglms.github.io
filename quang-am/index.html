@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f5f1e9">
+<meta name="description" content="Tủ Đọc Quang Âm — tiếp tục đọc đúng chương, không phụ thuộc Floot.">
+<meta name="color-scheme" content="light">
+<link rel="icon" type="image/svg+xml" href="./icon.svg">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css">
+<title>Tủ Đọc Quang Âm — Đọc tiếp</title>
+<script src="./app.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Đến nội dung</a>
+<header class="site-header">
+<div class="header-inner">
+  <div class="brand"><span class="seal" aria-hidden="true">光</span><span>TỦ ĐỌC QUANG ÂM</span></div>
+  <span class="header-meta">SỔ TAY ĐỌC TRUYỆN <span aria-hidden="true">/</span> 2026</span>
+</div>
+</header>
+<main id="main" class="main-shell">
+  <div class="masthead">
+    <div>
+      <p class="eyebrow">NHĨ CĂN <span class="dot">·</span> 光阴之外</p>
+      <h1>Quang Âm <em>Chi Ngoại.</em></h1>
+      <p class="intro">Một nơi để trở lại đúng chương truyện đang đọc.</p>
+    </div>
+    <div class="masthead-sign" aria-hidden="true"><span>光</span><span>阴</span><span>之</span><span>外</span></div>
+  </div>
+  <div class="workspace">
+    <section class="hero-card" aria-labelledby="progress-heading">
+      <div class="section-line">
+        <span class="eyebrow eyebrow-red">01 <span class="thin-slash">/</span> TRANG ĐANG ĐỌC</span>
+        <span class="saved-indicator" id="saved-indicator"><span class="saved-dot" aria-hidden="true"></span><span>Đã lưu trên thiết bị</span></span>
+      </div>
+      <div class="book-details">
+        <p class="minor-label">DẤU TRANG HIỆN TẠI</p>
+        <h2 id="progress-heading">Chương <span id="chapter-number">614</span></h2>
+        <p class="chapter-title" id="chapter-title">Không phải đất lành (1)</p>
+        <p class="book-source">Văn phong ưu tiên: <strong id="source-name">TruyenHay</strong></p>
+      </div>
+      <div class="actions">
+        <a class="btn btn-primary" id="read-now" target="_blank" rel="noopener noreferrer" href="https://truyenhay.app/quang-am-chi-ngoai-truyen-chu/chuong-614">
+          <span>Đọc tiếp chương <span id="read-now-number">614</span></span><span class="north-east" aria-hidden="true">↗</span>
+        </a>
+        <p class="link-context">Mở nguyên văn trên website nguồn <span aria-hidden="true">·</span> không tóm tắt</p>
+      </div>
+      <div class="chapter-controls" aria-label="Di chuyển chương">
+        <a id="previous" href="https://truyenhay.app/quang-am-chi-ngoai-truyen-chu/chuong-613" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">←</span> <span>Chương <b id="previous-number">613</b></span></a>
+        <a id="next" href="https://truyenhay.app/quang-am-chi-ngoai-truyen-chu/chuong-615" target="_blank" rel="noopener noreferrer"><span>Chương <b id="next-number">615</b></span> <span aria-hidden="true">→</span></a>
+      </div>
+      <p class="status-line" role="status" aria-live="polite" id="feedback"></p>
+    </section>
+    <section class="side-panel" aria-labelledby="quick-title">
+      <div class="section-line">
+        <span class="eyebrow eyebrow-red">02 <span class="thin-slash">/</span> ĐIỀU KHIỂN</span>
+        <span class="side-meta">Gọn. Nhanh. Đủ dùng.</span>
+      </div>
+      <h2 id="quick-title">Cập nhật chương</h2>
+      <p class="panel-hint">Đọc xa hơn rồi? Nhập số chương, hoặc dán liên kết chương đang mở.</p>
+      <form id="update-form" class="chapter-form">
+        <label class="field-label" for="chapter-input">Số chương hoặc đường dẫn</label>
+        <input id="chapter-input" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="Ví dụ: 617 hoặc dán URL" value="614">
+        <div class="form-actions">
+          <button class="btn btn-small btn-primary" type="submit">Lưu mốc đọc</button>
+          <button class="btn btn-small btn-secondary" id="paste-link" type="button">Dán liên kết</button>
+        </div>
+        <p id="form-message" class="form-message" aria-live="polite"></p>
+      </form>
+      <div class="source-setting">
+        <div class="setting-header"><p class="field-label">NGUỒN ĐỌC</p><span>Ưu tiên văn phong quen thuộc</span></div>
+        <div class="segmented" role="group" aria-label="Chọn nguồn truyện">
+          <button id="source-truyenhay" type="button" class="active" aria-pressed="true">TruyenHay</button>
+          <button id="source-thuvien" type="button" aria-pressed="false">Thư Quán</button>
+        </div>
+        <details class="source-note" id="source-note">
+          <summary>Về lỗi nhảy về chương 1 <span aria-hidden="true">+</span></summary>
+          <p>TruyenHay có lỗi nút “Chương trước” và vùng chạm mép trái trên điện thoại. Khi bị chuyển sai, quay về Tủ Đọc và nhấn “Đọc tiếp”. Dấu trang đã lưu không tự đổi vì thao tác trên trang nguồn. Có thể chuyển sang Thư Quán khi nguồn chính gặp sự cố.</p>
+        </details>
+      </div>
+    </section>
+  </div>
+  <section class="chapter-section" aria-labelledby="browse-title">
+    <div class="chapter-section-head">
+      <div><p class="eyebrow eyebrow-red">03 <span class="thin-slash">/</span> CHỌN NHANH</p><h2 id="browse-title">Các chương liền kề</h2></div>
+      <a class="index-link" id="full-index" href="https://truyenhay.app/quang-am-chi-ngoai-truyen-chu" target="_blank" rel="noopener noreferrer">Mục lục gốc <span aria-hidden="true">↗</span></a>
+    </div>
+    <div id="chapters" class="chapter-grid" aria-label="Các chương trước và sau"></div>
+  </section>
+  <div class="bottom-note">
+    <div><span class="note-mark">※</span> <strong>Đọc không gián đoạn</strong></div>
+    <p>Tủ Đọc nhớ chương mở từ đây. Nếu chuyển chương ngay trên website khác, hãy dán liên kết để đồng bộ. Vị trí dòng chữ không thể theo dõi giữa hai website độc lập.</p>
+  </div>
+  <footer class="footer"><span>QUANG ÂM CHI NGOẠI <span aria-hidden="true">·</span> TỦ ĐỌC CÁ NHÂN</span><span>GitHub Pages <span aria-hidden="true">/</span> Không phụ thuộc Floot</span></footer>
+</main>
+<div class="mobile-dock" id="mobile-dock"><a id="dock-link" href="https://truyenhay.app/quang-am-chi-ngoai-truyen-chu/chuong-614" target="_blank" rel="noopener noreferrer"><span id="dock-title">Đọc tiếp chương 614</span><span aria-hidden="true">↗</span></a></div>
+</body>
+</html>
