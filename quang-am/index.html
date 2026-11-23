@@ -49,6 +49,7 @@
           <span>Đọc tiếp chương <span id="read-now-number">614</span></span><span class="north-east" aria-hidden="true">↗</span>
         </a>
         <p class="link-context">Đọc nguyên văn tại nguồn đã chọn</p>
+        <a id="alternate-source" class="alternate-source" target="_blank" rel="noopener noreferrer" href="https://vietnamthuquan.eu/TacPham/quang-am-chi-ngoai-26684/chuong-614">Mở cùng chương ở nguồn dự phòng <span aria-hidden="true">↗</span></a>
       </div>
       <div class="chapter-controls" aria-label="Di chuyển chương">
         <a id="previous" href="https://truyenhay.app/quang-am-chi-ngoai-truyen-chu/chuong-613" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">←</span> <span>Chương <b id="previous-number">613</b></span></a>
@@ -90,6 +91,24 @@
           <p>TruyenHay có lỗi nút “Chương trước” và vùng chạm mép trái trên điện thoại. Khi bị chuyển sai, quay về Tủ Đọc và nhấn “Đọc tiếp”. Dấu trang đã lưu không tự đổi vì thao tác trên trang nguồn. Có thể chuyển sang Thư Quán khi nguồn chính gặp sự cố.</p>
         </details>
         <div class="portable-progress"><button id="copy-progress" type="button" class="portable-button">Sao chép liên kết mang dấu trang sang máy khác <span aria-hidden="true">↗</span></button><p id="portable-status" role="status" aria-live="polite"></p></div>
+        <details class="sync-panel">
+          <summary>Sao lưu & chuyển toàn bộ tiến độ <span aria-hidden="true">⌄</span></summary>
+          <p>Không cần tài khoản. Sao lưu dấu trang, mốc cao nhất và lịch sử thành tệp; nhập lại trên iPhone hoặc máy tính khác.</p>
+          <div class="sync-buttons">
+            <button id="backup-export" type="button">Xuất bản sao lưu</button>
+            <button id="backup-select" type="button">Nhập bản sao lưu</button>
+            <input id="backup-file" type="file" accept=".json,application/json" hidden aria-label="Chọn tệp sao lưu Tủ Đọc Quang Âm">
+          </div>
+          <div id="backup-preview" class="backup-preview" hidden>
+            <p id="backup-preview-text"></p>
+            <div class="sync-buttons">
+              <button id="backup-confirm" type="button">Xác nhận khôi phục</button>
+              <button id="backup-cancel" type="button">Hủy</button>
+            </div>
+          </div>
+          <p id="backup-status" class="backup-status" role="status" aria-live="polite"></p>
+          <small>Lưu thủ công trên từng thiết bị; chưa đồng bộ tự động bằng tài khoản.</small>
+        </details>
       </div>
     </section>
   </div>
@@ -104,12 +123,17 @@
     <summary><span>Lịch sử các chương đã mở từ Tủ Đọc</span><span class="history-summary-right"><span id="history-count">0 mục</span><span aria-hidden="true">⌄</span></span></summary>
     <div class="history-list" id="history-list"></div>
   </details>
+  <p class="offline-status" id="offline-status" role="status" hidden>Thiết bị đang ngoại tuyến. Dấu trang vẫn dùng được, nhưng cần kết nối mạng để mở chương ở nguồn truyện.</p>
   <div class="bottom-note">
     <div><span class="note-mark">※</span> <strong>Về việc lưu dấu trang</strong></div>
     <p>Chương cũ mở xem lại không ghi đè dấu trang chính. Nếu cần, bạn có thể khôi phục chương xa nhất từng mở hoặc dấu trang trước đó. Khi chuyển chương ngay trên TruyenHay, hãy dán liên kết để cập nhật; Tủ Đọc không thể nhận biết vị trí từng dòng trên website nguồn.</p>
   </div>
   <footer class="footer"><span>QUANG ÂM CHI NGOẠI <span aria-hidden="true">·</span> TỦ ĐỌC CÁ NHÂN</span><span>GitHub Pages <span aria-hidden="true">/</span> Không phụ thuộc Floot</span></footer>
 </main>
-<div class="mobile-dock" id="mobile-dock" data-visible="false"><a id="dock-link" href="https://truyenhay.app/quang-am-chi-ngoai-truyen-chu/chuong-614" target="_blank" rel="noopener noreferrer"><span id="dock-title">Đọc tiếp chương 614</span><span aria-hidden="true">↗</span></a></div>
+<nav class="mobile-dock" id="mobile-dock" data-visible="false" aria-label="Điều khiển đọc nhanh">
+  <a id="dock-previous" class="dock-side" href="https://truyenhay.app/quang-am-chi-ngoai-truyen-chu/chuong-613" target="_blank" rel="noopener noreferrer" aria-label="Mở chương trước"><span aria-hidden="true">←</span><small>Trước</small></a>
+  <a id="dock-link" class="dock-main" href="https://truyenhay.app/quang-am-chi-ngoai-truyen-chu/chuong-614" target="_blank" rel="noopener noreferrer"><span id="dock-title">Đọc tiếp chương 614</span><span aria-hidden="true">↗</span></a>
+  <a id="dock-next" class="dock-side" href="https://truyenhay.app/quang-am-chi-ngoai-truyen-chu/chuong-615" target="_blank" rel="noopener noreferrer" aria-label="Mở chương tiếp theo"><span aria-hidden="true">→</span><small>Sau</small></a>
+</nav>
 </body>
 </html>
