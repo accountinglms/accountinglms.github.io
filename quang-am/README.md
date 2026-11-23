@@ -25,6 +25,16 @@ https://accountinglms.github.io/quang-am/
 
 Sao chép **toàn bộ tệp trong thư mục này** vào gốc repository mới, bật GitHub Pages từ nhánh \`main\` và thư mục \`/(root)\`. Liên kết CSS/JS, Service Worker, manifest đều dùng đường dẫn tương đối, không phải sửa khi chuyển thư mục.
 
+
+## Bản 2.1 — Dấu trang được bảo vệ
+
+- **Dấu trang chính** (`qa-reader.v1.chapter`) chỉ tự cập nhật khi mở đúng chương hiện tại hoặc tiến sang chương cao hơn từ Tủ Đọc. Mở xem chương cũ không tự ghi đè mốc đang đọc.
+- **Mốc xa nhất từng mở** (`qa-reader.v1.max`) không giảm khi nhập chương thấp hơn; có nút quay lại mốc này. Mốc này chỉ là số chương cao nhất từng được mở hoặc lưu, **không chứng minh đã đọc hết**.
+- **Khôi phục dấu trang trước** (`qa-reader.v2.previous`) giúp hoàn tác lần đổi mốc gần nhất.
+- **Lịch sử mở chương** (`qa-reader.v2.recent`) lưu tối đa 12 bản ghi gần nhất trên thiết bị, không theo dõi các trang mở trực tiếp tại website nguồn.
+- Nếu cố ý muốn chuyển mốc về chương cũ, sử dụng **Cập nhật dấu trang** thay vì chỉ nhấn mở chương đó.
+- Tất cả dữ liệu được lưu cục bộ trên cùng trình duyệt/tên miền; không đồng bộ tự động giữa thiết bị, không thay đổi dữ liệu hay hạ tầng ICAEW LMS.
+
 ## Giới hạn
 
 - Nội dung truyện được mở tại TruyenHay hoặc Việt Nam Thư Quán. Không lưu trữ toàn văn của bên thứ ba.
