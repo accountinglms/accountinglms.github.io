@@ -215,3 +215,6 @@ body{background:var(--paper)}
  .sync-buttons{flex-direction:column}
  .sync-buttons button{width:100%}
 }
+
+/* Prevent iOS Safari auto-zooming when focusing chapter input. */
+@media(max-width:560px){.chapter-form input{font-size:16px}}
