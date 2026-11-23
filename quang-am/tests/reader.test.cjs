@@ -73,7 +73,7 @@ function form(s,value){
  s.element("update-form").trigger("submit",{preventDefault(){}});
 }
 test("all UI references correspond to HTML elements",()=>{
- const ids=[...new Set([...app.matchAll(/e\('([^']+)'\)/g)].map(m=>m[1]))];
+ const ids=[...new Set([...app.matchAll(/(?<![\\w$])e\\('([^']+)'\\)/g)].map(m=>m[1]))];
  const missing=ids.filter(id=>!html.includes('id="'+id+'"'));
  assert.deepEqual(missing,[]);
 });
