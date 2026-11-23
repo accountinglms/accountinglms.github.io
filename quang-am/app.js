@@ -114,6 +114,19 @@ window.addEventListener('storage',ev=>{if([K.chapter,K.source,K.max].includes(ev
 window.addEventListener('pageshow',resync);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')resync()});
 render();
+// Read only a small static index: never fetch or store full copyrighted chapters.
+// On offline visits, the shell's known titles remain available.
+fetch('./titles.json',{cache:'force-cache'}).then(response=>{
+ if(!response.ok)throw new Error('title-index-unavailable');
+ return response.json();
+}).then(data=>{
+ if(!data||typeof data!=='object')return;
+ for(const [key,title] of Object.entries(data)){
+  const n=Number(key);
+  if(valid(n)&&typeof title==='string'&&title.length<=180)T[n]=title;
+ }
+ render();
+}).catch(()=>{});
 if('serviceWorker' in navigator&&location.protocol==='https:'){
  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{}),{once:true});
 }
