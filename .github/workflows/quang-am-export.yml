@@ -1,0 +1,36 @@
+name: Quang Am - Standalone Export
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'quang-am/**'
+      - '.github/workflows/quang-am-export.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  export:
+    name: Package Quang Am without ICAEW LMS files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify independent reader
+        shell: bash
+        run: |
+          test -f quang-am/index.html
+          test -f quang-am/app.js
+          test -f quang-am/.github/workflows/pages.yml
+          node --test quang-am/tests/*.test.cjs
+      - name: Package only quang-am folder
+        shell: bash
+        run: |
+          cd quang-am
+          zip -r -q ../tu-doc-quang-am-standalone.zip .
+          cd ..
+          unzip -l tu-doc-quang-am-standalone.zip | head -35
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tu-doc-quang-am-standalone
+          path: tu-doc-quang-am-standalone.zip
+          retention-days: 90
